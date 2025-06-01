@@ -1,0 +1,104 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = "mysql://root:root@localhost:3306/inv_op"
+}
+
+model Inventario {
+  idInventario            Int     @id @default(autoincrement())
+  costoAlmacenamiento     Int?
+  costoCompra             Int?
+  costoPedido             Int?
+  demandaArticulo         Int?
+  loteOptimo              Int?
+  puntoPedido             Int?
+  stockSeguridad          Int?
+  articulo                Articulo?
+}
+
+model Proveedor {
+  idProveedor             Int     @id @default(autoincrement())
+  fechaBaja               DateTime?
+  nombre                  String?
+  articuloProveedorList   ArticuloProveedor[]
+  ordenCompraList         OrdenCompra[]
+}
+
+model Articulo {
+  idArticulo              Int     @id @default(autoincrement())
+  idInventario            Int     @unique
+  fechaBaja               DateTime?
+  descripcion             String?
+  modeloInventario        Int?
+  stock                   Int?
+  inventario              Inventario @relation(fields: [idInventario], references: [idInventario])
+  articuloProveedorList   ArticuloProveedor[]
+  ordenCompraList         OrdenCompra[]
+  ventaList               Venta[]
+}
+
+model ArticuloProveedor {
+  idArticuloProveedor     Int     @id @default(autoincrement())
+  idArticulo              Int
+  idProveedor             Int
+  cargoPedido             Int?
+  demoraEntrega           Int?
+  esPredeterminado        Boolean?
+  precioUnitario          Int?
+  articulo                Articulo @relation(fields: [idArticulo], references: [idArticulo])
+  proveedor               Proveedor @relation(fields: [idProveedor], references: [idProveedor])
+}
+
+model EstadoOrdenCompra {
+  idEstadoOrdenCompra     Int     @id @default(autoincrement())
+  fechaBaja               DateTime?
+  nombre                  String?
+  ordenCompraList         OrdenCompra[]
+}
+
+model OrdenCompra {
+  idOrdenCompra           Int     @id @default(autoincrement())
+  idArticulo              Int
+  idProveedor             Int
+  idEstadoOrdenCompra     Int
+  cantidad                Int?
+  fechaCreacion           DateTime?
+  articulo                Articulo @relation(fields: [idArticulo], references: [idArticulo])
+  proveedor               Proveedor @relation(fields: [idProveedor], references: [idProveedor])
+  estadoOrdenCompra       EstadoOrdenCompra @relation(fields: [idEstadoOrdenCompra], references: [idEstadoOrdenCompra])
+}
+
+model Venta {
+  idVenta                 Int     @id @default(autoincrement())
+  idArticulo              Int
+  cantidad                Int?
+  fechaCreacion           DateTime?
+  articulo                Articulo @relation(fields: [idArticulo], references: [idArticulo])
+}
+
+// REFERENCIAS
+
+// Relacion 1 a 1
+//   Usuario y Cuenta
+//     Clase A  -> 
+//       cuenta   Cuenta?
+//     Clase B  -> 
+//       idUsuario    Int @unique
+//       usuario      Usuario?      @relation(fields: [idUsuario], references: [idUsuario])
+
+// Relacion 1 a muchos
+//   Usuario y UsuarioEstados
+//     Clase A  -> 
+//       usuarioEstado     UsuarioEstado[]
+//     Clase B  -> 
+//       idUsuario    Int @unique
+//       usuario      Usuario?       @relation(fields: [idUsuario], references: [idUsuario])
