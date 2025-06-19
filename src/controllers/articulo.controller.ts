@@ -13,6 +13,7 @@ export const ArticuloController = {
             res.status(200).json({ msg: `${articulos.length > 0 ? 'Se han encontrado registros' : 'No se han encontrado registros'}`, data: articulos});
         } catch (error: any) {
             res.status(500).json({ msg: 'Error al obtener las registros', detail: error.message });
+            //prueba
         }
     },
     
