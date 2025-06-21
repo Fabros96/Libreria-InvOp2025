@@ -1,0 +1,53 @@
+button:hover {
+    opacity: 0.8;
+}
+
+.botonera {
+    height: 100vh;
+    padding: 25px;
+}
+
+.contenedor {
+    width: 100%;
+    border: 2px solid var(--terciario);
+}
+.menuStack{
+    gap: 150px;
+    margin-top: 20px;
+    align-items: center;
+}
+
+.menuLinksContainer {
+    display: flex;
+    gap: 25px;
+    align-items: center;
+    justify-content: space-between;
+    scale: 2.25;
+    width: max-content;
+    
+
+    a {
+        box-shadow: 0px 0px 5px -5px var(--texto);
+        width: 60px;
+        height: 60px;
+        display: flex;
+        font-size: 10px;
+        text-align: center;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--terciario);
+        border-radius: 5px;
+        background-color: var(--secundario);
+        color: var(--terciario);
+        cursor: pointer;
+        transition-duration: 0.3s;
+
+        &:hover {
+            box-shadow: 0px 2px 20px -5px var(--texto);
+            background-color: var(--secundario);
+            color: var(--texto);
+            transform: scale(1.33);
+            transition-duration: 0.3s;
+        }
+    }
+}

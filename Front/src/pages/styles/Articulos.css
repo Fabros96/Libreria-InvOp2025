@@ -1,0 +1,143 @@
+
+.articulos-container {
+    div {
+        text-align: center;
+    }
+
+    padding: 0 25px 25px 25px;
+}
+
+.barraBusquedaDiv {
+    align-items: center;
+}
+
+.filtrarpor {
+    border: 1px solid var(--texto);
+
+    svg {
+        color: var(--primario);
+        vertical-align: initial;
+        margin-right: 8px;
+        fill: var(--detalles);
+    }
+
+
+}
+
+.filtrarpor:hover {
+    border: 1px solid var(--texto);
+
+    svg {
+        color: var(--primario);
+        vertical-align: initial;
+        margin-right: 8px;
+    }
+
+
+}
+
+.botoneraTabla {
+    gap: 15px;
+    margin: 0 10px 0 0;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: center;
+    height: fit-content;
+
+    button {
+
+        display: flex;
+        flex-direction: column;
+        width: 30px;
+        height: 30px;
+        border-radius: 5px;
+        border: none;
+        align-items: center;
+        vertical-align: middle;
+        cursor: pointer;
+        transition-duration: 0.3s;
+
+        &:hover {
+
+            transform: scale(1.1);
+            transition-duration: 0.3s;
+        }
+    }
+}
+
+.tableArticulos {
+
+    th{
+        background-color: var(--primario);
+        /* border: 1px 1px 0 1px solid var(--texto); */
+        color: var(--texto);
+    }
+    td{
+        width: auto;
+    }
+
+    p{
+        color: var(--texto);
+    }
+
+    td {
+        gap: 12%;
+        background-color: transparent;
+        border-bottom-width: 0;
+    }
+
+    tr {
+        background-color: var(--primario);
+    }
+
+    .accordion-button {
+        padding: 5px;
+    }
+}
+
+.botoneraTabla {
+    box-shadow: none;
+
+}
+
+.divmedio {
+    min-height: 65vh;
+}
+
+.newArtButton {
+
+    font-weight: bold;
+    text-align: start;
+    width: 60px;
+    padding: 15px 15px 15px 18px;
+    border-radius: 15px;
+    overflow: hidden;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.7s;
+    
+    position: fixed;
+    bottom: 10px;
+    right: 40px;
+    z-index: 10;   
+}
+
+.newArtButton span{
+    display: inline-block;
+    transform: translateX(250px);
+    opacity: 0;
+    transition: opacity 0.1s, transform 0.2s 0.3s;
+    margin-left: 10px;
+}
+
+.newArtButton:hover{
+    width: 175px;
+    padding: 15px;
+}
+
+.newArtButton:hover span{
+    transform: translateX(0);
+    opacity: 1;
+}
+

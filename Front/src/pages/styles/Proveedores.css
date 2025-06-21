@@ -1,0 +1,151 @@
+
+.proveedores-container {
+    div {
+        text-align: center;
+    }
+
+    padding: 0 25px 25px 25px;
+}
+
+.barraBusquedaDiv {
+    align-items: center;
+}
+
+.filtrarpor {
+    border: 1px solid var(--texto);
+
+    svg {
+        color: var(--primario);
+        vertical-align: initial;
+        margin-right: 8px;
+        fill: var(--detalles);
+    }
+
+
+}
+
+.filtrarpor:hover {
+    border: 1px solid var(--texto);
+
+    svg {
+        color: var(--primario);
+        vertical-align: initial;
+        margin-right: 8px;
+    }
+
+
+}
+
+.botoneraTabla {
+    gap: 15px;
+    margin: 0 10px 0 0;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: center;
+    height: fit-content;
+
+    button {
+
+        display: flex;
+        flex-direction: column;
+        width: 30px;
+        height: 30px;
+        border-radius: 5px;
+        border: none;
+        align-items: center;
+        vertical-align: middle;
+        cursor: pointer;
+        transition-duration: 0.3s;
+
+        &:hover {
+
+            transform: scale(1.1);
+            transition-duration: 0.3s;
+        }
+    }
+}
+
+.tableProveedores {
+
+    th{
+        background-color: var(--primario);
+        /* border: 1px 1px 0 1px solid var(--texto); */
+        color: var(--texto);
+    }
+    td{
+        width: auto;
+    }
+
+    p{
+        color: var(--texto);
+    }
+
+    td {
+        gap: 12%;
+        background-color: transparent;
+        border-bottom-width: 0;
+    }
+
+    tr {
+        background-color: var(--primario);
+    }
+
+    .accordion-button {
+        padding: 5px;
+    }
+}
+
+.botoneraTabla {
+    box-shadow: none;
+
+}
+
+.divmedio {
+    min-height: 65vh;
+}
+
+.tabla-scroll-proveedores {
+  max-height: 300px;
+  overflow-y: auto;
+  width: 100%;
+}
+
+.tabla-scroll-proveedores table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  min-height: 280px;
+}
+
+.tabla-scroll-proveedores thead,
+.tabla-scroll-proveedores tbody {
+  display: block;
+  width: 100%;
+}
+
+.tabla-scroll-proveedores tbody {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.tabla-scroll-proveedores th,
+.tabla-scroll-proveedores td {
+  width: 33.33%; /* Tres columnas iguales */
+  min-width: 0;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.tabla-scroll-proveedores th:nth-child(1),
+.tabla-scroll-proveedores td:nth-child(1) {
+  width: 15%;
+}
+.tabla-scroll-proveedores th:nth-child(2),
+.tabla-scroll-proveedores td:nth-child(2) {
+  width: 55%;
+}
+.tabla-scroll-proveedores th:nth-child(3),
+.tabla-scroll-proveedores td:nth-child(3) {
+  width: 5%;
+}

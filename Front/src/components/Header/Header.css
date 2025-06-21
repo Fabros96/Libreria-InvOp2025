@@ -1,0 +1,44 @@
+.navBar {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+}
+
+.contNavbar {
+    margin-left: 0px;
+    margin-right: 0px;
+}
+
+.myNavbar {
+    background-color: var(--detalles);
+
+    a,
+    span,
+    span:hover {
+        color: var(--texto);
+        border-radius: 10px;
+    }
+
+    a:hover {
+        color: var(--texto);
+        background-color: var(--terciario);
+        border-radius: 10px;
+    }
+
+    a[aria-current],
+    a:focus {
+        color: var(--secundario);
+        background-color: var(--terciario);
+        border-radius: 10px;
+    }
+}
+
+.btn_modo {
+    scale: 1.25;
+    padding: 10px;
+
+    path {
+        scale: 1.05;
+    }
+
+}
