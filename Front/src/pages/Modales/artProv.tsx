@@ -4,59 +4,93 @@ import { useState, useEffect } from "react";
 import { showToasty } from "../../utils/toasty"
 
 import "../../App.css";
+import type { AxiosResponse } from "axios";
 
 interface ArtProvProps {
-    agent: any | null;
+    articulo: any | null;
     show: boolean;
     onHide: () => void;
-    onSave: (updatedAgent: any) => void;
-    mode: "provEdit" | "provNew";
+    onSave: (updatedArticulo: any) => void;
+    mode: "provView" | "provEdit" | "provNew";
 }
 
 type ArticulosData = {
     datos: any[];
 };
 
-const ArtProv = ({ show, onHide, onSave, mode }: ArtProvProps) => {
+const ArtProv = ({ articulo, show, mode, onHide, onSave }: ArtProvProps) => {
     const [data, setData] = useState<ArticulosData>({ datos: [] });
     const [searchText, setSearchText] = useState("");
-    const [showAll, setShowAll] = useState(false);
-    const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
-    const [selectedName, setSelectedName] = useState<string>("");
+    const [showAll, setShowAll] = useState(true);
+    const [selectedIdArticulo, setSelectedIdArticulo] = useState<number | null>(null);
+    const [selectedIdProveedor, setSelectedIdProveedor] = useState<number | null>(null);
+    const [selectedNombre, setSelectedNombre] = useState<string>("");
+    const [selectedDescripcion, setSelectedDescripcion] = useState<string>("");
+
+
+
+
 
     useEffect(() => {
+
         const fetchData = async () => {
             try {
-                const response = await axiosClient.get("agents");
-                const allData = response.data || [];
+                let response: AxiosResponse<any, any> | null = null;
+                if (mode === "provEdit" || mode === "provView") {
+                    response = await axiosClient.get(`articulo-proveedores/?filter[idArticulo][eq]=${articulo.idArticulo}&filter[include]=proveedor`);
+                } else if (mode === "provNew") {
+                    response = await axiosClient.get(`proveedores/`);
+                }
+                const allData = response?.data?.datos || response?.data || [];
+
                 setData({ datos: allData });
+
+
+                if (allData.length <= 5) setShowAll(true);
             } catch (error) {
                 console.error("Error al obtener datos:", error);
             }
         };
 
         fetchData();
-    }, []);
+    }, [articulo, mode]);
+
+
+
+    // useEffect(() => {
+    //     const fetchData = async () => {
+    //         try {
+    //             const response = await axiosClient.get(`articulo-proveedores/?filter[idArticulo][eq]=${articulo.idArticulo}`);
+    //             const allData = response.data || [];
+    //             setData({ datos: allData });
+    //         } catch (error) {
+    //             console.error("Error al obtener datos:", error);
+    //         }
+    //     };
+
+    //     fetchData();
+    // }, []);
 
     const handleSave = () => {
-        if (!selectedUuid) return;
-
-        const selectedAgent = data.datos.find(agent => agent.uuid === selectedUuid);
-        if (selectedAgent) {
-            const updatedAgent = {
-                ...selectedAgent,
-                displayName: selectedName
+        const selectedArticulo = data.datos.find(articulo => articulo.idArticulo === selectedIdArticulo);
+        if (selectedArticulo) {
+            const updatedArticulo = {
+                ...selectedArticulo,
+                descripcion: selectedDescripcion
             };
             showToasty('Proveedor actualizado exitosamente', 'success');
-            onSave(updatedAgent);
+            onSave(updatedArticulo);
         }
     };
 
     const getFilteredData = () => {
         if (showAll) return data.datos;
-        if (searchText.trim() === "") return [];
-        return data.datos.filter(agent =>
-            agent.displayName?.toLowerCase().includes(searchText.toLowerCase())
+
+        if (searchText.trim().length < 1) return data.datos;
+
+        return data.datos.filter(articulo =>
+            articulo.proveedor.nombre?.toLowerCase().includes(searchText.toLowerCase())
+            // articulo.proveedor.nombre?.toLowerCase().includes(searchText.toLowerCase())
         );
     };
 
@@ -66,7 +100,7 @@ const ArtProv = ({ show, onHide, onSave, mode }: ArtProvProps) => {
         <Modal show={show} onHide={onHide} centered>
             <Modal.Header closeButton>
                 <Modal.Title>
-                    {mode === "provEdit" ? "Cambiar Proveedor" : "Nuevo Proveedor"}
+                    Proveedores {articulo ? "de: " + articulo.descripcion : ""}
                 </Modal.Title>
             </Modal.Header>
 
@@ -98,7 +132,7 @@ const ArtProv = ({ show, onHide, onSave, mode }: ArtProvProps) => {
                             <tr>
                                 <th>#</th>
                                 <th>Descripción</th>
-                                <th>Seleccionar</th>
+                                <th>Proveedor por defecto</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -113,25 +147,63 @@ const ArtProv = ({ show, onHide, onSave, mode }: ArtProvProps) => {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredData.map((agent, index) => (
-                                    <tr key={agent.uuid}>
+                                filteredData.map((obj, index) => (
+                                    mode === "provNew"?
+                                    <tr key={obj.idProveedor}>
                                         <td style={{ width: '22%' }}>
-                                            <p>{agent.uuid}</p>
+                                            <p>{obj.idProveedor}</p>
                                         </td>
                                         <td style={{ width: '50%' }}>
-                                            <p>{agent.displayName}</p>
+                                            <p>{obj.nombre}</p>
                                         </td>
                                         <td className="botoneraTabla">
                                             <Form.Check
                                                 type="radio"
                                                 aria-label={`radio-${index}`}
                                                 name="providerSelect"
-                                                checked={selectedUuid === agent.uuid}
                                                 onChange={() => {
-                                                    setSelectedUuid(agent.uuid);
-                                                    setSelectedName(agent.displayName);
+                                                    const nuevosDatos = data.datos.map((item) => ({
+                                                        ...item,
+                                                        esPredeterminado: item.idArticuloProveedor === obj.idArticuloProveedor
+                                                    }));
+                                                    console.log(obj.nombre);
+                                                    setData({ datos: nuevosDatos });
+                                                    setSelectedIdProveedor(obj.idProveedor);
+                                                    setSelectedNombre(obj.nombre);
                                                 }}
                                             />
+
+
+                                        </td>
+                                    </tr>
+                                    :
+                                    <tr key={obj.proveedor.nombre}>
+                                        <td style={{ width: '22%' }}>
+                                            <p>{obj.proveedor.idProveedor}</p>
+                                        </td>
+                                        <td style={{ width: '50%' }}>
+                                            <p>{obj.proveedor.nombre}</p>
+                                        </td>
+                                        <td className="botoneraTabla">
+                                            <Form.Check
+                                                type="radio"
+                                                aria-label={`radio-${index}`}
+                                                name="providerSelect"
+                                                checked={obj.esPredeterminado}
+                                                disabled={mode === "provView"}
+                                                onChange={() => {
+                                                    const nuevosDatos = data.datos.map((item) => ({
+                                                        ...item,
+                                                        esPredeterminado: item.idArticuloProveedor === obj.idArticuloProveedor
+                                                    }));
+
+                                                    setData({ datos: nuevosDatos });
+                                                    setSelectedIdArticulo(obj.idArticulo);
+                                                    setSelectedDescripcion(obj.descripcion);
+                                                }}
+                                            />
+
+
                                         </td>
                                     </tr>
                                 ))
@@ -139,19 +211,23 @@ const ArtProv = ({ show, onHide, onSave, mode }: ArtProvProps) => {
                         </tbody>
                     </Table>
                 </Form.Group>
-            </Modal.Body>
+            </Modal.Body><>
+                {mode !== "provView" && (
+                    <Modal.Footer>
+                        <Button variant="outline-danger" onClick={onHide}>
+                            Cancelar
+                        </Button>
+                        <Button
+                            variant={selectedIdArticulo ? "success" : "outline-success"}
+                            onClick={handleSave}
+                            disabled={!selectedIdArticulo}
+                        >
+                            Guardar
+                        </Button>
+                    </Modal.Footer>
+                )}
+            </>
 
-            <Modal.Footer>
-                <Button variant="outline-danger" onClick={onHide}>
-                    Cancelar
-                </Button>
-                <Button variant={selectedUuid ? "success" : "outline-success"}
-                    onClick={handleSave}
-                    disabled={!selectedUuid}
-                >
-                    Guardar
-                </Button>
-            </Modal.Footer>
         </Modal>
     );
 };

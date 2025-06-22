@@ -5,19 +5,52 @@ import MyPagination from "../components/Pagination/myPagination";
 import ProvAsoc from "./Modales/provAsoc";
 import ProvEdit from "./Modales/provEdit";
 import ProvDel from "./Modales/provDel";
+import DetalleProvArtModal from "./Modales/detalleProvArt";
+
 
 
 import './styles/Proveedores.css';
 import '../App.css';
-import DetalleProvArtModal from "./Modales/detalleProvArt";
+import { all } from "axios";
+import { showToasty } from "../utils/toasty";
+import ProvArtList from "./Modales/provArtList";
 
+// Define the Proveedor type if not imported
+type Proveedor = {
+    idProveedor: number; // Added to match usage in cod
+    nombre: string;
+    fechaBaja: Date | null;
+    // Add other fields as needed
+};
+
+type Articulo = {
+    idProveedor: number;
+    idInventario: number;
+    fechaBaja: Date | null;
+    descripcion: string;
+    modeloInventario: number;
+    stock: number;
+}
+
+// Define ProveedorProveedor type to fix the error
+type ArticuloProveedor = {
+    idArticuloProveedor: number,
+    idArticulo: number,
+    idProveedor: number,
+    cargoPedido: number | null,
+    demoraEntrega: number,
+    esPredeterminado: boolean,
+    precioUnitario: number,
+    proveedor: Proveedor,
+    articulo: Articulo,
+};
 
 type ProveedoresData = {
     datos: any[];
     totalPages: number;
 };
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 10;
 
 const Proveedores = () => {
     const [data, setData] = useState<ProveedoresData>({ datos: [], totalPages: 0 });
@@ -25,8 +58,8 @@ const Proveedores = () => {
     const [page, setPage] = useState(1);
     const [searchText, setSearchText] = useState('');
     const [showModal, setShowModal] = useState(false);
-    const [selectedAgent, setSelectedAgent] = useState<any | null>(null);
-    const [modalType, setModalType] = useState<"new" | "asoc" | "edit" | "baja" | null>(null);
+    const [selectedProveedor, setSelectedProveedor] = useState<Proveedor | null>(null);
+    const [modalType, setModalType] = useState<"new" | "asoc" | "artList" | "edit" | "baja" | null>(null);
 
     const [filteredTotalPages, setFilteredTotalPages] = useState(0);
     const [filterOption, setFilterOption] = useState('');
@@ -35,52 +68,65 @@ const Proveedores = () => {
     const startIndex = (page - 1) * PAGE_SIZE;
     const endIndex = startIndex + PAGE_SIZE;
 
+
+    // Para flujo de asociación artículos
+    const [showSelectModal, setShowSelectModal] = useState(false);
+    const [showTabsModal, setShowTabsModal] = useState(false);
+    const [articulos, setArticulos] = useState<any[]>([]);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [articulosEdit, setArticulosEdit] = useState<any[]>([]);
+    const [activeTabKey, setActiveTabKey] = useState<string>("");
+
     const [showProvAsoc, setShowProvAsoc] = useState(false);
+    const [showDetalleModal, setShowDetalleModal] = useState(false);
+    const [articulosSeleccionados, setArticulosSeleccionados] = useState<any[]>([]);
 
-    const [showDetalle, setShowDetalle] = useState(false);
-    const [proveedoresSeleccionados, setProveedoresSeleccionados] = useState<any[]>([]);
 
-    const handleSeleccionMultiple = (seleccionados: any[]) => {
-        setProveedoresSeleccionados(seleccionados);
-        setShowDetalle(true);
+    const handleAsociarSiguiente = (articulos: any[]) => {
+        setArticulosSeleccionados(articulos); // Guarda los artículos seleccionados
+        setShowProvAsoc(false);               // Cierra el modal ProvAsoc
+        setShowDetalleModal(true);            // Abre el modal con Tabs (DetalleProvArtModal)
     };
 
 
-
-
-
-    const handleClick = (agent: any, op: any) => {
-        setSelectedAgent(agent);
+    const handleClick = (prov: Proveedor | null, op: typeof modalType) => {
+        setSelectedProveedor(prov);
         setModalType(op);
         setShowModal(true);
-        switch (op) {
-            case "asoc":
-                setShowModal(true);
-                break;
-            case "provNew":
-                setShowModal(true);
-                break;
-            case "provEdit":
-                setShowModal(true);
-                break;
-            case "edit":
-                setShowModal(true);
-                break;
-            case "hdemanda":
-                setShowModal(true);
-                break;
-            case "baja":
-                setShowModal(true);
-                break;
-            default:
-                console.log(`Error`);
-        };
+
+        if (op === "asoc") {
+            setShowProvAsoc(true); // ✅ Esto es lo que faltaba
+        }
     }
 
-    const handleSaveAgent = (updatedAgent: any) => {
+    const handleUpdateProveedor = (updatedProveedor: Proveedor) => {
         setData(prevData => {
-            const nuevosDatos = prevData.datos.map(agent =>
-                agent.uuid === updatedAgent.uuid ? updatedAgent : agent
+            const nuevosDatos = prevData.datos.map(prov =>
+                prov.idProveedor === updatedProveedor.idProveedor
+                    ? updatedProveedor
+                    : prov
+            );
+
+            if (!prevData.datos.some(prov => prov.idProveedor === updatedProveedor.idProveedor)) {
+                nuevosDatos.push({
+                    ...updatedProveedor
+                });
+            }
+            return {
+                ...prevData,
+                datos: nuevosDatos
+            };
+        });
+        setShowModal(false);
+    }
+
+
+    const handleDelProveedor = (proveedorToDelete: Proveedor) => {
+        // Aquí deberías agregar la llamada a tu API para eliminar el artículo en el backend.
+        // ej: await axiosClient.delete(`/proveedors/${proveedorToDelete.idProveedor}`);
+        setData(prevData => {
+            const nuevosDatos = prevData.datos.filter(
+                proveedor => proveedor.idProveedor !== proveedorToDelete.idProveedor
             );
             return {
                 ...prevData,
@@ -90,32 +136,16 @@ const Proveedores = () => {
 
         setShowModal(false);
     };
-
-    const handleDelAgent = (updatedAgent: any) => {
-        setData(prevData => {
-            const nuevosDatos = prevData.datos.map(agent =>
-                agent.uuid === updatedAgent.uuid ? updatedAgent : agent
-            );
-            return {
-                ...prevData,
-                datos: nuevosDatos
-            };
-        });
-        setShowModal(false);
-    };
-
-
-
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await axiosClient.get("agents");
-                const allData = response.data || [];
+                const response = await axiosClient.get("articulo-proveedores/?filter[include]=proveedor");
+                const allData: ArticuloProveedor[] = response.data || [];
 
                 if (allData.length > 0) {
                     setData({
-                        datos: allData,
+                        datos: allData.map((prov) => prov.proveedor),
                         totalPages: Math.ceil(allData.length / PAGE_SIZE),
                     });
                     setSinDatos(false);
@@ -127,6 +157,7 @@ const Proveedores = () => {
                 console.error("El Error es: ", error);
                 setSinDatos(true);
             }
+
         };
 
         fetchData();
@@ -134,85 +165,151 @@ const Proveedores = () => {
 
 
     const filteredData = data.datos
-        .filter(agent =>
-            agent.displayName.toLowerCase().includes(searchText.toLowerCase())
+        .filter(prov =>
+            prov.nombre.toLowerCase().includes(searchText.toLowerCase())
         )
-        .filter(agent => {
-            if (filterOption === 'stock') {
-                return agent.displayName === "Gekko"; // ajustá estas propiedades si son otras
-                // return agent.stock < agent.stockSeguridad; // ajustá estas propiedades si son otras
-            } else if (filterOption === 'pedido') {
-                return agent.stock <= agent.puntoPedido; // lo mismo acá
-            }
-            return true; // sin filtro
-        });
 
     useEffect(() => {
-        // Cada vez que cambie el filtro o búsqueda, actualizamos total de páginas
+
         const total = Math.ceil(filteredData.length / PAGE_SIZE);
         setFilteredTotalPages(total);
-
-        // Si la página actual es mayor que total páginas recalculadas, volver a la página 1
         if (page > total && total > 0) {
             setPage(1);
         }
     }, [filteredData, page]);
 
 
-    const currentData = filteredData.slice(startIndex, endIndex);
+    const currentData: Proveedor[] = filteredData.slice(startIndex, endIndex);
+
 
 
 
     const handleChangePage = useCallback((page: number) => {
         setPage(page)
     }, [])
+    const renderModal = () => {
+        if (!showModal || !modalType) return null;
+
+        switch (modalType) {
+            case "edit":
+            case "new":
+                return (
+                    <ProvEdit
+                        show={showModal}
+                        onHide={() => setShowModal(false)}
+                        proveedor={selectedProveedor}
+                        onSave={handleUpdateProveedor}
+                        mode={modalType}
+                    />
+                );
+            case "baja":
+                return (
+                    <ProvDel
+                        show={showModal}
+                        onHide={() => setShowModal(false)}
+                        proveedor={selectedProveedor}
+                        onDel={handleDelProveedor}
+                    />
+                );
+            case "asoc":
+                return (
+                    <>
+                        <ProvAsoc
+                            show={showProvAsoc}
+                            proveedor={selectedProveedor}
+                            onHide={() => setShowProvAsoc(false)}
+                            onSiguiente={handleAsociarSiguiente}
+                        />
+
+                        <DetalleProvArtModal
+                            show={showDetalleModal}
+                            articulos={articulosSeleccionados}
+                            onHide={() => setShowDetalleModal(false)}
+                            onVolver={() => {
+                                setShowDetalleModal(false);
+                                setShowProvAsoc(true);
+                            }}
+                            proveedor={selectedProveedor ? [selectedProveedor] : []} />
+                    </>
+                );
+            case "artList":
+                return (
+                    <ProvArtList
+                        show={showModal}
+                        onHide={() => setShowModal(false)}
+                        proveedor={selectedProveedor ? selectedProveedor : null}
+                    />
+                );
+            default:
+                return null;
+        }
+    };
+
+    const [proveedores, setProveedores] = useState<any[]>([]);
+
+
+
+    // Cargar artículos para selección
+    useEffect(() => {
+        if (showSelectModal) {
+            axiosClient.get("articulos")
+                .then(res => setArticulos(res.data || []))
+                .catch(console.error);
+            setSelectedIds([]);
+        }
+    }, [showSelectModal]);
+
+    const toggleSelectArticulo = (id: string) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+        );
+    };
+
+    const handleOpenSelectModal = (proveedor: any) => {
+        setSelectedProveedor(proveedor);
+        setShowSelectModal(true);
+    };
+
+    const handleNextFromSelect = () => {
+        const seleccionados = articulos.filter(art => selectedIds.includes(art.uuid));
+        setArticulosEdit(seleccionados);
+        if (seleccionados.length > 0) setActiveTabKey(seleccionados[0].uuid);
+        setShowSelectModal(false);
+        setShowTabsModal(true);
+    };
+
+    // Navegación tabs
+    const currentIndex = articulosEdit.findIndex(a => a.uuid === activeTabKey);
+
+    const goPrev = () => {
+        if (currentIndex > 0) setActiveTabKey(articulosEdit[currentIndex - 1].uuid);
+    };
+
+    const goNext = () => {
+        if (currentIndex < articulosEdit.length - 1) setActiveTabKey(articulosEdit[currentIndex + 1].uuid);
+    };
+
+    const isLast = currentIndex === articulosEdit.length - 1;
+
+    const handleFieldChange = (uuid: string, field: string, value: any) => {
+        setArticulosEdit(prev =>
+            prev.map(a => (a.uuid === uuid ? { ...a, [field]: value } : a))
+        );
+    };
+
+    const handleSaveAll = () => {
+        // Aquí enviá los artículos actualizados y asociados al proveedor al backend
+        console.log("Guardar artículos para proveedor", selectedProveedor, articulosEdit);
+        showToasty("Artículos asociados guardados", "success");
+        setShowTabsModal(false);
+    };
+
+    const handleBackToSelect = () => {
+        setShowTabsModal(false);
+        setShowSelectModal(true);
+    };
     return (
         <>
-
-            {showDetalle && (
-                <DetalleProvArtModal
-                    show={showDetalle}
-                    onHide={() => {
-                        setShowDetalle(false);
-                        setProveedoresSeleccionados([]);
-                    }}
-                    proveedores={proveedoresSeleccionados}
-                    limpiarProveedores={() => {
-                        setProveedoresSeleccionados([]);
-                    }}
-                />
-            )}
-
-            {showModal && modalType === "asoc" && (
-                <ProvAsoc
-                    show={showModal}
-                    onHide={() => setShowModal(false)}
-                    agent={selectedAgent}
-                    onSelectMultiple={handleSeleccionMultiple}
-                />
-
-            )}
-            {showModal && (modalType === "edit" || modalType === "new") && (
-                <ProvEdit
-                    show={showModal}
-                    onHide={() => setShowModal(false)}
-                    agent={selectedAgent}
-                    onSave={handleSaveAgent}
-                    mode={modalType}
-                />
-
-            )}
-            {showModal && modalType === "baja" && (
-                <ProvDel
-                    show={showModal}
-                    onHide={() => setShowModal(false)}
-                    agent={selectedAgent}
-                    onDel={handleDelAgent}
-                />
-
-            )}
-
-
             <Stack className="proveedores-container">
                 <div className="p-2"><h3>Proveedores</h3></div>
                 <Row className="p-2 barraBusquedaDiv">
@@ -234,7 +331,7 @@ const Proveedores = () => {
                     <Col sm={1}></Col>
                     <Col sm={3}>
                         <Button className="newProvButton1" onClick={() => {
-                            setSelectedAgent(null);
+                            setSelectedProveedor(null);
                             setModalType("new");
                             setShowModal(true);
                         }}>
@@ -259,72 +356,69 @@ const Proveedores = () => {
                                 <thead>
                                     <tr>
                                         <th>#</th>
-                                        <th colSpan={2}>Nombre (Click para ver detalles)</th>
+                                        <th >Descripción (Click para más detalles)</th>
                                         <th >Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {data.datos && data.datos.length > 0 && currentData.map((agent: {
-                                        uuid: string;
-                                        abilities: any;
-                                        displayIcon: string | undefined; displayName: string;
-                                    }, index: number) => (
-                                        <tr key={index}>
-                                            <td style={{ width: '22%' }} >
-                                                <p>{agent.uuid}</p>
-                                            </td>
-                                            <td style={{ width: '5%' }} >
-                                                <img
-                                                    src={agent.displayIcon}
-                                                    alt={agent.displayName}
-                                                    style={{ width: '40px', height: 'auto', objectFit: 'contain' }}
-                                                />
-                                            </td>
-                                            <td style={{ width: '50%' }} >
-                                                <Accordion defaultActiveKey="1" >
+                                    {[...new Map(currentData.map(item => [item.idProveedor, item])).values()].map(
+                                        (prov: Proveedor) => (
+                                            <tr key={prov.idProveedor}>
+                                                <td style={{ width: '5%' }} >
+                                                    <p>{prov.idProveedor}</p>
+                                                </td>
+                                                <td style={{ width: '70%' }} >
+                                                    <Accordion defaultActiveKey="1" >
 
-                                                    <Accordion.Item eventKey="0">
-                                                        <Accordion.Header>{agent.displayName}</Accordion.Header>
-                                                        <Accordion.Body>
-                                                            <div style={{ paddingLeft: "1rem", fontSize: "0.85rem" }}>
-                                                                {agent.abilities && agent.abilities.map((ability: any, i: number) => (
-                                                                    <div key={i}>
-                                                                        {ability.displayName + " - "}
+                                                        <Accordion.Item eventKey="0">
+                                                            <Accordion.Header>{prov.nombre}</Accordion.Header>
+                                                            <Accordion.Body>
+                                                                <div style={{ paddingLeft: "1rem", fontSize: "0.85rem" }}>
+                                                                    <div>
+                                                                        <strong> FBaja:</strong> {prov.fechaBaja && <> {new Date(prov.fechaBaja).toLocaleDateString()}
+                                                                        </>
+                                                                        }
                                                                     </div>
-                                                                ))}
-                                                            </div>
-                                                        </Accordion.Body>
-                                                    </Accordion.Item>
-                                                </Accordion>
-                                            </td>
-                                            <td className="botoneraTabla" >
-                                                <OverlayTrigger key={agent.uuid + 'btn1'} overlay={<Tooltip id={`top`}> Asociar Artículo/s </Tooltip>} >
-                                                    <Button variant="success" onClick={() => handleClick(agent, "asoc")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                                        fill="currentColor" className="bi bi-diagram-3" viewBox="0 0 16 16">
-                                                        <path d="M6 3.5A1.5 1.5 0 0 1 7.5 2h1A1.5 1.5 0 0 1 10 3.5v1A1.5 1.5 0 0 1 8.5 6v1H14a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-1 0V8h-5v.5a.5.5 0 0 1-1 0V8h-5v.5a.5.5 0 0 1-1 0v-1A.5.5 0 0 1 2 7h5.5V6A1.5 1.5 0 0 1 6 4.5zM8.5 5a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5zM0 11.5A1.5 1.5 0 0 1 1.5 10h1A1.5 1.5 0 0 1 4 11.5v1A1.5 1.5 0 0 1 2.5 14h-1A1.5 1.5 0 0 1 0 12.5zm1.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm4.5.5A1.5 1.5 0 0 1 7.5 10h1a1.5 1.5 0 0 1 1.5 1.5v1A1.5 1.5 0 0 1 8.5 14h-1A1.5 1.5 0 0 1 6 12.5zm1.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm4.5.5a1.5 1.5 0 0 1 1.5-1.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5zm1.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5z" />
-                                                    </svg>
-                                                    </Button>
-                                                </OverlayTrigger>
-                                                <OverlayTrigger key={agent.uuid + 'btn2'} overlay={<Tooltip id={`top`}> Editar Proveedor </Tooltip>} >
-                                                    <Button variant="warning" onClick={() => handleClick(agent, "edit")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                                        fill="currentColor" className="bi bi-pen" viewBox="0 0 16 16">
-                                                        <path d="m13.498.795.149-.149a1.207 1.207 0 1 1 1.707 1.708l-.149.148a1.5 1.5 0 0 1-.059 2.059L4.854 14.854a.5.5 0 0 1-.233.131l-4 1a.5.5 0 0 1-.606-.606l1-4a.5.5 0 0 1 .131-.232l9.642-9.642a.5.5 0 0 0-.642.056L6.854 4.854a.5.5 0 1 1-.708-.708L9.44.854A1.5 1.5 0 0 1 11.5.796a1.5 1.5 0 0 1 1.998-.001m-.644.766a.5.5 0 0 0-.707 0L1.95 11.756l-.764 3.057 3.057-.764L14.44 3.854a.5.5 0 0 0 0-.708z" />
-                                                    </svg>
-                                                    </Button>
-                                                </OverlayTrigger>
+                                                                </div>
+                                                            </Accordion.Body>
 
-                                                <OverlayTrigger key={agent.uuid + 'btn3'} overlay={<Tooltip id={`top`}> Eliminar </Tooltip>} >
-                                                    <Button variant="danger" onClick={() => handleClick(agent, "baja")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                                        fill="currentColor" className="bi bi-trash" viewBox="0 0 16 16">
-                                                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z" />
-                                                        <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z" />
-                                                    </svg>
-                                                    </Button>
-                                                </OverlayTrigger>
-                                            </td>
+                                                        </Accordion.Item>
+                                                    </Accordion>
+                                                </td>
+                                                <td className="botoneraTabla" >
+                                                    <OverlayTrigger key={prov.idProveedor + 'btn1'} overlay={<Tooltip id={`top`}> Asociar Artículo/s </Tooltip>} >
+                                                        <Button variant="success" onClick={() => handleClick(prov, "asoc")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                            fill="currentColor" className="bi bi-arrow-left-right" viewBox="0 0 16 16">
+                                                            <path d="M1 11.5a.5.5 0 0 0 .5.5h11.793l-3.147 3.146a.5.5 0 0 0 .708.708l4-4a.5.5 0 0 0 0-.708l-4-4a.5.5 0 0 0-.708.708L13.293 11H1.5a.5.5 0 0 0-.5.5m14-7a.5.5 0 0 1-.5.5H2.707l3.147 3.146a.5.5 0 1 1-.708.708l-4-4a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 4H14.5a.5.5 0 0 1 .5.5" />
+                                                        </svg>
+                                                        </Button>
+                                                    </OverlayTrigger>
+                                                    <OverlayTrigger key={prov.idProveedor + 'btn2'} overlay={<Tooltip id={`top`}> Ver Artículos de este Proveedor </Tooltip>} >
+                                                        <Button variant="primary" onClick={() => handleClick(prov, "artList")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                            fill="currentColor" className="bi bi-boxes" viewBox="0 0 16 16">
+                                                            <path d="M7.752.066a.5.5 0 0 1 .496 0l3.75 2.143a.5.5 0 0 1 .252.434v3.995l3.498 2A.5.5 0 0 1 16 9.07v4.286a.5.5 0 0 1-.252.434l-3.75 2.143a.5.5 0 0 1-.496 0l-3.502-2-3.502 2.001a.5.5 0 0 1-.496 0l-3.75-2.143A.5.5 0 0 1 0 13.357V9.071a.5.5 0 0 1 .252-.434L3.75 6.638V2.643a.5.5 0 0 1 .252-.434zM4.25 7.504 1.508 9.071l2.742 1.567 2.742-1.567zM7.5 9.933l-2.75 1.571v3.134l2.75-1.571zm1 3.134 2.75 1.571v-3.134L8.5 9.933zm.508-3.996 2.742 1.567 2.742-1.567-2.742-1.567zm2.242-2.433V3.504L8.5 5.076V8.21zM7.5 8.21V5.076L4.75 3.504v3.134zM5.258 2.643 8 4.21l2.742-1.567L8 1.076zM15 9.933l-2.75 1.571v3.134L15 13.067zM3.75 14.638v-3.134L1 9.933v3.134z" />
+                                                        </svg>
+                                                        </Button>
+                                                    </OverlayTrigger>
+                                                    <OverlayTrigger key={prov.idProveedor + 'btn3'} overlay={<Tooltip id={`top`}> Editar Proveedor </Tooltip>} >
+                                                        <Button variant="warning" onClick={() => handleClick(prov, "edit")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                            fill="currentColor" className="bi bi-pen" viewBox="0 0 16 16">
+                                                            <path d="m13.498.795.149-.149a1.207 1.207 0 1 1 1.707 1.708l-.149.148a1.5 1.5 0 0 1-.059 2.059L4.854 14.854a.5.5 0 0 1-.233.131l-4 1a.5.5 0 0 1-.606-.606l1-4a.5.5 0 0 1 .131-.232l9.642-9.642a.5.5 0 0 0-.642.056L6.854 4.854a.5.5 0 1 1-.708-.708L9.44.854A1.5 1.5 0 0 1 11.5.796a1.5 1.5 0 0 1 1.998-.001m-.644.766a.5.5 0 0 0-.707 0L1.95 11.756l-.764 3.057 3.057-.764L14.44 3.854a.5.5 0 0 0 0-.708z" />
+                                                        </svg>
+                                                        </Button>
+                                                    </OverlayTrigger>
+                                                    <OverlayTrigger key={prov.idProveedor + 'btn5'} overlay={<Tooltip id={`top`}> Eliminar Proveedor</Tooltip>} >
+                                                        <Button variant="danger" onClick={() => handleClick(prov, "baja")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                            fill="currentColor" className="bi bi-trash" viewBox="0 0 16 16">
+                                                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z" />
+                                                            <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z" />
+                                                        </svg>
+                                                        </Button>
+                                                    </OverlayTrigger>
+                                                </td>
 
-                                        </tr>
-                                    ))}
+                                            </tr>
+                                        ))}
                                 </tbody>
                             </Table>
                         )}
@@ -340,6 +434,8 @@ const Proveedores = () => {
                     )}
                 </div>
             </Stack>
+            {renderModal()}
+
         </>
     )
 }

@@ -104,7 +104,35 @@
 .divmedio {
     min-height: 65vh;
 }
+.tableProveedores  {
 
+    th{
+        background-color: var(--primario);
+        /* border: 1px 1px 0 1px solid var(--texto); */
+        color: var(--texto);
+    }
+    td{
+        width: auto;
+    }
+
+    p{
+        color: var(--texto);
+    }
+
+    td {
+        gap: 12%;
+        background-color: transparent;
+        border-bottom-width: 0;
+    }
+
+    tr {
+        background-color: var(--primario);
+    }
+
+    .accordion-button {
+        padding: 5px;
+    }
+} 
 .tabla-scroll-proveedores {
   max-height: 300px;
   overflow-y: auto;

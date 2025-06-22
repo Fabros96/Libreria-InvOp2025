@@ -1,68 +1,72 @@
 import { Modal, Button, Form } from "react-bootstrap";
 import { useEffect, useState } from "react";
-import { useRef } from "react"; 
+import { useRef } from "react";
 import { CSSTransition } from "react-transition-group";
 import MyDatePicker from "../../utils/DatePicker";
 import { showToasty } from "../../utils/toasty"
 
 
-import "../../utils/calendarAnimation.css"; 
+import "../../utils/calendarAnimation.css";
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import "../../App.css";
 
 
 
 interface ArtVtaProps {
-    agent: any | null;
+    ap: any | null;
     show: boolean;
     onHide: () => void;
-    onVta: (updatedAgent: any) => void;
+    onVta: (updatedArticulo: any) => void;
 }
 
 
 
-const ArtVta = ({ show, onHide, agent, onVta }: ArtVtaProps) => {
+const ArtVta = ({ show, onHide, ap, onVta }: ArtVtaProps) => {
 
 
-    const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
-    const [selectedName, setSelectedName] = useState<string>("");
+    const [selectedIdArticulo, setSelectedIdArticulo] = useState<number | null>(null);
+    const [selectedDescripcion, setSelectedDescripcion] = useState<string>("");
 
     const [fechaSeleccionada, setFechaSeleccionada] = useState<Date | null>(null);
 
-    const datePickerRef = useRef(null); // nueva línea
+    const datePickerRef = useRef(null); 
     const [mostrarCalendario, setMostrarCalendario] = useState(false);
 
     const [stock, setStock] = useState(0);
-    const [price, setPrice] = useState(0);
+    const [precio, setPrecio] = useState(ap.precioUnitario);
     const [totalPrice, setTotalPrice] = useState(0);
-    const [rotacion, setRotacion] = useState(0);
     const [cantidad, setCantidad] = useState(0);
+
+    useEffect(() => {
+        setTotalPrice(precio * cantidad);
+    }, [cantidad, precio]);
 
 
 
 
     useEffect(() => {
 
-        setSelectedUuid(agent.uuid || "");
-        setSelectedName(agent.displayName || "");
-        setStock(agent.stock || 0);
-        setPrice(agent.price || 0);
-        setTotalPrice(agent.totalPrice || 0);
-        setRotacion(agent.tasaRotacion || 0);
+        setSelectedIdArticulo(ap.idArticulo || "");
+        setSelectedDescripcion(ap.descripcion || "");
 
-    }, [agent]);
+        setStock(ap.stock || 0);
+        setPrecio(ap.precioUnitario || 0);
+        setTotalPrice(ap.totalPrice || 0);
+
+
+    }, [ap.articulo]);
 
     const handleVta = () => {
-        if (!selectedUuid) return;
-        if (agent) {
-            const updatedAgent = {
-                ...agent,
-                displayName: selectedName
+        if (!selectedIdArticulo) return;
+        if (ap.articulo) {
+            const updatedArticulo = {
+                ...ap.articulo,
+                displayName: selectedDescripcion
             };
             showToasty('Venta realizada exitosamente', 'success');
 
 
-            onVta(updatedAgent);
+            onVta(updatedArticulo);
         }
     };
 
@@ -73,23 +77,30 @@ const ArtVta = ({ show, onHide, agent, onVta }: ArtVtaProps) => {
             </Modal.Header>
             <Modal.Body>
                 <Form.Group>
-                    <Form.Label>Artículo</Form.Label>
-                    <div style={{ fontWeight: 'bold', color: 'var(--primario)', rowGap: '50px', display: 'inline-flex', justifyContent: 'space-between', gap: '100px' }}>
-                        <Form.Label>{selectedUuid}</Form.Label> -
-                        <Form.Label>{selectedName}</Form.Label>
+                    <Form.Label>Artículo: #</Form.Label>
+                    <div style={{ fontWeight: 'bold', color: 'var(--primario)', rowGap: '5px', display: 'inline-flex', justifyContent: 'space-between', gap: '5px' }}>
+                        <Form.Label>{selectedIdArticulo}</Form.Label> -
+                        <Form.Label>{selectedDescripcion}</Form.Label>
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                         <div>
-                            <Form.Label><strong style={{ fontWeight: 'bold', color: 'var(--primario)' }}>Precio Unitario: </strong>${price}</Form.Label><br />
-                            <Form.Label><strong style={{ fontWeight: 'bold', color: 'var(--primario)' }}>Stock: </strong>${stock}</Form.Label><br />
+                            <Form.Label><strong style={{ fontWeight: 'bold', color: 'var(--primario)' }}>Precio Unitario: </strong>${precio}</Form.Label><br />
+                            <Form.Label><strong style={{ fontWeight: 'bold', color: 'var(--primario)' }}>Stock: </strong>{stock}</Form.Label><br />
                             <Form.Label><strong style={{ fontWeight: 'bold', color: 'var(--primario)' }}>Cantidad</strong></Form.Label>
                             <Form.Control
                                 type="number"
                                 min={0}
-                                max={9999999}
+                                max={ap.stock}
                                 value={cantidad}
                                 onChange={(e) => setCantidad(Number(e.target.value))}
+                                onBlur={() => {
+                                    if (cantidad > ap.stock) {
+                                        setCantidad(ap.stock);
+                                    } else if (cantidad < 0) {
+                                        setCantidad(0);
+                                    }
+                                }}
                             />
                         </div>
                         <div style={{ textAlign: 'right', display: 'flex', alignItems: 'flex-end', flexDirection: 'column' }}>
@@ -112,7 +123,7 @@ const ArtVta = ({ show, onHide, agent, onVta }: ArtVtaProps) => {
                                 timeout={300}
                                 classNames="fade"
                                 unmountOnExit
-                                nodeRef={datePickerRef} // 👈 IMPORTANTE
+                                nodeRef={datePickerRef}
                             >
                                 <div ref={datePickerRef}>
                                     <MyDatePicker
@@ -120,7 +131,6 @@ const ArtVta = ({ show, onHide, agent, onVta }: ArtVtaProps) => {
                                         minDate={new Date(2020, 0, 1)}
                                         maxDate={new Date(2030, 11, 31)}
                                         onChange={(f) => {
-                                            console.log("Seleccionaste:", f);
                                             setFechaSeleccionada(f && typeof f !== "boolean" ? f : null);  // <-- guardamos la fecha acá
                                             setMostrarCalendario(false);
                                         }}
@@ -131,7 +141,11 @@ const ArtVta = ({ show, onHide, agent, onVta }: ArtVtaProps) => {
                         </div>
                     </div>
                     <hr className="hr hr-blurry" style={{ fontWeight: 'bolder', height: '3px', backgroundColor: 'black' }}></hr>
-                    <Form.Label ><strong style={{ fontWeight: 'bold', color: 'var(--primario)' }}>Precio Total: </strong>${totalPrice}</Form.Label><br />
+                    <Form.Label>
+                        <strong style={{ fontWeight: 'bold', color: 'var(--primario)' }}>Precio Total: </strong>
+                        ${totalPrice.toFixed(2)}
+                    </Form.Label>
+
 
 
                 </Form.Group>

@@ -1,47 +1,24 @@
 import { Modal, Button, Form, Table } from "react-bootstrap";
-import { useEffect, useState } from "react";
 import { showToasty } from "../../utils/toasty"
 
 import "../../App.css";
 
 interface ArtDelProps {
-    agent: any | null;
+    articulo: any | null;
     show: boolean;
     onHide: () => void;
-    onDel: (updatedAgent: any) => void;
+    onDel: (articuloToDelete: any) => void;
 }
 
 
 
-const ArtDel = ({ show, onHide, agent, onDel }: ArtDelProps) => {
+const ArtDel = ({ show, onHide, articulo, onDel }: ArtDelProps) => {
 
-    const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
-    const [selectedName, setSelectedName] = useState<string>("");
-
-    const [stock, setStock] = useState(0);
-    const [price, setPrice] = useState(0);
-    const [rotacion, setRotacion] = useState(0);
-
-
-    useEffect(() => {
-
-        setSelectedUuid(agent.uuid || "");
-        setSelectedName(agent.displayName || "");
-        setStock(agent.stock || 0);
-        setPrice(agent.price || 0);
-        setRotacion(agent.tasaRotacion || 0);
-
-    }, [agent]);
 
     const handleDel = () => {
-        if (!selectedUuid) return;
-        if (agent) {
-            const updatedAgent = {
-                ...agent,
-                displayName: selectedName
-            };
+        if (articulo) {
             showToasty('Artículo eliminado exitosamente', 'success');
-            onDel(updatedAgent);
+            onDel(articulo);
         }
     };
 
@@ -55,27 +32,26 @@ const ArtDel = ({ show, onHide, agent, onDel }: ArtDelProps) => {
 
             <Modal.Body>
                 <Form.Group>
-
-
-                    <Table className="tableArticulos">
-                        <tbody>
-                            <>
-                                <tr >
-                                    <td colSpan={2}><p>¿Seguro quiere eliminar a...</p></td>
-                                </tr>
-                                <tr key={agent.uuid}>
-                                    <td style={{ width: '30%' }}>
-                                        <p>{agent.uuid}</p>
-                                    </td>
-                                    <td style={{ width: '70%' }}>
-                                        <p>{agent.displayName}</p>
-                                    </td>
-                                </tr>
-                            </>
-
-
-                        </tbody>
-                    </Table>
+                    {/* Si el artículo no existe, no deberíamos mostrar el modal, pero es una buena práctica comprobarlo. */}
+                    {!articulo ? <p>No se ha seleccionado ningún artículo.</p> : (
+                        <Table className="tableArticulos">
+                            <tbody>
+                                <>
+                                    <tr >
+                                        <td colSpan={2}><p>¿Seguro quiere eliminar</p></td>
+                                    </tr>
+                                    <tr key={articulo.uuid}>
+                                        <td style={{ width: '30%' }}>
+                                            <p>{articulo.idArticulo}</p>
+                                        </td>
+                                        <td style={{ width: '70%' }}>
+                                            <p>{articulo.descripcion}</p>
+                                        </td>
+                                    </tr>
+                                </>
+                            </tbody>
+                        </Table>
+                    )}
                 </Form.Group>
             </Modal.Body>
 

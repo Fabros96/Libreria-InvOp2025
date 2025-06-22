@@ -5,35 +5,35 @@ import { showToasty } from "../../utils/toasty"
 import "../../App.css";
 
 interface ProvDelProps {
-    agent: any | null;
+    proveedor: any | null;
     show: boolean;
     onHide: () => void;
-    onDel: (updatedAgent: any) => void;
+    onDel: (updatedProveedor: any) => void;
 }
 
 
 
-const ProvDel = ({ show, onHide, agent, onDel }: ProvDelProps) => {
+const ProvDel = ({ show, onHide, proveedor, onDel }: ProvDelProps) => {
 
     const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
     const [selectedName, setSelectedName] = useState<string>("");
 
     useEffect(() => {
 
-        setSelectedUuid(agent.uuid || "");
-        setSelectedName(agent.displayName || "");
+        setSelectedUuid(proveedor.uuid || "");
+        setSelectedName(proveedor.displayName || "");
 
-    }, [agent]);
+    }, [proveedor]);
 
     const handleDel = () => {
         if (!selectedUuid) return;
-        if (agent) {
-            const updatedAgent = {
-                ...agent,
+        if (proveedor) {
+            const updatedProveedor = {
+                ...proveedor,
                 displayName: selectedName
             };
-            showToasty('Artículo eliminado exitosamente', 'success');
-            onDel(updatedAgent);
+            showToasty('Proveedor eliminado exitosamente', 'success');
+            onDel(updatedProveedor);
         }
     };
 
@@ -41,7 +41,7 @@ const ProvDel = ({ show, onHide, agent, onDel }: ProvDelProps) => {
         <Modal show={show} onHide={onHide} centered>
             <Modal.Header closeButton>
                 <Modal.Title>
-                    Eliminar Artículo
+                    Eliminar Proveedor
                 </Modal.Title>
             </Modal.Header>
 
@@ -49,18 +49,18 @@ const ProvDel = ({ show, onHide, agent, onDel }: ProvDelProps) => {
                 <Form.Group>
 
 
-                    <Table className="tableArticulos">
+                    <Table className="tableProveedores">
                         <tbody>
                             <>
                                 <tr >
                                     <td colSpan={2}><p>¿Seguro quiere eliminar a...</p></td>
                                 </tr>
-                                <tr key={agent.uuid}>
+                                <tr key={proveedor.idProveedor}>
                                     <td style={{ width: '30%' }}>
-                                        <p>{agent.uuid}</p>
+                                        <p>{proveedor.idProveedor}</p>
                                     </td>
                                     <td style={{ width: '70%' }}>
-                                        <p>{agent.displayName}</p>
+                                        <p>{proveedor.nombre}</p>
                                     </td>
                                 </tr>
                             </>
