@@ -27,7 +27,7 @@ async function main() {
         stockSeguridad: 8,
       },
     }),
-    prisma.inventario.create({
+     prisma.inventario.create({
       data: {
         costoAlmacenamiento: 120,
         costoCompra: 600,
@@ -101,12 +101,17 @@ async function main() {
   await Promise.all([
     prisma.estadoOrdenCompra.create({
       data: {
-        nombre: 'Creado',
+        nombre: 'Pendiente',
       },
     }),
     prisma.estadoOrdenCompra.create({
       data: {
-        nombre: 'Activo',
+        nombre: 'Enviado',
+      },
+    }),
+    prisma.estadoOrdenCompra.create({
+      data: {
+        nombre: 'Cancelado',
       },
     }),
     prisma.estadoOrdenCompra.create({
@@ -172,43 +177,30 @@ async function main() {
     }),
   ]);
 
+  const TOTAL_VENTAS = 1000;           // Cantidad de registros que quieres crear
+  const MAX_CANTIDAD = 20;             // Cantidad máxima por venta
+  const FECHA_INICIO = new Date(2023, 0, 1);
+  const FECHA_FIN = new Date(2023, 11, 31);
+  const MIN_ARTICULO = 1;              // Id mínimo de artículo existente
+  const MAX_ARTICULO = 3;             // Id máximo de artículo existente
 
-    // Crear inventarios
-
-    // const inventario1 = await prisma.inventario.create({
-    //     data: {
-    //         costoAlmacenamiento: 100,
-    //         costoCompra: 500,
-    //         costoPedido: 200,
-    //         demandaArticulo: 50,
-    //         loteOptimo: 30,
-    //         puntoPedido: 20,
-    //         stockSeguridad: 10,
-    //     },
-    // });
-    // const inventario2 = await prisma.inventario.create({
-    //     data: {
-    //         costoAlmacenamiento: 70,
-    //         costoCompra: 150,
-    //         costoPedido: 45,
-    //         demandaArticulo: 200,
-    //         loteOptimo: 80,
-    //         puntoPedido: 60,
-    //         stockSeguridad: 20,
-    //     },
-    // });
-    // const inventario3 = await prisma.inventario.create({
-    //     data: {
-    //         costoAlmacenamiento: 90,
-    //         costoCompra: 200,
-    //         costoPedido: 60,
-    //         demandaArticulo: 300,
-    //         loteOptimo: 120,
-    //         puntoPedido: 100,
-    //         stockSeguridad: 25,
-    //     },
-    // });
-   
+  // FUNCIONES UTILES
+  function randomInt(min: number, max: number) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+  function randomDate(start: Date, end: Date): Date {
+    return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+  }
+  const ventas = [];
+  for (let i = 0; i < TOTAL_VENTAS; i++) {
+    ventas.push({
+      idArticulo: randomInt(MIN_ARTICULO, MAX_ARTICULO),
+      cantidad: randomInt(1, MAX_CANTIDAD),
+      fechaCreacion: randomDate(FECHA_INICIO, FECHA_FIN),
+    });
+  }
+  await prisma.venta.createMany({ data: ventas });
+  console.log(`${TOTAL_VENTAS} ventas creadas exitosamente!`);
 }
 
 main()
@@ -223,3 +215,4 @@ main()
 
 // REFERENCIA
 // npx prisma db seed
+// o npx prisma migrate reset (vuela todo por los aires)
