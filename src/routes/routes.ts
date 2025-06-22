@@ -29,6 +29,8 @@ router.get("/inventarios/:id", InventarioController.getById);
 router.post("/inventarios", InventarioController.create);
 router.put("/inventarios/:id", InventarioController.update);
 router.delete("/inventarios/:id", InventarioController.delete);
+router.get("/inventarios/recalculo", InventarioController.recalculo);
+
 
 // articulo proveedor
 router.get("/articulo-proveedores", ArticuloProveedorController.getAll);

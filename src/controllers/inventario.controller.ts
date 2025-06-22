@@ -15,7 +15,7 @@ export const InventarioController = {
             res.status(500).json({ msg: 'Error al obtener las registros', detail: error.message });
         }
     },
-    
+
     // Obtener un inventario por su ID (getById)
     getById: async (req: Request, res: Response) => {
         const { id } = req.params;
@@ -65,6 +65,16 @@ export const InventarioController = {
             res.status(200).json({ msg: 'Se ha eliminado el inventario.' });
         } catch (error: any) {
             res.status(500).json({ msg: 'Error al eliminar el inventario', detail: error.message });
+        }
+    },
+
+    //Recalculo para un inventario
+    recalculo: async (req: Request, res: Response) => {
+        try {
+            const inventarios = await inventarioRepository.findMany(decodeURIComponent(req.url));
+            res.status(200).json({ msg: `${inventarios.length > 0 ? 'Se han encontrado registros' : 'No se han encontrado registros'}`, data: inventarios});
+        } catch (error: any) {
+            res.status(500).json({ msg: 'Error al obtener las registros', detail: error.message });
         }
     },
 }

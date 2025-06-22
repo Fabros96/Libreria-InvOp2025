@@ -31,7 +31,13 @@ export const OrdenCompraController = {
         let { idArticulo, idProveedor, idEstadoOrdenCompra, cantidad, fechaCreacion } = req.body;
         try {
             const nuevoOrdenCompra = await prisma.ordenCompra.create({
-                data: { idArticulo, idProveedor, idEstadoOrdenCompra, cantidad, fechaCreacion },
+                data: { 
+                    idArticulo, 
+                    idProveedor, 
+                    idEstadoOrdenCompra, 
+                    cantidad, 
+                    fechaCreacion 
+                },
             });
             res.status(200).json({ msg: 'Se ha creado el ordenCompra.', data: nuevoOrdenCompra });
         } catch (error: any) {
@@ -45,6 +51,54 @@ export const OrdenCompraController = {
         let { idArticulo, idProveedor, idEstadoOrdenCompra, cantidad, fechaCreacion } = req.body;
         let payload: any = { idArticulo, idProveedor, idEstadoOrdenCompra, cantidad, fechaCreacion };
         try {
+            //Traer el estado actual de la OC
+            const ordenCompraActual = await prisma.ordenCompra.findUnique({
+                where: {idOrdenCompra: parseInt(id)},
+                select: {idEstadoOrdenCompra: true,
+                        cantidad: true,
+                        idArticulo: true}
+            });
+
+            if (!ordenCompraActual) {
+                return res.status(404).json({msg: 'Orden de compra no encontrada.'})
+            }
+
+            //Si se intenta cancelar la OC, validar que esté en estado Pendiente
+            //1 = Creado (se cambiaría a Pendiente el 1) - valido que la OC no este cancelada y que sea distinto de pendiente
+
+            if (idEstadoOrdenCompra === 4 && ordenCompraActual.idEstadoOrdenCompra !== 1) {
+                return res.status(400).json({msg: 'Solo se puede cancelar una orden cuando está en estado Pendiente.'})
+            }
+
+            //Si el estado nuevo es Finalizado, actualizar el inventario.
+
+            if (ordenCompraActual.cantidad === null) { //hago esto por que no me deja utilizar el "increment"
+                return res.status(400).json({
+                    msg: 'La cantidad no puede ser nula al finalizar la compra.'
+                })
+            }
+
+            if (idEstadoOrdenCompra === 2 && ordenCompraActual.idEstadoOrdenCompra !== 2) {
+                await prisma.articulo.update({
+                    where: {idArticulo: ordenCompraActual.idArticulo},
+                    data: {
+                        stock: {
+                            increment: ordenCompraActual.cantidad
+                        }
+                    }
+                });
+            }
+
+
+            //OC no puede ser modificada ni cancelada cuando el estado es Enviada
+            if (idEstadoOrdenCompra === 5) {
+                return res.status(400).json({msg: 'La orden ya fue enviada y no puede ser modificada.'})
+            }
+
+            if (idEstadoOrdenCompra !== undefined) {
+                payload.idEstadoOrdenCompra = idEstadoOrdenCompra
+            }
+
             const ordenCompraActualizado = await prisma.ordenCompra.update({
                 where: { idOrdenCompra: parseInt(id) },
                 data: payload,

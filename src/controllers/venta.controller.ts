@@ -31,6 +31,28 @@ export const VentaController = {
         let { idArticulo, cantidad, fechaCreacion, articulo } = req.body;
         try {
             if (!fechaCreacion) fechaCreacion = new Date();
+
+            const stockArticulo = await prisma.articulo.findUnique({
+                where: {idArticulo},
+                select: {stock: true}
+            });
+
+            if (!stockArticulo) {
+                return res.status(404).json({msg: 'Articulo no encontrado.'})
+            }
+
+            if (cantidad === null || stockArticulo.stock === null) { //hago esto por que no me deja comparar cantidad con articulo.stock
+                return res.status(400).json({
+                    msg: 'Cantidad o stock no pueden ser nulas'
+                })
+            }
+
+            //Validar stock disponible
+            if(cantidad > stockArticulo.stock) {
+                return res.status(400).json({msg: 'La cantidad solicita supera el stock disponible.'})
+            }
+
+
             const nuevaVenta = await prisma.venta.create({
                 data: { idArticulo, cantidad, fechaCreacion, articulo },
             });
@@ -68,4 +90,5 @@ export const VentaController = {
             res.status(500).json({ msg: 'Error al eliminar el venta', detail: error.message });
         }
     },
+
 }
