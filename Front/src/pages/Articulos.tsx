@@ -125,6 +125,29 @@ const Articulos = () => {
         setShowModal(false);
     };
 
+    //agrego para que se de alta un nuevo articulo
+    const handleNuevoArticulo = async (nuevoArticulo: Articulo) => {
+        try {
+            const response = await axiosClient.post("/articulos", nuevoArticulo);
+
+            const articuloCreado = response.data;
+
+            setData(prevData => ({
+                ...prevData,
+                datos: [...prevData.datos, articuloCreado],
+            }));
+
+            //showToasty("Artículo creado exitosamente", "success");
+            alert("Articulo creado exitosamente")
+            setShowModal(false);
+        } catch (error) {
+            console.error("Error al crear el artículo:", error);
+            alert("Error al crear el artículo")
+            //showToasty("Error al crear el artículo", "error");
+        }
+    };
+
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -197,7 +220,7 @@ const Articulos = () => {
                 />
             )}
 
-            {showModal && (modalType === "edit" || modalType === "new") && (
+            {showModal && (modalType === "edit") && (
                 <ArtEdit
                     show={showModal}
                     onHide={() => setShowModal(false)}
@@ -207,6 +230,18 @@ const Articulos = () => {
                     precio={selectedArticulo?.precio ?? 0}
                 />
             )}
+
+            {showModal && modalType === "new" && (
+                <ArtEdit
+                    show={showModal}
+                    onHide={() => setShowModal(false)}
+                    articulo={selectedArticulo}
+                    onSave={handleNuevoArticulo}
+                    mode="new"
+                    precio={0}
+                />
+            )}
+
             {showModal && (modalType === "provView" || modalType === "provEdit" || modalType === "provNew") && (
                 <ArtProv
                     show={showModal}

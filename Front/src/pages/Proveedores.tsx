@@ -99,46 +99,89 @@ const Proveedores = () => {
         }
     }
 
-    const handleUpdateProveedor = (updatedProveedor: Proveedor) => {
+    const handleUpdateProveedor = async (updatedProveedor: Proveedor) => {
+    try {
+        const response = await fetch(`http://localhost:3000/proveedores/${updatedProveedor.idProveedor}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(updatedProveedor),
+        });
+
+        console.log(response)
+
+        if (!response.ok) {
+            throw new Error("Error al actualizar proveedor");
+        }
+
+        const result = await response.json(); // trae el proveedor actualizado desde el backend
+
+        // Ahora sí, actualizás el estado local con la nueva info del backend
         setData(prevData => {
             const nuevosDatos = prevData.datos.map(prov =>
-                prov.idProveedor === updatedProveedor.idProveedor
-                    ? updatedProveedor
+                prov.idProveedor === result.data.idProveedor
+                    ? result.data
                     : prov
             );
 
-            if (!prevData.datos.some(prov => prov.idProveedor === updatedProveedor.idProveedor)) {
-                nuevosDatos.push({
-                    ...updatedProveedor
-                });
+            if (!prevData.datos.some(prov => prov.idProveedor === result.data.idProveedor)) {
+                nuevosDatos.push(result.data);
             }
+
             return {
                 ...prevData,
                 datos: nuevosDatos
             };
         });
+
         setShowModal(false);
+    } catch (error) {
+        console.error("Error al actualizar proveedor:", error);
+        // podés mostrar un alert si querés: alert("Error al actualizar")
     }
+};
 
 
-    const handleDelProveedor = (proveedorToDelete: Proveedor) => {
-        // Aquí deberías agregar la llamada a tu API para eliminar el artículo en el backend.
-        // ej: await axiosClient.delete(`/proveedors/${proveedorToDelete.idProveedor}`);
-        setData(prevData => {
-            const nuevosDatos = prevData.datos.filter(
-                proveedor => proveedor.idProveedor !== proveedorToDelete.idProveedor
-            );
-            return {
-                ...prevData,
-                datos: nuevosDatos
-            };
-        });
-
+ 
+    const handleCreateProveedor = async (nuevoProveedor: any) => {
+    try {
+        const response = await axiosClient.post("/proveedores", nuevoProveedor);
+        //showToasty("Proveedor creado con éxito", "success");
+        // Refrescar la lista
+        fetchData(); // si tenés esta función para recargar
         setShowModal(false);
-    };
+    } catch (error) {
+        showToasty("Error al crear proveedor", "error");
+        console.error(error);
+    }
+};
 
-    useEffect(() => {
-        const fetchData = async () => {
+
+
+        const handleDelProveedor = (proveedorToDelete: Proveedor) => {
+            axiosClient.delete(`/proveedores/${proveedorToDelete.idProveedor}`)
+                .then(() => {
+                    setData(prevData => {
+                        const nuevosDatos = prevData.datos.filter(
+                            proveedor => proveedor.idProveedor !== proveedorToDelete.idProveedor
+                        );
+                        return {
+                            ...prevData,
+                            datos: nuevosDatos
+                        };
+                    });
+
+                    setShowModal(false);
+                })
+                .catch(error => {
+                    console.error("Error al eliminar el proveedor:", error);
+                    alert("No se pudo eliminar el proveedor. Intente nuevamente.");
+                });
+        };
+
+
+    const fetchData = async () => {
             try {
                 const response = await axiosClient.get("articulo-proveedores/?filter[include]=proveedor");
                 const allData: ArticuloProveedor[] = response.data || [];
@@ -160,8 +203,12 @@ const Proveedores = () => {
 
         };
 
+    useEffect(() => {
         fetchData();
     }, []);
+
+    
+
 
 
     const filteredData = data.datos
@@ -192,13 +239,24 @@ const Proveedores = () => {
 
         switch (modalType) {
             case "edit":
-            case "new":
+       
                 return (
                     <ProvEdit
                         show={showModal}
                         onHide={() => setShowModal(false)}
                         proveedor={selectedProveedor}
                         onSave={handleUpdateProveedor}
+                        mode={modalType}
+                    />
+                );
+            
+            case "new":
+                return (
+                    <ProvEdit
+                        show={showModal}
+                        onHide={() => setShowModal(false)}
+                        proveedor={selectedProveedor}
+                        onSave={handleCreateProveedor}
                         mode={modalType}
                     />
                 );

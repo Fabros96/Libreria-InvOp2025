@@ -55,17 +55,33 @@ const ArtEdit = ({ show, onHide, articulo,  onSave, mode}: ArtEditProps) => {
         }
     }, [articulo, mode]);
 
-    const handleSave = () => {
-        if (!articulo) return;
+    //const handleSave = () => {
+      //  if (!articulo) return;
 
-        const updatedArticulo = {
-            ...articulo, // esto mantiene el id original
-            descripcion: name
+        //const updatedArticulo = {
+          //  ...articulo, // esto mantiene el id original
+           // descripcion: name
             // otros campos...
+        //};
+    const handleSave = () => {
+        const datosArticulo = {
+            idArticulo,
+            descripcion,
+            stock,
+            precio,
+            modeloInventario: modelo,
+            demanda,
+            cAlmacenamiento: costoAlmacenamiento,
+            cPedido: costoPedido,
+            cCompra: costoCompra,
+            idProveedor: proveedor?.idProveedor || null,
         };
-        showToasty('Artículo actualizado exitosamente', 'success');
-        onSave(updatedArticulo);
+
+    const mensaje = mode === "edit" ? "Artículo actualizado exitosamente" : "Artículo creado exitosamente";
+    showToasty(mensaje, 'success');
+    onSave(datosArticulo);
     };
+
 
     const handleProveedorSeleccionado = (selectedProv: any) => {
         setProveedor(selectedProv);

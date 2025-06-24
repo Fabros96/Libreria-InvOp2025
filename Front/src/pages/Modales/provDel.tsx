@@ -12,36 +12,41 @@ interface ProvDelProps {
 }
 
 
-
 const ProvDel = ({ show, onHide, proveedor, onDel }: ProvDelProps) => {
 
-    const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
-    const [selectedName, setSelectedName] = useState<string>("");
+    //const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
+    //const [selectedName, setSelectedName] = useState<string>("");
 
-    useEffect(() => {
+    //useEffect(() => {
 
-        setSelectedUuid(proveedor.uuid || "");
-        setSelectedName(proveedor.displayName || "");
+      //  setSelectedUuid(proveedor.uuid || "");
+        //setSelectedName(proveedor.displayName || "");
 
-    }, [proveedor]);
+    //}, [proveedor]);
+
+    //const handleDel = () => {
+      //  if (!selectedUuid) return;
+        //if (proveedor) {
+          //  const updatedProveedor = {
+            //    ...proveedor,
+              //  displayName: selectedName
+            //};
+            //showToasty('Proveedor eliminado exitosamente', 'success');
+            //onDel(updatedProveedor);
+        //}
+    //};
 
     const handleDel = () => {
-        if (!selectedUuid) return;
-        if (proveedor) {
-            const updatedProveedor = {
-                ...proveedor,
-                displayName: selectedName
-            };
-            showToasty('Proveedor eliminado exitosamente', 'success');
-            onDel(updatedProveedor);
-        }
-    };
+    if (!proveedor) return;
+    showToasty('Proveedor eliminado exitosamente', 'success');
+    onDel(proveedor);
+};
 
     return (
         <Modal show={show} onHide={onHide} centered>
             <Modal.Header closeButton>
                 <Modal.Title>
-                    Eliminar Proveedor
+                    Dar de Baja
                 </Modal.Title>
             </Modal.Header>
 
@@ -78,7 +83,7 @@ const ProvDel = ({ show, onHide, proveedor, onDel }: ProvDelProps) => {
                 <Button variant="outline-success"
                     onClick={handleDel}
                 >
-                    Eliminar
+                    Dar de Baja
                 </Button>
             </Modal.Footer>
         </Modal>
