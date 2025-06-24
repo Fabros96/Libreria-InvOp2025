@@ -28,17 +28,43 @@ export const ArticuloController = {
     },
     
     // Crear un nuevo articulo (create)
+    // create: async (req: Request, res: Response) => {
+    //     let { idInventario, fechaBaja, descripcion, modeloInventario, stock } = req.body;
+    //     try {
+    //         const nuevoArticulo = await prisma.articulo.create({
+    //             data: { idInventario, fechaBaja, descripcion, modeloInventario, stock },
+    //         });
+    //         res.status(200).json({ msg: 'Se ha creado el articulo.', data: nuevoArticulo });
+    //         console.log(nuevoArticulo)
+    //     } catch (error: any) {
+    //         res.status(500).json({ msg: 'Error al crear el articulo', detail: error.message });
+    //         console.log(error)
+    //     }
+    // },
+
     create: async (req: Request, res: Response) => {
-        let { idInventario, fechaBaja, descripcion, modeloInventario, stock } = req.body;
+    const { idInventario, descripcion, modeloInventario, stock } = req.body;
+
         try {
-            const nuevoArticulo = await prisma.articulo.create({
-                data: { idInventario, fechaBaja, descripcion, modeloInventario, stock },
-            });
-            res.status(200).json({ msg: 'Se ha creado el articulo.', data: nuevoArticulo });
+        const nuevoArticulo = await prisma.articulo.create({
+            data: {
+                descripcion,
+                modeloInventario,
+                stock,
+                fechaBaja: null, // forzar a null
+                idInventario:4 //funciona harcodeado por que el inventario es nuevo entonces al relacionar 1 a 1 no puedo utilizar mi articulo que creo en otro inventario que ya tiene asociado el articulo
+            }                   //deberamos hacer que se cree un nuevo inventario y que obtenga los datos que corresponde a inventario
+        });
+
+            res.status(200).json({ msg: 'Se ha creado el artículo.', data: nuevoArticulo });
+            console.log(nuevoArticulo);
+
         } catch (error: any) {
-            res.status(500).json({ msg: 'Error al crear el articulo', detail: error.message });
+            res.status(500).json({ msg: 'Error al crear el artículo', detail: error.message });
+            console.log(error);
         }
     },
+
     
     // Actualizar un articulo (update)
     update: async (req: Request, res: Response) => {

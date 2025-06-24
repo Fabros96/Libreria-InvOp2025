@@ -41,7 +41,9 @@ export const ProveedorController = {
     
     // Actualizar un proveedor (update)
     update: async (req: Request, res: Response) => {
+        console.log("si entro al update")
         const { id } = req.params;
+
         let { nombre, fechaBaja } = req.body;
         let payload: any = { nombre };
         if (fechaBaja) payload['fechaBaja'] = fechaBaja;
@@ -57,15 +59,33 @@ export const ProveedorController = {
     },
     
     // Eliminar un proveedor (delete)
+    //delete: async (req: Request, res: Response) => {
+      //  const { id } = req.params;
+        //console.log("entra al delete")
+        //console.log(id)
+        //try {
+          //  await prisma.proveedor.delete({
+            //    where: { idProveedor: parseInt(id) },
+            //});
+         //   res.status(200).json({ msg: 'Se ha eliminado el proveedor.' });
+        //} catch (error: any) {
+          //  res.status(500).json({ msg: 'Error al eliminar el proveedor', detail: error.message });
+            //console.log(error.message)
+       // }
+    //},
+
+    // Eliminar proveedor (Baja lógica)
     delete: async (req: Request, res: Response) => {
         const { id } = req.params;
         try {
-            await prisma.proveedor.delete({
+            const proveedorBaja = await prisma.proveedor.update({
                 where: { idProveedor: parseInt(id) },
+                data: { fechaBaja: new Date() }
             });
-            res.status(200).json({ msg: 'Se ha eliminado el proveedor.' });
+            res.status(200).json({ msg: 'Proveedor dado de baja', data: proveedorBaja });
         } catch (error: any) {
-            res.status(500).json({ msg: 'Error al eliminar el proveedor', detail: error.message });
+            res.status(500).json({ msg: 'Error al dar de baja el proveedor', detail: error.message });
         }
     },
+
 }
