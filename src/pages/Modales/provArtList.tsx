@@ -34,8 +34,7 @@ const ProvProv = ({ proveedor, show, onHide }: ProvProvProps) => {
             try {
                 let response: AxiosResponse<any, any> | null = null;
 
-                response = await axiosClient.get(`articulo-proveedores/?filter[idProveedor][eq]=${proveedor.idProveedor}&filter[include]=proveedor,articulo`);
-                console.log(response)
+                response = await axiosClient.get(`articulo-proveedores/?filter[idProveedor][eq]=${proveedor.idProveedor}&filter[include]=proveedor,articulo&filter[articulo.fechaBaja][eq]=null`);
 
                 const allData = response?.data?.datos || response?.data || [];
 
