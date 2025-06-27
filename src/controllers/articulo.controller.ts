@@ -43,18 +43,33 @@ export const ArticuloController = {
     // },
 
     create: async (req: Request, res: Response) => {
-    const { idInventario, descripcion, modeloInventario, stock } = req.body;
+        // {
+        //     "descripcion": "aa",
+        //     "modeloInventario": 1,
+        //     "stock": 14,
+        //     "inventario": {
+        //         "costoAlmacenamiento": 12,
+        //         "costoCompra": 12,
+        //         "costoPedido": 12,
+        //         "demandaArticulo": 12,
+        //         "loteOptimo": 12,
+        //         "puntoPedido": 12,
+        //         "stockSeguridad": 12
+        //     }
+        // }
+        const { descripcion, modeloInventario, stock, inventario } = req.body;
 
         try {
-        const nuevoArticulo = await prisma.articulo.create({
-            data: {
+            let data: any = {
                 descripcion,
                 modeloInventario,
                 stock,
-                fechaBaja: null, // forzar a null
-                idInventario:4 //funciona harcodeado por que el inventario es nuevo entonces al relacionar 1 a 1 no puedo utilizar mi articulo que creo en otro inventario que ya tiene asociado el articulo
-            }                   //deberamos hacer que se cree un nuevo inventario y que obtenga los datos que corresponde a inventario
-        });
+                inventario: {...{create: {...inventario}}}
+            };
+            const nuevoArticulo = await prisma.articulo.create({
+                data,
+                include: {inventario: true}
+            });
 
             res.status(200).json({ msg: 'Se ha creado el artículo.', data: nuevoArticulo });
             console.log(nuevoArticulo);
