@@ -34,7 +34,7 @@ export const VentaController = {
 
             const stockArticulo = await prisma.articulo.findUnique({
                 where: {idArticulo},
-                select: {stock: true}
+                select: { stock: true } 
             });
 
             if (!stockArticulo) {
@@ -48,14 +48,70 @@ export const VentaController = {
             }
 
             //Validar stock disponible
-            if(cantidad > stockArticulo.stock) {
+            if (cantidad > stockArticulo.stock) {
                 return res.status(400).json({msg: 'La cantidad solicita supera el stock disponible.'})
             }
-
 
             const nuevaVenta = await prisma.venta.create({
                 data: { idArticulo, cantidad, fechaCreacion, articulo },
             });
+
+            const updateArticulo = await prisma.articulo.update({
+                where: {idArticulo},
+                data: {
+                    stock: {
+                        decrement: cantidad
+                    }
+                },
+                include: {
+                    inventario: true
+                }
+            });
+            if (updateArticulo.modeloInventario === 'LF' && updateArticulo.stock! < updateArticulo.inventario.puntoPedido!) {
+                const ordenExistente = await prisma.ordenCompra.findFirst({
+                    where: {
+                        idArticulo: idArticulo,
+                        idEstadoOrdenCompra: {
+                            in: [1, 4]
+                        }
+                    }
+                });
+                if (!ordenExistente) {
+                    const articuloProveedor = await prisma.articuloProveedor.findMany({
+                        where: {
+                            idArticulo: idArticulo
+                        },
+                        orderBy: {
+                            precioUnitario: 'desc'
+                        }
+                    });
+                    //              Al generar una venta verificar el stock del artículo. Si el modelo de Inventario es LF, la 
+                    // cantidad actual es >= al PP y no hay ordenes pendientes/enviada para el articulo, 
+                    // generar una orden de compra en estado pendiente.  
+    
+                    // q = d *(T + L) + zσ (T + L) − I 
+                    // Donde 
+                    // q = Cantidad a pedir 
+                    // T = El número de días entre revisiones 
+                    // L = Tiempo de entrega en días (tiempo entre el momento de hacer un pedido y recibirlo) 
+                    // d = Demanda diaria promedio pronosticada 
+                    // z = Número de desviaciones estándar para una probabilidad de servicio específica 
+                    // σT + L = Desviación estándar de la demanda durante el periodo de revisión y entrega 
+                    // I = Nivel de inventario actual (incluye las piezas pedidas)
+                    // calcular q que seria la cantidad
+                    const cantidadAPedir = Math.round(updateArticulo.inventario.demandaArticulo! * articuloProveedor[0].demoraEntrega!  - (updateArticulo.stock! + cantidad));        
+    
+                    const nuevoOrdenCompra = await prisma.ordenCompra.create({
+                        data: { 
+                            idArticulo, 
+                            idProveedor: 1, 
+                            idEstadoOrdenCompra: articuloProveedor[0].idProveedor, 
+                            cantidad: cantidadAPedir
+                        },
+                    });
+                }
+            }
+
             res.status(200).json({ msg: 'Se ha creado el venta.', data: nuevaVenta });
         } catch (error: any) {
             res.status(500).json({ msg: 'Error al crear el venta', detail: error.message });

@@ -30,21 +30,6 @@ export const OrdenCompraController = {
     create: async (req: Request, res: Response) => {
         let { idArticulo, idProveedor, idEstadoOrdenCompra, cantidad, fechaCreacion } = req.body;
         try {
-
-            const ordenExistente = await prisma.ordenCompra.findFirst({
-                where: {
-                    idArticulo: idArticulo,
-                    idEstadoOrdenCompra: {
-                        in: [1, 4]
-                    }
-                }
-            });
-
-            if (ordenExistente) {
-                return res.status(400).json({
-                    msg: 'Ya existe una orden de compra activa para este artículo.'
-                });
-            }
             const nuevoOrdenCompra = await prisma.ordenCompra.create({
                 data: { 
                     idArticulo, 

@@ -47,7 +47,7 @@ async function main() {
         data: {
           idInventario: inv.idInventario,
           descripcion: `Artículo ${i + 1}`,
-          modeloInventario: 1000 + i,
+          modeloInventario: 'LF',
           stock: 10 * (i + 1),
         },
       })

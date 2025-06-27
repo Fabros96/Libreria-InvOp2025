@@ -38,8 +38,8 @@ model Articulo {
   idInventario            Int     @unique
   fechaBaja               DateTime?
   descripcion             String?
-  modeloInventario        Int?
-  stock                   Int?
+  modeloInventario        String
+  stock                   Int
   inventario              Inventario @relation(fields: [idInventario], references: [idInventario])
   articuloProveedorList   ArticuloProveedor[]
   ordenCompraList         OrdenCompra[]
