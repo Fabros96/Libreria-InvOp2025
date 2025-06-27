@@ -49,14 +49,14 @@ export const OrdenCompraController = {
                 data: { 
                     idArticulo, 
                     idProveedor, 
-                    idEstadoOrdenCompra, 
+                    idEstadoOrdenCompra: 3, 
                     cantidad, 
-                    fechaCreacion 
+                    fechaCreacion: new Date() 
                 },
             });
-            res.status(200).json({ msg: 'Se ha creado el ordenCompra.', data: nuevoOrdenCompra });
+            res.status(200).json({ msg: 'Se ha creado la Orden de Compra.', data: nuevoOrdenCompra });
         } catch (error: any) {
-            res.status(500).json({ msg: 'Error al crear el ordenCompra', detail: error.message });
+            res.status(500).json({ msg: 'Error al crear la Orden de Compra.', detail: error.message });
         }
     },
     
@@ -64,66 +64,110 @@ export const OrdenCompraController = {
     update: async (req: Request, res: Response) => {
         const { id } = req.params;
         let { idArticulo, idProveedor, idEstadoOrdenCompra, cantidad, fechaCreacion } = req.body;
-        let payload: any = { idArticulo, idProveedor, idEstadoOrdenCompra, cantidad, fechaCreacion };
+        let payload: any = { idArticulo, idProveedor, cantidad, fechaCreacion };
+
         try {
-            //Traer el estado actual de la OC
+            // Traer la OC actual
             const ordenCompraActual = await prisma.ordenCompra.findUnique({
-                where: {idOrdenCompra: parseInt(id)},
-                select: {idEstadoOrdenCompra: true,
-                        cantidad: true,
-                        idArticulo: true}
+                where: { idOrdenCompra: parseInt(id) },
+                select: {
+                    idEstadoOrdenCompra: true,
+                    cantidad: true,
+                    idArticulo: true
+                }
             });
 
             if (!ordenCompraActual) {
-                return res.status(404).json({msg: 'Orden de compra no encontrada.'})
+                return res.status(404).json({ msg: 'Orden de compra no encontrada.' });
             }
 
-            //Si se intenta cancelar la OC, validar que esté en estado Pendiente
-            //1 = Creado (se cambiaría a Pendiente el 1) - valido que la OC no este cancelada y que sea distinto de pendiente
+            // Obtener el artículo relacionado (modeloInventario y puntoPedido)
+            const articuloRelacionado = await prisma.articulo.findUnique({
+                where: { idArticulo: ordenCompraActual.idArticulo },
+                select: {
+                    modeloInventario: true,
+                    stock: true,
+                    inventario: {
+                        select: {
+                            puntoPedido: true
+                        }
+                    }
+                }
+            });
 
-            if (idEstadoOrdenCompra === 4 && ordenCompraActual.idEstadoOrdenCompra !== 1) {
-                return res.status(400).json({msg: 'Solo se puede cancelar una orden cuando está en estado Pendiente.'})
+
+            if (!articuloRelacionado) {
+                return res.status(404).json({ msg: 'Artículo relacionado no encontrado.' });
             }
 
-            //Si el estado nuevo es Finalizado, actualizar el inventario.
 
-            if (ordenCompraActual.cantidad === null) { //hago esto por que no me deja utilizar el "increment"
-                return res.status(400).json({
-                    msg: 'La cantidad no puede ser nula al finalizar la compra.'
-                })
+            // OC ya enviada (4) => no se permite modificar ni cancelar
+            console.log(ordenCompraActual.idEstadoOrdenCompra) //a
+            if (ordenCompraActual.idEstadoOrdenCompra === 4) {
+                return res.status(400).json({ msg: 'La orden ya fue enviada y no puede ser modificada ni cancelada.' });
             }
 
-            if (idEstadoOrdenCompra === 2 && ordenCompraActual.idEstadoOrdenCompra !== 2) {
+            // Cancelar => solo si está en estado Pendiente (3)
+            if (idEstadoOrdenCompra === 1) {
+                if (ordenCompraActual.idEstadoOrdenCompra !== 3) {
+                    return res.status(400).json({ msg: 'Solo se puede cancelar una orden cuando está en estado Pendiente.' });
+                }
+                payload.idEstadoOrdenCompra = 1;
+            }
+
+            // Finalizar => actualizar stock y validar punto de pedido
+            if (idEstadoOrdenCompra === 2) {
+                if (ordenCompraActual.idEstadoOrdenCompra !== 3) {
+                    return res.status(400).json({ msg: 'Solo se puede finalizar una orden cuando está en estado Pendiente.' });
+                }
+
+                if (ordenCompraActual.cantidad === null || ordenCompraActual.cantidad <= 0) {
+                    return res.status(400).json({ msg: 'La cantidad debe ser mayor a cero para finalizar la orden.' });
+                }
+
+                // Actualizar stock
                 await prisma.articulo.update({
-                    where: {idArticulo: ordenCompraActual.idArticulo},
+                    where: { idArticulo: ordenCompraActual.idArticulo },
                     data: {
                         stock: {
                             increment: ordenCompraActual.cantidad
                         }
                     }
                 });
+
+                payload.idEstadoOrdenCompra = 2;
+
+                // Verificar Punto de Pedido si modelo es Lote Fijo (1002)
+            //if (
+                    //articuloRelacionado.modeloInventario === 1002 &&
+                  //  (articuloRelacionado.stock + ordenCompraActual.cantidad) < (articuloRelacionado.puntoPedido ?? 0)
+                //) {
+                    //return res.status(200).json({
+                     //   msg: 'Orden finalizada. Sin embargo, la cantidad total no supera el Punto de Pedido.',
+                   //     advertencia: true
+                 //   });
+               // }
             }
 
-
-            //OC no puede ser modificada ni cancelada cuando el estado es Enviada
-            if (idEstadoOrdenCompra === 5) {
-                return res.status(400).json({msg: 'La orden ya fue enviada y no puede ser modificada.'})
+            // Si no es cancelación ni finalización, y el estado no está definido, mantenerlo
+            if (idEstadoOrdenCompra && !payload.idEstadoOrdenCompra) {
+                payload.idEstadoOrdenCompra = idEstadoOrdenCompra;
             }
 
-            if (idEstadoOrdenCompra !== undefined) {
-                payload.idEstadoOrdenCompra = idEstadoOrdenCompra
-            }
-
+            // Actualizar OC
             const ordenCompraActualizado = await prisma.ordenCompra.update({
                 where: { idOrdenCompra: parseInt(id) },
                 data: payload,
             });
-            res.status(200).json({ msg: 'Se ha actualizado el ordenCompra.', data: ordenCompraActualizado });
+
+            res.status(200).json({ msg: 'Se ha actualizado la orden de compra.', data: ordenCompraActualizado });
+
         } catch (error: any) {
-            res.status(500).json({ msg: 'Error al actualizar el ordenCompra', detail: error.message });
+            res.status(500).json({ msg: 'Error al actualizar la orden de compra', detail: error.message });
         }
     },
-    
+
+
     // Eliminar un ordenCompra (delete)
     delete: async (req: Request, res: Response) => {
         const { id } = req.params;
