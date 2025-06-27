@@ -1,9 +1,10 @@
-import { Modal, Button, Form } from "react-bootstrap";
-import { useState, useEffect } from "react";
-import { showToasty } from "../../utils/toasty"
+import { useState } from "react";
+import { Modal, Button, Form, Badge } from "react-bootstrap";
+import { useFormik } from "formik";
+import * as Yup from "yup";
+
 import ProvAsoc from "./provAsoc";
-
-
+import DetalleProvArt from "./detalleProvArt";
 
 import "../../App.css";
 
@@ -15,105 +16,151 @@ interface ProvEditProps {
     mode: "edit" | "new";
 }
 
+const validationSchema = Yup.object({
+    nombre: Yup.string().required("El nombre es requerido"),
+    articulos: Yup.array().min(1, "Debe seleccionar al menos un artículo").required("Debe seleccionar al menos un artículo"),
+});
+
 const ProvEdit = ({ show, onHide, proveedor, onSave, mode }: ProvEditProps) => {
-    const [idProveedor, setIdProveedor] = useState("");
-    const [nombre, setNombre] = useState("");
-    const [showProveedorModal, setShowProveedorModal] = useState(false);
-    const [selectedProveedor, setSelectedProveedor] = useState<any | null>(null);
-    
+    const [showProvAsoc, setShowProvAsoc] = useState(false);
+    const [showDetalleProvArt, setShowDetalleProvArt] = useState(false);
+    const [articulosSeleccionados, setArticulosSeleccionados] = useState<any[]>([]);
 
+    const formik = useFormik({
+        enableReinitialize: true,
+        initialValues: {
+            idProveedor: proveedor?.idProveedor || "",
+            nombre: proveedor?.nombre || "",
+            articulos: proveedor?.articulosProveedor || [],
+        },
+        validationSchema,
+        onSubmit: (values) => {
+            onSave(values);
+            onHide();
+        },
+    });
 
+    // Abrir selección de artículos
+    const abrirProvAsoc = () => {
+        setShowProvAsoc(true);
+    };
 
-    useEffect(() => {
-        if (mode === "edit" && proveedor) {
-            setIdProveedor(proveedor.idProveedor || "");
-            setNombre(proveedor.nombre || "");
+    // Al seleccionar artículos en ProvAsoc
+    const onArticulosSeleccionados = (seleccionados: any[]) => {
+        setArticulosSeleccionados(seleccionados);
+        setShowProvAsoc(false);
+        setShowDetalleProvArt(true); // Abrir detalle de cada artículo
+    };
 
-
-        } else if (mode === "new") {
-            // Limpiar todo
-            setIdProveedor("");
-            setNombre("");
-
+    // Al finalizar edición de detalles
+    const onDetallesGuardados = (articulosProveedorConDetalles: any[]) => {
+        if (articulosProveedorConDetalles.length === 0) {
+            // Mostrar error usando setFieldError de Formik
+            formik.setFieldError("articulos", "Debe seleccionar al menos un artículo con detalles.");
+        } else {
+            // Guardar los artículos en el formulario
+            formik.setFieldValue("articulos", articulosProveedorConDetalles);
         }
-    }, [proveedor, mode]);
 
-    const handleSave = () => {
-        const updatedProveedor = mode === "edit"
-            ? {
-                ...proveedor,
-                nombre: nombre,
-                idProveedor: idProveedor,
-            }
-            : {
-                idProveedor,
-                nombre,
-            };
-
-        showToasty('Proveedor guardado exitosamente', 'success');
-        onSave(updatedProveedor);
+        setShowDetalleProvArt(false);
     };
-
-    const handleProveedorSeleccionado = (selectedProv: any) => {
-        setSelectedProveedor(selectedProv);
-        setIdProveedor(selectedProv.idProveedor || "");
-        setNombre(selectedProv.nombre || "");
-        setShowProveedorModal(false);
-    };
-
 
 
 
     return (
-        <Modal show={show} onHide={onHide} centered>
-            <Modal.Header closeButton>
-                <Modal.Title>{mode === "edit" ? "Editar Proveedor" : "Nuevo Proveedor"}</Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-                <Form.Group>
-                    <Form.Label>Codigo</Form.Label>
-                    <div style={{ display: 'flex', gap: '50px' }}>
+        <>
+            <Modal show={show} onHide={onHide} centered>
+                <Form onSubmit={formik.handleSubmit}>
+                    <Modal.Header closeButton>
+                        <Modal.Title>{mode === "edit" ? "Editar Proveedor" : "Nuevo Proveedor"}</Modal.Title>
+                    </Modal.Header>
 
-                        <Form.Control
-                            type="text"
-                            value={idProveedor}
-                            onChange={(e) => setIdProveedor(e.target.value)}
-                            disabled={mode === "edit"}
-                        />
-                        <Button onClick={() => setShowProveedorModal(true)}>Articulo/s</Button>
+                    <Modal.Body>
+                        <Form.Group controlId="formProveedor">
+                            {mode === "edit" && (
+                                <>
+                                    <Form.Label>Código</Form.Label>
+                                    <div style={{ marginBottom: '20px' }}>
+                                        <Form.Control
+                                            type="text"
+                                            value={formik.values.idProveedor}
+                                            disabled
+                                        />
+                                    </div>
+                                </>
+                            )}
 
-                    </div>
+                            <Form.Label>Nombre</Form.Label>
+                            <Form.Control
+                                type="text"
+                                name="nombre"
+                                value={formik.values.nombre}
+                                onChange={formik.handleChange}
+                                onBlur={formik.handleBlur}
+                                isInvalid={formik.touched.nombre && !!formik.errors.nombre}
+                            />
+                            <Form.Control.Feedback type="invalid">
+                                {formik.errors.nombre as string}
+                            </Form.Control.Feedback>
 
-                    <Form.Label>Nombre</Form.Label>
-                    <Form.Control
-                        type="text"
-                        value={nombre}
-                        onChange={(e) => setNombre(e.target.value)}
+                            <div className="mt-3">
+                                <Button onClick={abrirProvAsoc}>Asociar Artículo/s</Button>
+                            </div>
 
-                    />
-                </Form.Group>
+                            {/* Mostrar artículos seleccionados */}
+                            {formik.values.articulos.length > 0 && (
+                                <div className="mt-3">
+                                    <strong> Artículos seleccionados:</strong>
+                                    <div className="d-flex flex-wrap gap-2 mt-2">
+                                        {formik.values.articulos.map((art: any) => (
+                                            <Badge key={art.articulo.idArticulo} bg="info">
+                                                {art.articulo.descripcion || "Sin descripción"}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {formik.touched.articulos && formik.errors.articulos && (
+                                <div className="text-danger mt-2">
+                                    {typeof formik.errors.articulos === "string"
+                                        ? formik.errors.articulos
+                                        : Array.isArray(formik.errors.articulos)
+                                            ? formik.errors.articulos.join(", ")
+                                            : ""}
+                                </div>
+                            )}
 
-            </Modal.Body>
-            <Modal.Footer>
-                <Button variant="outline-danger" onClick={onHide}>
-                    Cancelar
-                </Button>
-                <Button variant="outline-success" onClick={handleSave}>
-                    Guardar
-                </Button>
-            </Modal.Footer>
+                        </Form.Group>
+                    </Modal.Body>
+
+                    <Modal.Footer>
+                        <Button variant="outline-danger" onClick={onHide}>
+                            Cancelar
+                        </Button>
+                        <Button variant="outline-success" type="submit">
+                            Guardar
+                        </Button>
+                    </Modal.Footer>
+                </Form>
+            </Modal>
+
+            {/* Modal para seleccionar artículos */}
             <ProvAsoc
-                show={showProveedorModal}
-                onHide={() => setShowProveedorModal(false)}
-                // onSave={handleProveedorSeleccionado}
-                proveedor={selectedProveedor}
-                onSiguiente={function (articulosSeleccionados: any[]): void {
-                    throw new Error("Function not implemented.");
-                }} />
+                show={showProvAsoc}
+                onHide={() => setShowProvAsoc(false)}
+                proveedor={proveedor}
+                onSiguiente={onArticulosSeleccionados}
+            />
 
-
-
-        </Modal>
+            {/* Modal para ingresar detalles */}
+            <DetalleProvArt
+                show={showDetalleProvArt}
+                onHide={() => setShowDetalleProvArt(false)}
+                articulos={articulosSeleccionados}
+                onVolver={onDetallesGuardados}
+                proveedor={proveedor}
+            />
+        </>
     );
 };
 

@@ -2,8 +2,8 @@ import { Modal, Button, Form, InputGroup, Table } from "react-bootstrap";
 import { useEffect, useState } from "react";
 import axiosClient from "../../api/axiosClient";
 
-import "../styles/Articulos.css"
-import "../styles/Proveedores.css"
+import "../styles/Articulos.css";
+import "../styles/Proveedores.css";
 
 type ArticulosData = { datos: any[] };
 
@@ -14,34 +14,68 @@ interface ProvAsocProps {
     onSiguiente: (articulosSeleccionados: any[]) => void;
 }
 
+type Proveedor = {
+    idProveedor: number;
+    nombre: string;
+    fechaBaja: Date | null;
+};
+
+type Articulo = {
+    idArticulo: number;  // Asegurarse que sea idArticulo, no idInventario
+    descripcion: string;
+    // otros campos
+};
+
+type ArticuloProveedor = {
+    idArticuloProveedor: number;
+    idArticulo: number;
+    idProveedor: number;
+    // otros campos
+};
+
 const ProvAsoc = ({ show, onHide, proveedor, onSiguiente }: ProvAsocProps) => {
     const [selectedIdsArticulos, setSelectedIdsArticulos] = useState<string[]>([]);
     const [data, setData] = useState<ArticulosData>({ datos: [] });
+    const [articulosProveedorList, setArticulosProveedorList] = useState<ArticuloProveedor[]>([]);
     const [searchText, setSearchText] = useState("");
     const [showAll, setShowAll] = useState(true);
 
-    // 🔁 Cargar todos los artículos una vez
+    // Cargar artículos generales
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchArticulos = async () => {
             try {
                 const response = await axiosClient.get("articulos");
                 setData({ datos: response.data || [] });
             } catch (error) {
-                console.error("Error al obtener datos:", error);
+                console.error("Error al obtener artículos:", error);
             }
         };
-        fetchData();
+        fetchArticulos();
     }, []);
 
-    // 🔁 Cuando cambia el proveedor, marcamos los artículos ya asociados
+    // Cargar artículos asociados al proveedor cuando cambia el proveedor o modal se abre
     useEffect(() => {
-        if (proveedor?.articulosProveedor) {
-            const articulosAsociados = proveedor.articulosProveedor.map((ap: any) => ap.idArticulo?.toString());
-            setSelectedIdsArticulos(articulosAsociados);
-        } else {
-            setSelectedIdsArticulos([]);
-        }
-    }, [proveedor]);
+        if (!proveedor) return;
+
+        const fetchArticulosProveedor = async () => {
+            try {
+                const response = await axiosClient.get(
+                    `articulo-proveedores/?filter[idProveedor][eq]=${proveedor.idProveedor}&filter[include]=articulo,proveedor&filter[articulo.fechaBaja][eq]=null`
+                );
+
+                const articulosProv: ArticuloProveedor[] = response.data || [];
+                setArticulosProveedorList(articulosProv);
+
+                // Inicializar checkboxes marcados con los idArticulo que ya están asociados
+                const idsSeleccionados = articulosProv.map((ap) => ap.idArticulo.toString());
+                setSelectedIdsArticulos(idsSeleccionados);
+            } catch (error) {
+                console.error("Error al obtener artículos del proveedor:", error);
+            }
+        };
+
+        fetchArticulosProveedor();
+    }, [proveedor, show]);
 
     const handleCheckboxChange = (idArticulo: string) => {
         setSelectedIdsArticulos((prev) =>
@@ -60,11 +94,29 @@ const ProvAsoc = ({ show, onHide, proveedor, onSiguiente }: ProvAsocProps) => {
             );
 
     const handleSiguiente = () => {
-        const seleccionados = data.datos.filter((art) =>
-            selectedIdsArticulos.includes(art.idArticulo.toString())
-        );
+        
+        const seleccionados = selectedIdsArticulos.map((idStr) => {
+            const id = Number(idStr);
+            
+            // Buscar en articulosProveedorList primero (artículos ya asociados)
+            const articuloProvExistente = articulosProveedorList.find(
+                (ap) => ap.idArticulo === id
+            );
+            
+            if (articuloProvExistente) {
+                // Retorna el objeto completo del artículo-proveedor con sus datos
+                return articuloProvExistente;
+            }
+            
+            // Si no está en articulosProveedorList, buscar en data.datos (artículo básico)
+            const articuloNuevo = data.datos.find((art) => art.idArticulo === id);
+            
+            return articuloNuevo || null;
+        }).filter(Boolean); // filtrar posibles nulls
+
         onSiguiente(seleccionados);
     };
+
 
     return (
         <Modal show={show} onHide={onHide} centered>
@@ -72,7 +124,14 @@ const ProvAsoc = ({ show, onHide, proveedor, onSiguiente }: ProvAsocProps) => {
                 <Modal.Title>
                     <h3>Asociar Proveedor-Artículo/s</h3>
                     <h5>
-                        Proveedor: <strong>{proveedor?.idProveedor + " -- " + proveedor?.nombre}</strong>
+                        Proveedor:{" "}
+                        {proveedor ? (
+                            <strong>
+                                {proveedor.idProveedor + " -- " + proveedor.nombre}
+                            </strong>
+                        ) : (
+                            ""
+                        )}
                     </h5>
                 </Modal.Title>
             </Modal.Header>
@@ -126,8 +185,12 @@ const ProvAsoc = ({ show, onHide, proveedor, onSiguiente }: ProvAsocProps) => {
                                             <td>
                                                 <Form.Check
                                                     type="checkbox"
-                                                    checked={selectedIdsArticulos.includes(art.idArticulo.toString())}
-                                                    onChange={() => handleCheckboxChange(art.idArticulo.toString())}
+                                                    checked={selectedIdsArticulos.includes(
+                                                        art.idArticulo.toString()
+                                                    )}
+                                                    onChange={() =>
+                                                        handleCheckboxChange(art.idArticulo.toString())
+                                                    }
                                                 />
                                             </td>
                                         </tr>

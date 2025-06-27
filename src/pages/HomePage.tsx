@@ -9,29 +9,10 @@ import { Link } from 'react-router-dom';
 
 const HomePage = () => {
 
-  //Estado para el modal 
-  const [showModal, setShowModal] = useState(false);
 
-  //Función para mostrar el modal 
-  const handleShowModal = () => {
-    setShowModal(true);
-  }
 
   return (
-    <div className="w-100" style={{ margin: '15px' }}>HomePage
-
-      {/* Boton para mostrar un modal de bienvenida */}
-
-      {/* Componente padre */}
-      <Button variant="primary"
-        onClick={handleShowModal}>Modal
-      </Button>
-
-      {/* Componente hijo */}
-      {showModal && <ModalEx
-        show={showModal}
-        onHide={() => setShowModal(false)} />
-      }
+    <div className="w-100" style={{ margin: '50px' }}>
 
       <Stack className='menuStack'>
 

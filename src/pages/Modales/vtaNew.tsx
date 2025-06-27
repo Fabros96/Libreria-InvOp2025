@@ -1,0 +1,149 @@
+import { Modal, Button, Form, Table, InputGroup } from "react-bootstrap";
+import axiosClient from "../../api/axiosClient";
+import { useState, useEffect } from "react";
+import { showToasty } from "../../utils/toasty"
+
+import "../../App.css";
+import type { AxiosResponse } from "axios";
+
+interface VtaNewProps {
+    show: boolean;
+    onHide: () => void;
+    onSelect: (articulo: any) => void; // nuevo prop
+}
+
+
+type VentasData = {
+    datos: any[];
+};
+
+const VtaNew = ({ show, onHide, onSelect }: VtaNewProps) => {
+    const [data, setData] = useState<VentasData>({ datos: [] });
+    const [searchText, setSearchText] = useState("");
+    const [showAll, setShowAll] = useState(true);
+    const [articulos, setArticulos] = useState<any[]>([]);
+
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const response = await axiosClient.get(`articulos/?filter[fechaBaja][eq]=null&filter[include]=inventario,articuloProveedorList.proveedor`);
+                const allData = response?.data?.datos || response?.data || [];
+                setData({ datos: allData });
+
+                if (allData.length <= 5) setShowAll(true);
+            } catch (error) {
+                console.error("Error al obtener datos:", error);
+            }
+        };
+
+        fetchData();
+    }, [show]); // Esto lo vuelve a ejecutar cada vez que abrís el modal
+
+
+
+    const handleSeleccionar = (item: any) => {
+
+        onSelect(item);
+        onHide();
+        // Si necesitás pasar este artículo al padre, agregamos un prop como:
+        // onSelect(item); <-- lo agregamos luego si querés
+    };
+
+
+    const getFilteredData = () => {
+        if (showAll) return data.datos;
+
+        if (searchText.trim().length < 1) return data.datos;
+
+        return data.datos.filter(art =>
+            art.articulo.descripcion?.toLowerCase().includes(searchText.toLowerCase())
+            // proveedor.proveedor.nombre?.toLowerCase().includes(searchText.toLowerCase())
+        );
+    };
+
+    const filteredData = getFilteredData();
+
+    return (
+        <Modal show={show} onHide={onHide} centered>
+            <Modal.Header closeButton>
+                <Modal.Title>
+                    Seleccione un artículo
+                </Modal.Title>
+            </Modal.Header>
+
+            <Modal.Body>
+                <Form.Group>
+                    <InputGroup className="mb-3">
+                        <Form.Control
+                            type="text"
+                            placeholder="Buscar Artículo"
+                            value={searchText}
+                            onChange={(e) => {
+                                setSearchText(e.target.value);
+                                setShowAll(false); // si se escribe, desactiva mostrar todos
+                            }}
+                        />
+                        <Button
+                            variant="outline-secondary"
+                            onClick={() => {
+                                setSearchText("");
+                                setShowAll(true);
+                            }}
+                        >
+                            Mostrar todos
+                        </Button>
+                    </InputGroup>
+
+                    <Table className="tableProveedores">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Descripción</th>
+                                <th>Seleccionar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredData.length === 0 ? (
+                                <tr>
+                                    <td colSpan={3} className="text-center text-muted">
+                                        <p>
+                                            {searchText.trim() === "" && !showAll
+                                                ? "Busca un proveedor para ver resultados."
+                                                : "No se encontraron resultados."}
+                                        </p>
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredData.map((obj, index) => (
+                                    <tr key={obj.idArticulo}>
+                                        <td style={{ width: '22%' }}>
+                                            <p>{obj.idArticulo}</p>
+                                        </td>
+                                        <td style={{ width: '50%' }}>
+                                            <p>{obj.descripcion}</p>
+                                        </td>
+                                        <td className="botoneraTabla">
+                                            <Button
+                                            style={{ width: '80%' }}
+                                                size="sm"
+                                                variant="success"
+                                                onClick={() => handleSeleccionar(obj)}
+                                            >
+                                                Seleccionar
+                                            </Button>
+
+
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </Table>
+                </Form.Group>
+            </Modal.Body>
+        </Modal>
+    );
+};
+
+export default VtaNew;

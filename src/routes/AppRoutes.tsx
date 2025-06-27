@@ -8,6 +8,7 @@ import ProfilePage from '../pages/ProfilePage';
 import MaintenancePage from '../pages/MaintenancePage';
 import Articulos from '../pages/Articulos';
 import Proveedores from '../pages/Proveedores';
+import Ventas from '../pages/Ventas';
 
 const AppRoutes: React.FC = () => {
   return (
@@ -17,10 +18,11 @@ const AppRoutes: React.FC = () => {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       {/* <Route path="/dashboard" element={<DashboardPage />} /> */}
-      <Route path="/profile" element={<ProfilePage />} />
+      <Route path="/profile" element={<MaintenancePage />} />
       <Route path="/maintenance" element={<MaintenancePage />} />
       <Route path="/articulos" element={<Articulos />} />
       <Route path="/proveedores" element={<Proveedores />} />
+      <Route path="/ventas" element={<Ventas />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
     

@@ -21,7 +21,7 @@ interface ArtDelProps {
     articulo: any | null;
     show: boolean;
     onHide: () => void;
-    onDel: (articuloToDelete: any) => void;
+    onDel: (updatedArticulo: any) => void;
 }
 
 type ArticulosData = {
@@ -29,16 +29,12 @@ type ArticulosData = {
     totalPages: number;
 };
 
-
-
-
-
 const ArtDel = ({ show, onHide, articulo, onDel }: ArtDelProps) => {
 
-    const [data, setData] = useState<ArticulosData>({ datos: [], totalPages: 0 });
-    const [showModal, setShowModal] = useState(false);
-
     const handleDel = async () => {
+
+        if (!articulo) return;
+
         try {
             // Validamos stock primero
             if (articulo.stock > 0) {
@@ -71,34 +67,12 @@ const ArtDel = ({ show, onHide, articulo, onDel }: ArtDelProps) => {
                     showToasty('No se puede eliminar el artículo, tiene órdenes pendientes y enviadas', 'error');
                 }
             } else {
-                handleDelArticulo(articulo);
+                onDel(articulo);
             }
         } catch (error) {
             console.error("El Error es: ", error);
             showToasty('Error al verificar datos del artículo', 'error');
         }
-    };
-
-    const handleDelArticulo = (articuloToDelete: Articulo) => {
-        axiosClient.delete(`/articulos/${articuloToDelete.idArticulo}`)
-            .then(() => {
-                setData(prevData => {
-                    const nuevosDatos = prevData.datos.filter(
-                        articulo => articulo.idArticulo !== articuloToDelete.idArticulo
-                    );
-                    return {
-                        ...prevData,
-                        datos: nuevosDatos
-                    };
-                });
-                showToasty('Artículo eliminado exitosamente', 'success');
-                setShowModal(false);
-            })
-            .catch(error => {
-                console.error("Error al eliminar el artículo:", error);
-                showToasty('No se pudo eliminar el artículo. Intente nuevamente.', 'error');
-            });
-        onDel(articulo);
     };
 
     return (

@@ -2,16 +2,14 @@ import { Table, Col, Form, Row, Stack, Button, Accordion, OverlayTrigger, Toolti
 import axiosClient from "../api/axiosClient";
 import { useCallback, useEffect, useState } from "react";
 import MyPagination from "../components/Pagination/myPagination";
-import ProvAsoc from "./Modales/provAsoc";
 import ProvEdit from "./Modales/provEdit";
 import ProvDel from "./Modales/provDel";
-import DetalleProvArtModal from "./Modales/detalleProvArt";
+
 
 
 
 import './styles/Proveedores.css';
 import '../App.css';
-import { all } from "axios";
 import { showToasty } from "../utils/toasty";
 import ProvArtList from "./Modales/provArtList";
 
@@ -62,8 +60,6 @@ const Proveedores = () => {
     const [modalType, setModalType] = useState<"new" | "asoc" | "artList" | "edit" | "baja" | null>(null);
 
     const [filteredTotalPages, setFilteredTotalPages] = useState(0);
-    const [filterOption, setFilterOption] = useState('');
-
 
     const startIndex = (page - 1) * PAGE_SIZE;
     const endIndex = startIndex + PAGE_SIZE;
@@ -99,121 +95,172 @@ const Proveedores = () => {
         }
     }
 
-    const handleUpdateProveedor = async (updatedProveedor: Proveedor) => {
-    try {
-        const response = await fetch(`http://localhost:3000/proveedores/${updatedProveedor.idProveedor}`, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(updatedProveedor),
-        });
-
-        console.log(response)
-
-        if (!response.ok) {
-            throw new Error("Error al actualizar proveedor");
-        }
-
-        const result = await response.json(); // trae el proveedor actualizado desde el backend
-
-        // Ahora sí, actualizás el estado local con la nueva info del backend
-        setData(prevData => {
-            const nuevosDatos = prevData.datos.map(prov =>
-                prov.idProveedor === result.data.idProveedor
-                    ? result.data
-                    : prov
-            );
-
-            if (!prevData.datos.some(prov => prov.idProveedor === result.data.idProveedor)) {
-                nuevosDatos.push(result.data);
-            }
-
-            return {
-                ...prevData,
-                datos: nuevosDatos
-            };
-        });
-
-        setShowModal(false);
-    } catch (error) {
-        console.error("Error al actualizar proveedor:", error);
-        // podés mostrar un alert si querés: alert("Error al actualizar")
-    }
-};
+    const handleUpdateProveedor = async (updatedProveedor: any) => {
+        try {
 
 
- 
-    const handleCreateProveedor = async (nuevoProveedor: any) => {
-    try {
-        const response = await axiosClient.post("/proveedores", nuevoProveedor);
-        //showToasty("Proveedor creado con éxito", "success");
-        // Refrescar la lista
-        fetchData(); // si tenés esta función para recargar
-        setShowModal(false);
-    } catch (error) {
-        showToasty("Error al crear proveedor", "error");
-        console.error(error);
-    }
-};
+            // Procesar artículos
+            for (const articulo of updatedProveedor.articulos) {
+                const data = {
+                    idProveedor: updatedProveedor.idProveedor,
+                    idArticulo: articulo.idArticulo,
+                    cargoPedido: articulo.cargoPedido,
+                    demoraEntrega: articulo.demoraEntrega,
+                    precioUnitario: articulo.precioUnitario,
+                };
 
+                if (articulo.idArticuloProveedor && articulo.idArticuloProveedor !== 0) {
+                    // PUT → actualizar artículo-proveedor existente
+                    await fetch(`http://localhost:3000/articulo-proveedores/${articulo.idArticuloProveedor}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(data),
+                    });
+                } else {
+                    //Actualizar proveedor (nombre, etc.)
 
-
-        const handleDelProveedor = (proveedorToDelete: Proveedor) => {
-            axiosClient.delete(`/proveedores/${proveedorToDelete.idProveedor}`)
-                .then(() => {
-                    setData(prevData => {
-                        const nuevosDatos = prevData.datos.filter(
-                            proveedor => proveedor.idProveedor !== proveedorToDelete.idProveedor
-                        );
-                        return {
-                            ...prevData,
-                            datos: nuevosDatos
-                        };
+                    await fetch(`http://localhost:3000/proveedores/${updatedProveedor.idProveedor}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            nombre: updatedProveedor.nombre,
+                            // agregar otros campos si corresponde
+                        }),
                     });
 
-                    setShowModal(false);
-                })
-                .catch(error => {
-                    console.error("Error al eliminar el proveedor:", error);
-                    alert("No se pudo eliminar el proveedor. Intente nuevamente.");
+                    // POST → nuevo artículo-proveedor
+                    const response = await fetch(`http://localhost:3000/articulo-proveedores`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(data),
+                    });
+                    const creado = await response.json();
+
+                }
+            }
+            showToasty("Proveedor actualizado correctamente", "success");
+            setShowModal(false);
+        } catch (error) {
+            console.error("Error actualizando proveedor y artículos:", error);
+        }
+    };
+
+
+    const handleCreateProveedor = async (newProveedor: any) => {
+        try {
+            // Crear proveedor
+            const responseProv = await fetch(`http://localhost:3000/proveedores`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    nombre: newProveedor.nombre,
+                    // otros campos si hay
+                }),
+            });
+
+            if (!responseProv.ok) {
+                throw new Error("Error creando proveedor");
+            }
+
+            const proveedorCreado = await responseProv.json();
+
+            // Extraer idProveedor desde data
+            const idProveedorCreado = proveedorCreado.data.idProveedor;
+
+            if (!idProveedorCreado) {
+                throw new Error("No se recibió idProveedor del backend");
+            }
+
+            // Crear artículos vinculados al proveedor creado
+            for (const articulo of newProveedor.articulos) {
+                const data = {
+                    idProveedor: idProveedorCreado,
+                    idArticulo: articulo.idArticulo,
+                    cargoPedido: articulo.cargoPedido,
+                    demoraEntrega: articulo.demoraEntrega,
+                    precioUnitario: articulo.precioUnitario,
+                };
+
+                const responseArt = await fetch(`http://localhost:3000/articulo-proveedores`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(data),
                 });
-        };
+
+                if (!responseArt.ok) {
+                    throw new Error("Error creando artículo-proveedor");
+                }
+            }
+
+            showToasty("Proveedor creado correctamente", "success");
+            await fetchData();
+            setShowModal(false);
+        } catch (error) {
+            console.error("Error creando proveedor y artículos:", error);
+            showToasty("Error al crear proveedor", "error");
+        }
+    };
+
+
+
+
+
+
+    const handleDelProveedor = (proveedorToDelete: Proveedor) => {
+        axiosClient.delete(`/proveedores/${proveedorToDelete.idProveedor}`)
+            .then(() => {
+                setData(prevData => {
+                    const nuevosDatos = prevData.datos.filter(
+                        proveedor => proveedor.idProveedor !== proveedorToDelete.idProveedor
+                    );
+                    return {
+                        ...prevData,
+                        datos: nuevosDatos
+                    };
+                });
+                setShowModal(false);
+            })
+            .catch(error => {
+                console.error("Error al eliminar el proveedor:", error);
+                alert("No se pudo eliminar el proveedor. Intente nuevamente.");
+            });
+        fetchData();
+    };
 
 
     const fetchData = async () => {
-            try {
-                const response = await axiosClient.get("articulo-proveedores/?filter[include]=proveedor");
-                const allData: ArticuloProveedor[] = response.data || [];
+        try {
+            const response = await axiosClient.get("proveedores/?filter[fechaBaja][eq]=null");
+            const allData: Proveedor[] = response.data || [];
 
-                if (allData.length > 0) {
-                    setData({
-                        datos: allData.map((prov) => prov.proveedor),
-                        totalPages: Math.ceil(allData.length / PAGE_SIZE),
-                    });
-                    setSinDatos(false);
-                } else {
-                    setSinDatos(true);
-                }
-
-            } catch (error) {
-                console.error("El Error es: ", error);
+            if (allData.length > 0) {
+                setData({
+                    datos: allData,
+                    totalPages: Math.ceil(allData.length / PAGE_SIZE),
+                });
+                setSinDatos(false);
+            } else {
                 setSinDatos(true);
             }
 
-        };
+        } catch (error) {
+            console.error("El Error es: ", error);
+            setSinDatos(true);
+        }
+
+    };
 
     useEffect(() => {
         fetchData();
     }, []);
 
-    
+
 
 
 
     const filteredData = data.datos
         .filter(prov =>
-            prov.nombre.toLowerCase().includes(searchText.toLowerCase())
+            prov.nombre.toLowerCase().includes(searchText.toLowerCase()) || prov.idProveedor.toString().includes(searchText)
         )
 
     useEffect(() => {
@@ -239,7 +286,7 @@ const Proveedores = () => {
 
         switch (modalType) {
             case "edit":
-       
+
                 return (
                     <ProvEdit
                         show={showModal}
@@ -249,7 +296,7 @@ const Proveedores = () => {
                         mode={modalType}
                     />
                 );
-            
+
             case "new":
                 return (
                     <ProvEdit
@@ -268,27 +315,6 @@ const Proveedores = () => {
                         proveedor={selectedProveedor}
                         onDel={handleDelProveedor}
                     />
-                );
-            case "asoc":
-                return (
-                    <>
-                        <ProvAsoc
-                            show={showProvAsoc}
-                            proveedor={selectedProveedor}
-                            onHide={() => setShowProvAsoc(false)}
-                            onSiguiente={handleAsociarSiguiente}
-                        />
-
-                        <DetalleProvArtModal
-                            show={showDetalleModal}
-                            articulos={articulosSeleccionados}
-                            onHide={() => setShowDetalleModal(false)}
-                            onVolver={() => {
-                                setShowDetalleModal(false);
-                                setShowProvAsoc(true);
-                            }}
-                            proveedor={selectedProveedor ? [selectedProveedor] : []} />
-                    </>
                 );
             case "artList":
                 return (
@@ -310,7 +336,7 @@ const Proveedores = () => {
     // Cargar artículos para selección
     useEffect(() => {
         if (showSelectModal) {
-            axiosClient.get("articulos")
+            axiosClient.get("articulo-proveedores/?filter[include]=articulo&filter[articulo.fechaBaja][eq]=null")
                 .then(res => setArticulos(res.data || []))
                 .catch(console.error);
             setSelectedIds([]);
@@ -357,7 +383,6 @@ const Proveedores = () => {
 
     const handleSaveAll = () => {
         // Aquí enviá los artículos actualizados y asociados al proveedor al backend
-        console.log("Guardar artículos para proveedor", selectedProveedor, articulosEdit);
         showToasty("Artículos asociados guardados", "success");
         setShowTabsModal(false);
     };
@@ -433,9 +458,7 @@ const Proveedores = () => {
                                                             <Accordion.Body>
                                                                 <div style={{ paddingLeft: "1rem", fontSize: "0.85rem" }}>
                                                                     <div>
-                                                                        <strong> FBaja:</strong> {prov.fechaBaja && <> {new Date(prov.fechaBaja).toLocaleDateString()}
-                                                                        </>
-                                                                        }
+                                                                        <strong> Datos como Direccion y otros:</strong>
                                                                     </div>
                                                                 </div>
                                                             </Accordion.Body>
@@ -444,13 +467,13 @@ const Proveedores = () => {
                                                     </Accordion>
                                                 </td>
                                                 <td className="botoneraTabla" >
-                                                    <OverlayTrigger key={prov.idProveedor + 'btn1'} overlay={<Tooltip id={`top`}> Asociar Artículo/s </Tooltip>} >
+                                                    {/* <OverlayTrigger key={prov.idProveedor + 'btn1'} overlay={<Tooltip id={`top`}> Asociar Artículo/s </Tooltip>} >
                                                         <Button variant="success" onClick={() => handleClick(prov, "asoc")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                                                             fill="currentColor" className="bi bi-arrow-left-right" viewBox="0 0 16 16">
                                                             <path d="M1 11.5a.5.5 0 0 0 .5.5h11.793l-3.147 3.146a.5.5 0 0 0 .708.708l4-4a.5.5 0 0 0 0-.708l-4-4a.5.5 0 0 0-.708.708L13.293 11H1.5a.5.5 0 0 0-.5.5m14-7a.5.5 0 0 1-.5.5H2.707l3.147 3.146a.5.5 0 1 1-.708.708l-4-4a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 4H14.5a.5.5 0 0 1 .5.5" />
                                                         </svg>
                                                         </Button>
-                                                    </OverlayTrigger>
+                                                    </OverlayTrigger> */}
                                                     <OverlayTrigger key={prov.idProveedor + 'btn2'} overlay={<Tooltip id={`top`}> Ver Artículos de este Proveedor </Tooltip>} >
                                                         <Button variant="primary" onClick={() => handleClick(prov, "artList")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                                                             fill="currentColor" className="bi bi-boxes" viewBox="0 0 16 16">

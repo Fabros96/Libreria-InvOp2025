@@ -10,24 +10,41 @@ import ArtDel from "./Modales/artDel";
 
 import './styles/Articulos.css';
 import '../App.css';
+import { showToasty } from "../utils/toasty";
 
 
 interface Articulo {
-    idArticulo: string;
-    idInventario?: number;
-    fechaBaja?: Date | null;
     descripcion: string;
-    modeloInventario: number;
+    fechaBaja: Date | null;
+    idArticulo: number;
+    idInventario: number;
+    modeloInventario: string; // 'LF' o 'PF'
     stock: number;
-    demanda?: number;
-    cAlmacenamiento?: number;
-    cPedido?: number;
-    cCompra?: number;
-    precio: number;
+
+    inventario?: Inventario;
+    articuloProveedor?: ArticuloProveedor;
 }
+interface Inventario {
+    costoAlmacenamiento: number;
+    costoCompra: number;
+    costoPedido: number;
+    demandaArticulo: number;
+    idInventario: number;
+    loteOptimo: number;
+    puntoPedido: number;
+    stockSeguridad: number;
+    invMaximo?: number; // Solo para modelo PF
+}
+interface ArticuloProveedor {
+    idArticuloProveedor: number;
+    cargoPedido: number;
+    demoraEntrega: number;
+    esPredeterminado: boolean;
+    idArticulo: number;
+    idProveedor: number;
+    precioUnitario: number;
 
-
-
+}
 
 type ArticulosData = {
     datos: Articulo[];
@@ -43,7 +60,7 @@ const Articulos = () => {
     const [searchText, setSearchText] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [selectedArticulo, setSelectedArticulo] = useState<Articulo | null>(null);
-    const [modalType, setModalType] = useState<"new" | "venta" | "provNew" | "provEdit" | "provView" | "edit" | "hdemanda" | "baja" | null>(null);
+    const [modalType, setModalType] = useState<"new" | "venta" | "view" | "edit" | "hdemanda" | "baja" | null>(null);
 
     const [filteredTotalPages, setFilteredTotalPages] = useState(0);
     const [filterOption, setFilterOption] = useState('');
@@ -65,54 +82,105 @@ const Articulos = () => {
 
 
     const handleClick = (ap: Articulo | null, op: typeof modalType) => {
-        +
-            setSelectedArticulo(ap);
+        setSelectedArticulo(ap);
         setModalType(op);
         setShowModal(true);
     }
 
-    // 2. Unificar los manejadores de actualización en uno solo para evitar duplicación.
-    const handleUpdateArticulo = (updatedArticulo: Articulo) => {
-        setData(prevData => {
-            const nuevosDatos = prevData.datos.map(ap =>
-                ap.idArticulo === updatedArticulo.idArticulo
-                    ? updatedArticulo
-                    : ap
-            );
-            // Si es un artículo nuevo (no se encontró en la lista), lo agregamos como ArticuloProveedor vacío (ajusta según tu lógica real).
-            if (!prevData.datos.some(ap => ap.idArticulo === updatedArticulo.idArticulo)) {
-                nuevosDatos.push({
-                    ...updatedArticulo
-                });
+    const handleUpdateArticulo = async (updatedArticulo: Articulo) => {
+        if (!selectedArticulo) return;
+
+        const originalArticulo = selectedArticulo;
+
+        const cambios: Partial<Record<keyof Articulo, Articulo[keyof Articulo]>> = {};
+
+        for (const key in updatedArticulo) {
+            if (
+                Object.prototype.hasOwnProperty.call(updatedArticulo, key) &&
+                key !== "inventario" &&
+                key !== "articuloProveedor"
+            ) {
+                if (updatedArticulo[key as keyof Articulo] !== originalArticulo[key as keyof Articulo]) {
+                    cambios[key as keyof Articulo] = updatedArticulo[key as keyof Articulo];
+                }
             }
-            return {
-                ...prevData,
-                datos: nuevosDatos
-            };
-        });
-        setShowModal(false);
-    }
+        }
 
-    // 3. La función de eliminar debe filtrar el elemento, no actualizarlo.
+        // Si no hay cambios en propiedades simples, salir
+        if (Object.keys(cambios).length === 0) {
+            setShowModal(false);
+            return;
+        }
+
+        // Agregamos los objetos completos
+        cambios.inventario = updatedArticulo.inventario;
+        cambios.articuloProveedor = updatedArticulo.articuloProveedor;
+
+        try {
+            const response = await fetch(`http://localhost:3000/articulos/${updatedArticulo.idArticulo}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(cambios),
+            });
+
+            if (!response.ok) {
+                throw new Error("Error al actualizar artículo");
+            }
+
+            const result = await response.json();
+
+            setData(artData => {
+                const nuevosDatos = artData.datos.map(art =>
+                    art.idArticulo === result.data.idArticulo
+                        ? result.data
+                        : art
+                );
+
+                return {
+                    ...artData,
+                    datos: nuevosDatos
+                };
+            });
+            showToasty("Artículo actualizado exitosamente", "success");
+            await fetchData(); // refresca toda la tabla desde el servidor
+            setShowModal(false);
+        } catch (error) {
+            console.error("Error al actualizar artículo:", error);
+        }
+    };
+
+
+
+
     const handleDelArticulo = (articuloToDelete: Articulo) => {
-        // Aquí deberías agregar la llamada a tu API para eliminar el artículo en el backend.
-        // ej: await axiosClient.delete(`/articulos/${articuloToDelete.idArticulo}`);
-        setData(prevData => {
-            const nuevosDatos = prevData.datos.filter(
-                articulo => articulo.idArticulo !== articuloToDelete.idArticulo
-            );
-            return {
-                ...prevData,
-                datos: nuevosDatos
-            };
-        });
+        axiosClient.delete(`/articulos/${articuloToDelete.idArticulo}`)
+            .then(() => {
+                setData(prevData => {
+                    const nuevosDatos = prevData.datos.filter(
+                        articulo => articulo.idArticulo !== articuloToDelete.idArticulo
+                    );
+                    return {
+                        ...prevData,
+                        datos: nuevosDatos
+                    };
+                });
 
-        setShowModal(false);
+                setShowModal(false);
+                showToasty("Artículo Eliminado exitosamente", "success");
+            })
+            .catch(error => {
+                console.error("Error al eliminar el articulo:", error);
+                alert("No se pudo eliminar el articulo. Intente nuevamente.");
+            });
     };
 
     //agrego para que se de alta un nuevo articulo
-    const handleNuevoArticulo = async (nuevoArticulo: Articulo) => {
+    const handleCreateArticulo = async (nuevoArticulo: Articulo) => {
         try {
+
+            // VER ESTO A LA HORA DE CREAR UN ARTICULO NUEVO TIRA ERROR SERA POR Inventario? 
             const response = await axiosClient.post("/articulos", nuevoArticulo);
 
             const articuloCreado = response.data;
@@ -122,40 +190,37 @@ const Articulos = () => {
                 datos: [...prevData.datos, articuloCreado],
             }));
 
-            //showToasty("Artículo creado exitosamente", "success");
-            alert("Articulo creado exitosamente")
+            showToasty("Artículo creado exitosamente", "success")
             setShowModal(false);
         } catch (error) {
-            console.error("Error al crear el artículo:", error);
-            alert("Error al crear el artículo")
-            //showToasty("Error al crear el artículo", "error");
+            showToasty("Error al crear el artículo", "error");
         }
     };
 
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // const response = await axiosClient.get("articulo-proveedores/?filter[include]=proveedor,articulo.inventario");
-                const response = await axiosClient.get("articulos/?filter[fechaBaja][eq]=null");
-                const allData: Articulo[] = response.data || [];
+    const fetchData = async () => {
+        try {
+            const response = await axiosClient.get("articulos/?filter[fechaBaja][eq]=null&filter[include]=inventario");
+            const allData: Articulo[] = response.data || [];
 
-                if (allData.length > 0) {
-                    setData({
-                        datos: allData.map((ap) => ap),
-                        totalPages: Math.ceil(allData.length / PAGE_SIZE),
-                    });
-                    setSinDatos(false);
-                } else {
-                    setSinDatos(true);
-                }
-
-            } catch (error) {
-                console.error("El Error es: ", error);
+            if (allData.length > 0) {
+                setData({
+                    datos: allData.map((ap) => ap),
+                    totalPages: Math.ceil(allData.length / PAGE_SIZE),
+                });
+                setSinDatos(false);
+            } else {
                 setSinDatos(true);
             }
 
-        };
+        } catch (error) {
+            console.error("El Error es: ", error);
+            setSinDatos(true);
+        }
+
+    };
+
+    useEffect(() => {
 
         fetchData();
     }, []);
@@ -165,14 +230,11 @@ const Articulos = () => {
         .filter(ap =>
             ap.descripcion.toLowerCase().includes(searchText.toLowerCase())
         )
-
-        //REVISAR ESTO
         .filter(ap => {
             if (filterOption === 'stock') {
-                return ap.stock < ap.stock + 1;
-
+                return ap.inventario?.stockSeguridad !== undefined && ap.inventario.stockSeguridad >= ap.stock;
             } else if (filterOption === 'pedido') {
-                return ap.stock <= ap.stock + 1;
+                return ap.inventario?.puntoPedido !== undefined && ap.inventario.puntoPedido >= ap.stock;
             }
             return true;
         });
@@ -189,23 +251,11 @@ const Articulos = () => {
 
     const currentData: Articulo[] = filteredData.slice(startIndex, endIndex);
 
-
-
-
     const handleChangePage = useCallback((page: number) => {
         setPage(page)
     }, [])
     return (
         <>
-            {showModal && modalType === "venta" && (
-                <ArtVta
-                    show={showModal}
-                    onHide={() => setShowModal(false)}
-                    ap={selectedArticulo}
-                    onVta={handleUpdateArticulo}
-                />
-            )}
-
             {showModal && (modalType === "edit") && (
                 <ArtEdit
                     show={showModal}
@@ -213,32 +263,26 @@ const Articulos = () => {
                     articulo={selectedArticulo}
                     onSave={handleUpdateArticulo}
                     mode={modalType}
-                    precio={selectedArticulo?.precio ?? 0}
                 />
             )}
-
-
-            {showModal && (modalType === "provView" || modalType === "provEdit" || modalType === "provNew") && (
+            {showModal && (modalType === "new") && (
+                <ArtEdit
+                    show={showModal}
+                    onHide={() => setShowModal(false)}
+                    articulo={selectedArticulo}
+                    onSave={handleCreateArticulo}
+                    mode={modalType}
+                />
+            )}
+            {(modalType === "view") && (
                 <ArtProv
                     show={showModal}
                     onHide={() => setShowModal(false)}
                     articulo={selectedArticulo}
-                    onSave={handleUpdateArticulo}
+                    onSave={() => { }}
                     mode={modalType}
                 />
-
             )}
-            {/* 
-            ESTE DEBERIA SER EL DEL HISTORIAL DE DMD
-            {showModal && modalType === "baja"  && (
-                <ArtDel
-                    show={showModal}
-                    onHide={() => setShowModal(false)}
-                    articulo={selectedArticulo}
-                    onDel={handleDelArticulo}
-                />
-
-            )} */}
             {showModal && modalType === "baja" && (
                 <ArtDel
                     show={showModal}
@@ -297,8 +341,8 @@ const Articulos = () => {
                                 )}
 
                                 {filterOption === '' && 'Filtrar por'}
-                                {filterOption === 'stock' && 'Stock de Seguridad'}
-                                {filterOption === 'pedido' && 'Punto de Pedido'}
+                                {filterOption === 'stock' && 'Prods. Faltantes'}
+                                {filterOption === 'pedido' && 'Prods. a Reponer'}
                             </Dropdown.Toggle>
 
 
@@ -307,13 +351,13 @@ const Articulos = () => {
                                     setFilterOption('stock');
                                     setShowDropdown(false);
                                 }}>
-                                    Stock de Seguridad
+                                    Prods. Faltantes
                                 </Dropdown.Item>
                                 <Dropdown.Item onClick={() => {
                                     setFilterOption('pedido');
                                     setShowDropdown(false);
                                 }}>
-                                    Punto de Pedido
+                                    Prods. a Reponer
                                 </Dropdown.Item>
                             </Dropdown.Menu>
                         </Dropdown>
@@ -352,9 +396,28 @@ const Articulos = () => {
                                                                 <div style={{ paddingLeft: "1rem", fontSize: "0.85rem" }}>
                                                                     <div>
                                                                         <strong> ID Inventario:</strong> {ap.idInventario} --
-                                                                        <strong> Modelo:</strong> {ap.modeloInventario} --
-                                                                        <strong> Stock:</strong> {ap.stock}
+                                                                        <strong> Modelo:</strong> {ap.modeloInventario === 'LF' ? 'Lote Fijo' : ap.modeloInventario === 'PF' ? 'Periodo Fijo' : 'SinModelo x.x'} --
+                                                                        <strong> Stock:</strong> {ap.stock} --
+                                                                        <strong> Demanda Anual:</strong> {ap.inventario?.demandaArticulo}
                                                                     </div>
+                                                                    <div>
+                                                                        <strong> Costo de Almacenamiento:</strong> {ap.inventario?.costoAlmacenamiento} --
+                                                                        <strong> Costo de Compra:</strong> {ap.inventario?.costoCompra} --
+                                                                        <strong> Costo de Pedido:</strong> {ap.inventario?.costoPedido}
+                                                                    </div>
+                                                                    <div style={{ fontSize: "1.2rem" }}>
+                                                                        {ap.modeloInventario === 'LF' ?
+                                                                            <>
+                                                                                <strong> Lote Óptimo: </strong>{ap.inventario?.loteOptimo} --
+                                                                                <strong> Punto de Pedido: </strong>{ap.inventario?.puntoPedido} --
+                                                                                <strong> Stock de Seguridad: </strong>{ap.inventario?.stockSeguridad}
+                                                                            </>
+                                                                            : ap.modeloInventario === 'PF' ?
+                                                                                <>
+                                                                                    <strong> Stock de Seguridad: </strong>{ap.inventario?.stockSeguridad} --
+                                                                                    <strong> Inventario Máximo: </strong>{ap.inventario?.invMaximo}
+                                                                                </>
+                                                                                : ''} </div>
                                                                 </div>
                                                             </Accordion.Body>
 
@@ -362,14 +425,6 @@ const Articulos = () => {
                                                     </Accordion>
                                                 </td>
                                                 <td className="botoneraTabla" >
-                                                    {/* <OverlayTrigger key={ap.idArticulo + 'btn0'} overlay={<Tooltip id={`top`}> Venta </Tooltip>} >
-                                                        <Button variant="success" onClick={() => handleClick(ap, "venta")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                                            fill="currentColor" className="bi bi-cart-plus" viewBox="0 0 16 16" >
-                                                            <path d="M9 5.5a.5.5 0 0 0-1 0V7H6.5a.5.5 0 0 0 0 1H8v1.5a.5.5 0 0 0 1 0V8h1.5a.5.5 0 0 0 0-1H9z" />
-                                                            <path d="M.5 1a.5.5 0 0 0 0 1h1.11l.401 1.607 1.498 7.985A.5.5 0 0 0 4 12h1a2 2 0 1 0 0 4 2 2 0 0 0 0-4h7a2 2 0 1 0 0 4 2 2 0 0 0 0-4h1a.5.5 0 0 0 .491-.408l1.5-8A.5.5 0 0 0 14.5 3H2.89l-.405-1.621A.5.5 0 0 0 2 1zm3.915 10L3.102 4h10.796l-1.313 7zM6 14a1 1 0 1 1-2 0 1 1 0 0 1 2 0m7 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0" />
-                                                        </svg>
-                                                        </Button>
-                                                    </OverlayTrigger> */}
                                                     <OverlayTrigger key={ap.idArticulo + 'btn1'} overlay={<Tooltip id={`top`}> Calcular CGI </Tooltip>} >
                                                         <Button variant="light" onClick={() => handleClick(ap, "venta")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                                                             fill="currentColor" className="bi bi-box-seam" viewBox="0 0 16 16">
@@ -378,24 +433,14 @@ const Articulos = () => {
                                                         </Button>
                                                     </OverlayTrigger>
                                                     <OverlayTrigger key={ap.idArticulo + 'btn2'} overlay={<Tooltip id={`top`}> Ver Proveedores </Tooltip>} >
-                                                        <Button variant="primary" onClick={() => handleClick(ap, "provView")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-truck" viewBox="0 0 16 16">
+                                                        <Button variant="primary" onClick={() => handleClick(ap, "view")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-truck" viewBox="0 0 16 16">
                                                             <path d="M0 3.5A1.5 1.5 0 0 1 1.5 2h9A1.5 1.5 0 0 1 12 3.5V5h1.02a1.5 1.5 0 0 1 1.17.563l1.481 1.85a1.5 1.5 0 0 1 .329.938V10.5a1.5 1.5 0 0 1-1.5 1.5H14a2 2 0 1 1-4 0H5a2 2 0 1 1-3.998-.085A1.5 1.5 0 0 1 0 10.5zm1.294 7.456A2 2 0 0 1 4.732 11h5.536a2 2 0 0 1 .732-.732V3.5a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 .294.456M12 10a2 2 0 0 1 1.732 1h.768a.5.5 0 0 0 .5-.5V8.35a.5.5 0 0 0-.11-.312l-1.48-1.85A.5.5 0 0 0 13.02 6H12zm-9 1a1 1 0 1 0 0 2 1 1 0 0 0 0-2m9 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2" />
                                                         </svg>
                                                         </Button>
                                                     </OverlayTrigger>
                                                     <OverlayTrigger key={ap.idArticulo + 'btn3'} overlay={<Tooltip id={`top`}> Editar Artículo </Tooltip>} >
-                                                        <Button variant="warning" onClick={() => handleClick(ap, "edit")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                                            fill="currentColor" className="bi bi-pen" viewBox="0 0 16 16">
-                                                            <path d="m13.498.795.149-.149a1.207 1.207 0 1 1 1.707 1.708l-.149.148a1.5 1.5 0 0 1-.059 2.059L4.854 14.854a.5.5 0 0 1-.233.131l-4 1a.5.5 0 0 1-.606-.606l1-4a.5.5 0 0 1 .131-.232l9.642-9.642a.5.5 0 0 0-.642.056L6.854 4.854a.5.5 0 1 1-.708-.708L9.44.854A1.5 1.5 0 0 1 11.5.796a1.5 1.5 0 0 1 1.998-.001m-.644.766a.5.5 0 0 0-.707 0L1.95 11.756l-.764 3.057 3.057-.764L14.44 3.854a.5.5 0 0 0 0-.708z" />
-                                                        </svg>
-                                                        </Button>
-                                                    </OverlayTrigger>
-                                                    <OverlayTrigger key={ap.idArticulo + 'btn4'} overlay={<Tooltip id={`top`}> Histórico de Demanda </Tooltip>} >
-                                                        <Button variant="info" onClick={() => handleClick(ap, "hdemanda")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                                            fill="currentColor" className="bi bi-clock-history" viewBox="0 0 16 16" >
-                                                            <path d="M8.515 1.019A7 7 0 0 0 8 1V0a8 8 0 0 1 .589.022zm2.004.45a7 7 0 0 0-.985-.299l.219-.976q.576.129 1.126.342zm1.37.71a7 7 0 0 0-.439-.27l.493-.87a8 8 0 0 1 .979.654l-.615.789a7 7 0 0 0-.418-.302zm1.834 1.79a7 7 0 0 0-.653-.796l.724-.69q.406.429.747.91zm.744 1.352a7 7 0 0 0-.214-.468l.893-.45a8 8 0 0 1 .45 1.088l-.95.313a7 7 0 0 0-.179-.483m.53 2.507a7 7 0 0 0-.1-1.025l.985-.17q.1.58.116 1.17zm-.131 1.538q.05-.254.081-.51l.993.123a8 8 0 0 1-.23 1.155l-.964-.267q.069-.247.12-.501m-.952 2.379q.276-.436.486-.908l.914.405q-.24.54-.555 1.038zm-.964 1.205q.183-.183.35-.378l.758.653a8 8 0 0 1-.401.432z" />
-                                                            <path d="M8 1a7 7 0 1 0 4.95 11.95l.707.707A8.001 8.001 0 1 1 8 0z" />
-                                                            <path d="M7.5 3a.5.5 0 0 1 .5.5v5.21l3.248 1.856a.5.5 0 0 1-.496.868l-3.5-2A.5.5 0 0 1 7 9V3.5a.5.5 0 0 1 .5-.5" />
+                                                        <Button variant="warning" onClick={() => { handleClick(ap, "edit"); }} > <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                            fill="currentColor" className="bi bi-pen" viewBox="0 0 16 16"><path d="m13.498.795.149-.149a1.207 1.207 0 1 1 1.707 1.708l-.149.148a1.5 1.5 0 0 1-.059 2.059L4.854 14.854a.5.5 0 0 1-.233.131l-4 1a.5.5 0 0 1-.606-.606l1-4a.5.5 0 0 1 .131-.232l9.642-9.642a.5.5 0 0 0-.642.056L6.854 4.854a.5.5 0 1 1-.708-.708L9.44.854A1.5 1.5 0 0 1 11.5.796a1.5 1.5 0 0 1 1.998-.001m-.644.766a.5.5 0 0 0-.707 0L1.95 11.756l-.764 3.057 3.057-.764L14.44 3.854a.5.5 0 0 0 0-.708z" />
                                                         </svg>
                                                         </Button>
                                                     </OverlayTrigger>
