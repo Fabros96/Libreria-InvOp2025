@@ -10,23 +10,23 @@ export const ArticuloController = {
     getAll: async (req: Request, res: Response) => {
         try {
             const articulos = await articuloRepository.findMany(decodeURIComponent(req.url));
-            res.status(200).json({ msg: `${articulos.length > 0 ? 'Se han encontrado registros' : 'No se han encontrado registros'}`, data: articulos});
+            res.status(200).json({ msg: `${articulos.length > 0 ? 'Se han encontrado registros' : 'No se han encontrado registros'}`, data: articulos });
         } catch (error: any) {
             res.status(500).json({ msg: 'Error al obtener las registros', detail: error.message });
             //prueba
         }
     },
-    
+
     // Obtener un articulo por su ID (getById)
     getById: async (req: Request, res: Response) => {
         const { id } = req.params;
         try {
-            res.json({ msg: 'Se ha encontrado el registro', data: await articuloRepository.findById(Number(id), decodeURIComponent(req.url))});
+            res.json({ msg: 'Se ha encontrado el registro', data: await articuloRepository.findById(Number(id), decodeURIComponent(req.url)) });
         } catch (error: any) {
             res.status(500).json({ msg: 'Error al obtener el registro', detail: error.message });
         }
     },
-    
+
     // Crear un nuevo articulo (create)
     // create: async (req: Request, res: Response) => {
     //     let { idInventario, fechaBaja, descripcion, modeloInventario, stock } = req.body;
@@ -64,11 +64,11 @@ export const ArticuloController = {
                 descripcion,
                 modeloInventario,
                 stock,
-                inventario: {...{create: {...inventario}}}
+                inventario: { ...{ create: { ...inventario } } }
             };
             const nuevoArticulo = await prisma.articulo.create({
                 data,
-                include: {inventario: true}
+                include: { inventario: true }
             });
 
             res.status(200).json({ msg: 'Se ha creado el artículo.', data: nuevoArticulo });
@@ -80,7 +80,7 @@ export const ArticuloController = {
         }
     },
 
-    
+
     // Actualizar un articulo (update)
     update: async (req: Request, res: Response) => {
         const { id } = req.params;
@@ -97,17 +97,31 @@ export const ArticuloController = {
             res.status(500).json({ msg: 'Error al actualizar el articulo', detail: error.message });
         }
     },
-    
+
     // Eliminar un articulo (delete)
+    // delete: async (req: Request, res: Response) => {
+    //     const { id } = req.params;
+    //     try {
+    //         await prisma.articulo.delete({
+    //             where: { idArticulo: parseInt(id) },
+    //         });
+    //         res.status(200).json({ msg: 'Se ha eliminado el articulo.' });
+    //     } catch (error: any) {
+    //         res.status(500).json({ msg: 'Error al eliminar el articulo', detail: error.message });
+    //     }
+    // },
+
+    // Eliminar articulo (Baja lógica)
     delete: async (req: Request, res: Response) => {
         const { id } = req.params;
         try {
-            await prisma.articulo.delete({
+            const articuloBaja = await prisma.articulo.update({
                 where: { idArticulo: parseInt(id) },
+                data: { fechaBaja: new Date() }
             });
-            res.status(200).json({ msg: 'Se ha eliminado el articulo.' });
+            res.status(200).json({ msg: 'articulo dado de baja', data: articuloBaja });
         } catch (error: any) {
-            res.status(500).json({ msg: 'Error al eliminar el articulo', detail: error.message });
+            res.status(500).json({ msg: 'Error al dar de baja el articulo', detail: error.message });
         }
     },
 }
