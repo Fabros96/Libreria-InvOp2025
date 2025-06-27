@@ -1,38 +1,46 @@
-export function recalcularModeloLoteFijo({
+/**
+ * Modelo de Lote Fijo (EOQ) con punto de pedido y stock de seguridad
+ */
+export function calcularModeloLoteFijo({
   demandaAnual,
   costoPedido,
   costoAlmacenamiento,
-  demoraEntregaDias // opcional, para calcular punto de pedido
+  diasPorAnio = 365,
+  demoraEntregaDias, // opcional: se requiere para calcular punto de pedido
+  porcentajeSeguridad = 0.1 // opcional: 10% de la demanda diaria
 }: {
   demandaAnual: number;
   costoPedido: number;
   costoAlmacenamiento: number;
+  diasPorAnio?: number;
   demoraEntregaDias?: number;
+  porcentajeSeguridad?: number;
 }) {
-  // Validación básica
+  // Validaciones mínimas
   if (!demandaAnual || !costoPedido || !costoAlmacenamiento) {
-    return {};
+    throw new Error("Faltan datos requeridos para el modelo EOQ.");
   }
 
-  // Fórmula EOQ
+  // Fórmula EOQ: Q* = sqrt(2DS / H)
   const loteOptimo = Math.round(
     Math.sqrt((2 * demandaAnual * costoPedido) / costoAlmacenamiento)
   );
 
-  // Demanda diaria (asumimos año de 365 días)
-  const demandaDiaria = demandaAnual / 365;
+  // Demanda diaria
+  const demandaDiaria = demandaAnual / diasPorAnio;
 
-  // Stock de seguridad fijo (por ejemplo, 10% de la demanda diaria)
-  const stockSeguridad = Math.round(demandaDiaria * 5); // configurable
+  // Stock de seguridad (porcentaje configurable)
+  const stockSeguridad = Math.round(demandaDiaria * porcentajeSeguridad * demoraEntregaDias!);
 
-  // Punto de Pedido = d * L + SS
+  // Punto de pedido: PP = d * L + SS
   const puntoPedido = demoraEntregaDias
     ? Math.round(demandaDiaria * demoraEntregaDias + stockSeguridad)
     : undefined;
 
   return {
     loteOptimo,
-    puntoPedido,
-    stockSeguridad
+    demandaDiaria,
+    stockSeguridad,
+    puntoPedido
   };
 }
