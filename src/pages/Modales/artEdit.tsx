@@ -1,19 +1,17 @@
 import { Modal, Button, Form } from "react-bootstrap";
 import { useState, useEffect } from "react";
-import { showToasty } from "../../utils/toasty"
-import ArtProv from "./artProv"; // ajustá el path si está en otra carpeta
+import { showToasty } from "../../utils/toasty";
+import ArtProv from "./artProv";
 
 import "../../App.css";
-import { setIn } from "formik";
 
 interface Articulo {
     descripcion: string;
-    fechaBaja: Date | null;
-    idArticulo: number;
-    idInventario: number;
-    modeloInventario: number;
+    fechaBaja?: Date | null;
+    idArticulo?: number;
+    idInventario?: number;
+    modeloInventario: string;
     stock: number;
-
     inventario?: Inventario;
     articuloProveedor?: ArticuloProveedor;
 }
@@ -23,11 +21,12 @@ interface Inventario {
     costoCompra: number;
     costoPedido: number;
     demandaArticulo: number;
-    idInventario: number;
-    loteOptimo: number;
-    puntoPedido: number;
-    stockSeguridad: number;
+    idInventario?: number;
+    loteOptimo?: number;
+    puntoPedido?: number;
+    stockSeguridad?: number;
 }
+
 interface ArticuloProveedor {
     idArticuloProveedor: number;
     cargoPedido: number;
@@ -36,13 +35,7 @@ interface ArticuloProveedor {
     idArticulo: number;
     idProveedor: number;
     precioUnitario: number;
-
 }
-
-type ArticulosData = {
-    datos: any[];
-    totalPages: number;
-};
 
 type ProveedorCambiado = {
     idArticuloProveedor: number;
@@ -63,20 +56,15 @@ interface ArtEditProps {
 }
 
 const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
-
     const [idArticulo, setIdArticulo] = useState("");
     const [descripcion, setDescripcion] = useState("");
     const [stock, setStock] = useState(0);
-    const [inventario, setInventario] = useState<Inventario | null>(null);
-    const [modelo, setModelo] = useState<string>("");
     const [demanda, setDemanda] = useState(0);
     const [costoAlmacenamiento, setCostoAlmacenamiento] = useState(0);
     const [costoPedido, setCostoPedido] = useState(0);
     const [costoCompra, setCostoCompra] = useState(0);
     const [showProveedorModal, setShowProveedorModal] = useState(false);
     const [proveedorPredeterminado, setProveedorPredeterminado] = useState<any | null>(null);
-
-
     const [proveedoresCambiados, setProveedoresCambiados] = useState<ProveedorCambiado[]>([]);
 
     useEffect(() => {
@@ -84,49 +72,33 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
             setIdArticulo(articulo.idArticulo || "");
             setDescripcion(articulo.descripcion || "");
             setStock(articulo.stock || 0);
-            setModelo(articulo.modeloInventario || 0);
             setDemanda(articulo.inventario?.demandaArticulo || 0);
             setCostoAlmacenamiento(articulo.inventario?.costoAlmacenamiento || 0);
             setCostoPedido(articulo.inventario?.costoPedido || 0);
             setCostoCompra(articulo.inventario?.costoCompra || 0);
-            setInventario(articulo.inventario || null);
-
         } else if (mode === "new") {
             setIdArticulo("");
             setDescripcion("");
             setStock(0);
-            setModelo("");
             setDemanda(0);
             setCostoAlmacenamiento(0);
             setCostoPedido(0);
             setCostoCompra(0);
-            setInventario(null);
         }
     }, [articulo, mode]);
-
 
     const handleSave = async () => {
         try {
             let updatedArticulo: Articulo;
 
             if (mode === "edit") {
-                // Actualizar proveedores si cambiaron
                 if (proveedoresCambiados.length > 0) {
                     await Promise.all(
                         proveedoresCambiados.map(async (prov) => {
                             const response = await fetch(`http://localhost:3000/articulo-proveedores/${prov.idArticuloProveedor}`, {
                                 method: "PUT",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({
-                                    idArticulo: prov.idArticulo,
-                                    idProveedor: prov.idProveedor,
-                                    cargoPedido: prov.cargoPedido,
-                                    demoraEntrega: prov.demoraEntrega,
-                                    esPredeterminado: prov.esPredeterminado,
-                                    precioUnitario: prov.precioUnitario,
-                                }),
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(prov),
                             });
 
                             if (!response.ok) {
@@ -138,14 +110,14 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
 
                 updatedArticulo = {
                     ...articulo,
-                    descripcion: descripcion,
-                    stock: stock,
-                    modeloInventario: modelo,
+                    descripcion,
+                    stock,
+                    modeloInventario: 'LF',
                     inventario: {
                         demandaArticulo: demanda,
-                        costoAlmacenamiento: costoAlmacenamiento,
-                        costoPedido: costoPedido,
-                        costoCompra: costoCompra,
+                        costoAlmacenamiento,
+                        costoPedido,
+                        costoCompra,
                         idInventario: articulo.inventario?.idInventario || 0,
                         loteOptimo: 0,
                         puntoPedido: 0,
@@ -162,13 +134,36 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                     },
                 };
             } else {
-                // Si estás en modo creación y querés hacer algo, podés ponerlo acá
-                updatedArticulo = { ...articulo }; // o lanzar error si no está implementado
+                updatedArticulo = {
+                    descripcion: descripcion,
+                    modeloInventario: 'LF',
+                    stock,
+                    inventario: {
+                        demandaArticulo: demanda,
+                        costoAlmacenamiento,
+                        costoPedido,
+                        costoCompra,
+                        loteOptimo: 0,
+                        puntoPedido: 0,
+                        stockSeguridad: 0,
+                    },
+                    articuloProveedor: {
+                        idArticuloProveedor: 0,
+                        cargoPedido: proveedorPredeterminado?.cargoPedido || 0,
+                        demoraEntrega: proveedorPredeterminado?.demoraEntrega || 0,
+                        esPredeterminado: true,
+                        idArticulo: 0,
+                        idProveedor: proveedorPredeterminado?.idProveedor || 0,
+                        precioUnitario: proveedorPredeterminado?.precioUnitario || 0,
+                    },
+                };
             }
+console.log("Articulo a guardar:", updatedArticulo);
+
             onSave(updatedArticulo);
         } catch (error) {
             console.error("Error al guardar artículo:", error);
-            showToasty('Error al guardar proveedor', 'error');
+            showToasty("Error al guardar proveedor", "error");
         }
     };
 
@@ -179,101 +174,45 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
             </Modal.Header>
             <Modal.Body>
                 <Form.Group>
-                    {mode === "edit" &&
+                    {mode === "edit" && (
                         <>
+                            <Form.Label>Código</Form.Label>
+                            <Form.Control type="text" value={idArticulo} disabled />
+                        </>
+                    )}
+                    <Form.Label>Descripción</Form.Label>
+                    <Form.Control type="text" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} />
 
-                            <Form.Label>Codigo</Form.Label>
-                            <Form.Control
-                                type="text"
-                                value={idArticulo}
-                                onChange={(e) => setIdArticulo(e.target.value)}
-                                disabled={mode === "edit"}
-                            />
+                    <Form.Label className="mt-3">Stock</Form.Label>
+                    <Form.Control type="number" min={0} value={stock} onChange={(e) => setStock(Number(e.target.value))} />
 
-                        </>}
-                    <Form.Label>Descripcion</Form.Label>
-                    <Form.Control
-                        type="text"
-                        value={descripcion}
-                        onChange={(e) => setDescripcion(e.target.value)}
+                    <Form.Label className="mt-3">Modelo de Inventario</Form.Label>
+                    <Form.Control type="text" value="Lote Fijo" readOnly disabled />
 
-                    />
+                    {mode === "edit" && (
+                        <>
+                            <Form.Label className="mt-3">Proveedor predeterminado</Form.Label>
+                            <Button onClick={() => setShowProveedorModal(true)} style={{ minWidth: "200px" }}>
+                                {proveedorPredeterminado?.nombre?.toString() || proveedorPredeterminado?.proveedor?.nombre || "Seleccionar..."}
+                            </Button>
+                        </>
+                    )}
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '25px' }}>
-                        <Form.Label>Stock</Form.Label>
-                    </div>
+                    <Form.Label className="mt-3">Demanda anual</Form.Label>
+                    <Form.Control type="number" min={0} value={demanda} onChange={(e) => setDemanda(Number(e.target.value))} />
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '20px' }}>
-                        <Form.Control
-                            type="number"
-                            min={0}
-                            max={9999999}
-                            value={stock}
-                            onChange={(e) => setStock(Number(e.target.value))}
-                        />
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Form.Label>Modelo de Inventario</Form.Label>
-                        {mode === "edit" && <> <Form.Label>Proveedor predeterminado</Form.Label></>}
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '100px' }}>
-
-                        <Form.Select
-                            aria-label="Modelo de inventario"
-                            value={modelo}
-                            onChange={(e) => setModelo(e.target.value)}>
-                            <option>Modelos...</option>
-                            <option value="LF">Lote Fijo</option>
-                            <option value="PF">Periodo Fijo</option>
-
-                        </Form.Select>
-                        {mode === "edit" && <> <Button onClick={() => setShowProveedorModal(true)} style={{ minWidth: '200px' }} > {proveedorPredeterminado?.nombre?.toString() || proveedorPredeterminado?.proveedor.nombre || "Seleccionar..."} </Button>  </>}
-
-                    </div>
-                    <Form.Label>Demanda anual</Form.Label>
-
-                    <Form.Control
-                        type="number"
-                        min={0}
-                        max={9999999}
-                        value={demanda}
-                        onChange={(e) => setDemanda(Number(e.target.value))}
-                    />
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '2px', marginTop: '25px' }}>
-
-                        <div style={{ width: '30%' }}>
+                    <div className="d-flex justify-content-between gap-2 mt-3">
+                        <div style={{ width: "33%" }}>
                             <Form.Label>Costo Almacenamiento</Form.Label>
-                            <Form.Control
-                                type="number"
-                                min={0}
-                                max={9999999}
-                                step={0.01}
-                                value={costoAlmacenamiento}
-                                onChange={(e) => setCostoAlmacenamiento(Number(e.target.value))}
-                            />
+                            <Form.Control type="number" min={0} step={0.01} value={costoAlmacenamiento} onChange={(e) => setCostoAlmacenamiento(Number(e.target.value))} />
                         </div>
-                        <div style={{ width: '30%' }}>
+                        <div style={{ width: "33%" }}>
                             <Form.Label>Costo Pedido</Form.Label>
-                            <Form.Control
-                                type="number"
-                                min={0}
-                                max={9999999}
-                                step={0.01}
-                                value={costoPedido }
-                                onChange={(e) => setCostoPedido(Number(e.target.value))}
-                            />
+                            <Form.Control type="number" min={0} step={0.01} value={costoPedido} onChange={(e) => setCostoPedido(Number(e.target.value))} />
                         </div>
-                        <div style={{ width: '30%' }}>
+                        <div style={{ width: "33%" }}>
                             <Form.Label>Costo Compra</Form.Label>
-                            <Form.Control
-                                type="number"
-                                min={0}
-                                max={9999999}
-                                step={0.01}
-                                value={costoCompra}
-                                onChange={(e) => setCostoCompra(Number(e.target.value))}
-                            />
+                            <Form.Control type="number" min={0} step={0.01} value={costoCompra} onChange={(e) => setCostoCompra(Number(e.target.value))} />
                         </div>
                     </div>
                 </Form.Group>
@@ -282,8 +221,9 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                 <Button variant="outline-danger" onClick={onHide}>
                     Cancelar
                 </Button>
-                <Button variant="outline-success" onClick={handleSave}>Guardar</Button>
-
+                <Button variant="outline-success" onClick={handleSave}>
+                    Guardar
+                </Button>
             </Modal.Footer>
             <ArtProv
                 show={showProveedorModal}

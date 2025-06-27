@@ -2,7 +2,6 @@ import { Table, Col, Form, Row, Stack, Button, Accordion, Dropdown, OverlayTrigg
 import axiosClient from "../api/axiosClient";
 import { useCallback, useEffect, useState } from "react";
 import MyPagination from "../components/Pagination/myPagination";
-import ArtVta from "./Modales/artVta";
 import ArtProv from "./Modales/artProv";
 import ArtEdit from "./Modales/artEdit";
 import ArtDel from "./Modales/artDel";
@@ -18,7 +17,7 @@ interface Articulo {
     fechaBaja: Date | null;
     idArticulo: number;
     idInventario: number;
-    modeloInventario: string; // 'LF' o 'PF'
+    modeloInventario: 'LF'; // 'LF' o 'PF'
     stock: number;
 
     inventario?: Inventario;
@@ -129,7 +128,10 @@ const Articulos = () => {
                 throw new Error("Error al actualizar artículo");
             }
 
-            const result = await response.json();
+           const result = await response.json(); // Parse the JSON response
+            if (!result || typeof result.descripcion !== 'string') {
+                throw new Error("Artículo inválido recibido del backend"); // Check the parsed result
+            }
 
             setData(artData => {
                 const nuevosDatos = artData.datos.map(art =>
@@ -178,10 +180,47 @@ const Articulos = () => {
 
     //agrego para que se de alta un nuevo articulo
     const handleCreateArticulo = async (nuevoArticulo: Articulo) => {
+        
         try {
+            // Validación básica
+            console.log(nuevoArticulo)
+            if (!nuevoArticulo.descripcion) {
+                showToasty("Faltan datos obligatorlo", "error");
+                return;
+            }
+            if (!nuevoArticulo.inventario) {
+                showToasty("if 2o", "error");
+                return;
+            }
+            if (!nuevoArticulo.articuloProveedor) {
+                showToasty("if3 lo", "error");
+                return;
+            }
 
-            // VER ESTO A LA HORA DE CREAR UN ARTICULO NUEVO TIRA ERROR SERA POR Inventario? 
-            const response = await axiosClient.post("/articulos", nuevoArticulo);
+            // Armado del objeto con modeloInventario fijo 'LF'
+            const articuloPayload = {
+                descripcion: nuevoArticulo.descripcion,
+                modeloInventario: 1, // ← valor fijo
+                stock: nuevoArticulo.stock,
+                inventario: {
+                    demandaArticulo: nuevoArticulo.inventario.demandaArticulo,
+                    costoAlmacenamiento: nuevoArticulo.inventario.costoAlmacenamiento,
+                    costoCompra: nuevoArticulo.inventario.costoCompra,
+                    costoPedido: nuevoArticulo.inventario.costoPedido,
+                    stockSeguridad: nuevoArticulo.inventario.stockSeguridad,
+                    puntoPedido: nuevoArticulo.inventario.puntoPedido,
+                    loteOptimo: nuevoArticulo.inventario.loteOptimo,
+                },
+                articuloProveedor: {
+                    idProveedor: nuevoArticulo.articuloProveedor.idProveedor,
+                    precioUnitario: nuevoArticulo.articuloProveedor.precioUnitario,
+                    demoraEntrega: nuevoArticulo.articuloProveedor.demoraEntrega,
+                    cargoPedido: nuevoArticulo.articuloProveedor.cargoPedido,
+                    esPredeterminado: nuevoArticulo.articuloProveedor.esPredeterminado,
+                }
+            };
+
+            const response = await axiosClient.post("/articulos", articuloPayload);
 
             const articuloCreado = response.data;
 
@@ -190,18 +229,22 @@ const Articulos = () => {
                 datos: [...prevData.datos, articuloCreado],
             }));
 
-            showToasty("Artículo creado exitosamente", "success")
+            showToasty("Artículo creado exitosamente", "success");
             setShowModal(false);
         } catch (error) {
+            console.error("Error al crear el artículo:", error);
             showToasty("Error al crear el artículo", "error");
         }
     };
+
 
 
     const fetchData = async () => {
         try {
             const response = await axiosClient.get("articulos/?filter[fechaBaja][eq]=null&filter[include]=inventario");
             const allData: Articulo[] = response.data || [];
+            console.log(allData);
+
 
             if (allData.length > 0) {
                 setData({
@@ -224,12 +267,14 @@ const Articulos = () => {
 
         fetchData();
     }, []);
-
+console.log("HOLA1")
+    console.log('data.datos:', data.datos);
 
     const filteredData = data.datos
         .filter(ap =>
-            ap.descripcion.toLowerCase().includes(searchText.toLowerCase())
+            ap && typeof ap.descripcion === 'string'
         )
+
         .filter(ap => {
             if (filterOption === 'stock') {
                 return ap.inventario?.stockSeguridad !== undefined && ap.inventario.stockSeguridad >= ap.stock;
