@@ -91,47 +91,54 @@ const VtaDetalle = ({ show, onHide, articulo }: VtaDetalleProps) => {
         articulo: Articulo;
     }) => {
         try {
-            const response = await axiosClient.post("/ventas", nuevaVenta);
-
-            const ventaCreada = response.data;
-
-            setData(prevData => ({
-                ...prevData,
-                datos: [...prevData.datos, ventaCreada],
-            }));
-
-            //  // Validamos órdenes pendientes o enviadas
-            // const responsePendiente = await axiosClient.get(
-            //     `orden-compras/?filter[idArticulo][eq]=${articulo.idArticulo}&filter[include]=estadoOrdenCompra&filter[estadoOrdenCompra.nombre][eq]=Pendiente`
-            // );
-            // const responseEnviada = await axiosClient.get(
-            //     `orden-compras/?filter[idArticulo][eq]=${articulo.idArticulo}&filter[include]=estadoOrdenCompra&filter[estadoOrdenCompra.nombre][eq]=Enviado`
-            // );
 
 
-            // const pendientes: any[] = responsePendiente.data || [];
-            // const enviadas: any[] = responseEnviada.data || [];
+            // Validamos órdenes pendientes o enviadas
+            const responsePendiente = await axiosClient.get(
+                `orden-compras/?filter[idArticulo][eq]=${articulo.idArticulo}&filter[include]=estadoOrdenCompra&filter[estadoOrdenCompra.nombre][eq]=Pendiente`
+            );
+            const responseEnviada = await axiosClient.get(
+                `orden-compras/?filter[idArticulo][eq]=${articulo.idArticulo}&filter[include]=estadoOrdenCompra&filter[estadoOrdenCompra.nombre][eq]=Enviado`
+            );
 
-            // const tieneOrdenes = pendientes.length > 0 || enviadas.length > 0;
-
-            // if (tieneOrdenes) {
-            //     if (pendientes.length > 0) {
-            //         showToasty('No se puede eliminar el artículo, tiene órdenes pendientes', 'error');
-            //     }
-            //     if (enviadas.length > 0) {
-            //         showToasty('No se puede eliminar el artículo, tiene órdenes enviadas', 'error');
-            //     }
-            //     if (pendientes.length > 0 && enviadas.length > 0) {
-            //         showToasty('No se puede eliminar el artículo, tiene órdenes pendientes y enviadas', 'error');
-            //     }
-            // } else {
-            //     onDel(articulo);
-            // }
+            console.log("Órdenes pendientes:", responsePendiente.data);
+            console.log("Órdenes enviadas:", responseEnviada.data);
 
 
+            const pendientes: any[] = responsePendiente.data || [];
+            const enviadas: any[] = responseEnviada.data || [];
 
-            showToasty("Venta realizada exitosamente", "success");
-            onHide();
+            const tieneOrdenes = pendientes.length > 0 || enviadas.length > 0;
+
+            if (tieneOrdenes) {
+                if (pendientes.length > 0) {
+                    showToasty('No se puede crear la venta, el artículo tiene órdenes pendientes', 'error');
+                }
+                if (enviadas.length > 0) {
+                    showToasty('No se puede  crear la venta, el artículo tiene órdenes enviadas', 'error');
+                }
+            } else {
+
+                if (articulo.modeloInventario === "LF" && cantidad <= articulo.stock) {
+
+
+                    const response = await axiosClient.post("/ventas", nuevaVenta);
+
+                    const ventaCreada = response.data;
+
+                    setData(prevData => ({
+                        ...prevData,
+                        datos: [...prevData.datos, ventaCreada],
+                    }));
+                    showToasty("Venta realizada exitosamente", "success");
+                    onHide();
+                }
+
+                if (articulo.modeloInventario !== "LF") {
+                    // Para modelo PF, no se puede vender si hay órdenes pendientes o enviadas
+                    showToasty("Solo se puede crear la venta para modelo LF", "error");
+                }
+            }
         } catch (error) {
             console.error(error);
             showToasty("Error al crear la venta", "error");
@@ -222,7 +229,7 @@ const VtaDetalle = ({ show, onHide, articulo }: VtaDetalleProps) => {
                     variant="outline-success"
                     onClick={() => {
                         if (!proveedorSeleccionado || cantidad <= 0) {
-                            showToasty("Seleccione un proveedor y una cantidad válida", "warning");
+                            showToasty("Seleccione un datos válidos", "warning");
                             return;
                         }
 

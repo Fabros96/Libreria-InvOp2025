@@ -13,7 +13,7 @@ export const showToasty = (mensaje: string, type: TypeOptions) => {
         theme: 'colored',     
         autoClose: 5000,
         closeButton: true,
-        style: { color: temaGuardado === 'claro' ? 'var(--texto)' : (type === 'success' ? 'var(--detalles)' : 'var(--secundario)') },
+        style: { color: temaGuardado === 'claro' ? 'var(--texto)' : (type === 'success' ? 'var(--detalles)' : (type === 'warning' ? 'var(--detalles)': 'var(--secundario)')) },
 
     });
 }

@@ -319,7 +319,6 @@ const Ventas = () => {
                                         <th>IdVenta</th>
                                         <th >IdArticulo</th>
                                         <th >Descripción</th>
-                                        <th >Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
