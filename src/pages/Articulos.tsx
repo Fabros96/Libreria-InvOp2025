@@ -17,7 +17,7 @@ interface Articulo {
     fechaBaja: Date | null;
     idArticulo: number;
     idInventario: number;
-    modeloInventario: 'LF'; // 'LF' o 'PF'
+    modeloInventario: string; // 'LF'; // 'LF' o 'PF'
     stock: number;
 
     inventario?: Inventario;
@@ -200,7 +200,7 @@ const Articulos = () => {
             // Armado del objeto con modeloInventario fijo 'LF'
             const articuloPayload = {
                 descripcion: nuevoArticulo.descripcion,
-                modeloInventario: 1, // ← valor fijo
+                modeloInventario: nuevoArticulo.modeloInventario, // ← valor fijo
                 stock: nuevoArticulo.stock,
                 inventario: {
                     demandaArticulo: nuevoArticulo.inventario.demandaArticulo,
