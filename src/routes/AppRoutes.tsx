@@ -9,6 +9,7 @@ import MaintenancePage from '../pages/MaintenancePage';
 import Articulos from '../pages/Articulos';
 import Proveedores from '../pages/Proveedores';
 import Ventas from '../pages/Ventas';
+import Ordenes from '../pages/Ordenes';
 
 const AppRoutes: React.FC = () => {
   return (
@@ -23,6 +24,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/articulos" element={<Articulos />} />
       <Route path="/proveedores" element={<Proveedores />} />
       <Route path="/ventas" element={<Ventas />} />
+      <Route path="/ordenes" element={<Ordenes />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
     
