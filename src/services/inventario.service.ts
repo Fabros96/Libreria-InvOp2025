@@ -5,13 +5,9 @@ export function calcularModeloLoteFijo({
   demandaAnual,
   costoPedido,
   costoAlmacenamiento,
-<<<<<<< HEAD
   diasPorAnio = 365,
   demoraEntregaDias, // opcional: se requiere para calcular punto de pedido
-  porcentajeSeguridad = 0.1 // opcional: 10% de la demanda diaria
-=======
-  demoraEntregaDias 
->>>>>>> 1285832 (fix OC)
+  porcentajeSeguridad = 0.1, // opcional: 10% de la demanda diaria
 }: {
   demandaAnual: number;
   costoPedido: number;

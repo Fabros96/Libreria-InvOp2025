@@ -50,7 +50,6 @@ export const OrdenCompraController = {
                     msg: 'Ya existe una orden de compra activa para este artículo.'
                 });
             }
->>>>>>> 1285832 (fix OC)
             const nuevoOrdenCompra = await prisma.ordenCompra.create({
                 data: { 
                     idArticulo, 
