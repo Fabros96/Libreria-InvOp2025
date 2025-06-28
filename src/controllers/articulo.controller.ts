@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
 import { ArticuloRepository } from "../repositories/articulo.repository";
+import { calcularInventario } from "../services/inventario.service";
 
 const prisma = new PrismaClient();
 const articuloRepository = new ArticuloRepository();
@@ -43,29 +44,31 @@ export const ArticuloController = {
     // },
 
     create: async (req: Request, res: Response) => {
-        // {
-        //     "descripcion": "aa",
-        //     "modeloInventario": 1,
-        //     "stock": 14,
-        //     "inventario": {
-        //         "costoAlmacenamiento": 12,
-        //         "costoCompra": 12,
-        //         "costoPedido": 12,
-        //         "demandaArticulo": 12,
-        //         "loteOptimo": 12,
-        //         "puntoPedido": 12,
-        //         "stockSeguridad": 12
-        //     }
-        // }
+   
         const { descripcion, modeloInventario, stock, inventario } = req.body;
 
         try {
-            let data: any = {
-                descripcion,
-                modeloInventario,
-                stock,
-                inventario: { ...{ create: { ...inventario } } }
-            };
+
+            const { demandaArticulo, costoPedido, costoAlmacenamiento, costoCompra, demoraEntrega } = inventario;
+
+            console.log(inventario)
+
+                let data: any = {
+        descripcion,
+        modeloInventario,
+        stock,
+        inventario: {
+            create: {
+            demandaArticulo,
+            costoPedido,
+            costoAlmacenamiento,
+            costoCompra,
+            loteOptimo:0,
+            puntoPedido:0,
+            stockSeguridad:0
+            }
+        }
+    };
             
             const nuevoArticulo = await prisma.articulo.create({
                 data,
