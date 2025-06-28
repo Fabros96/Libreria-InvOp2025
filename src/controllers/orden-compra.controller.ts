@@ -28,8 +28,29 @@ export const OrdenCompraController = {
     
     // Crear un nuevo ordenCompra (create)
     create: async (req: Request, res: Response) => {
+        console.log("entra a create")
         let { idArticulo, idProveedor, idEstadoOrdenCompra, cantidad, fechaCreacion } = req.body;
+        console.log(idArticulo)
+        console.log("articulo")
         try {
+
+            console.log("entra a try")
+            const ordenExistente = await prisma.ordenCompra.findFirst({
+                where: {
+                    idArticulo: Number(idArticulo),
+                    idEstadoOrdenCompra: {
+                        in: [3, 4]
+                    }
+                }
+            });
+
+            console.log(ordenExistente)
+            if (ordenExistente) {
+                return res.status(400).json({
+                    msg: 'Ya existe una orden de compra activa para este artículo.'
+                });
+            }
+>>>>>>> 1285832 (fix OC)
             const nuevoOrdenCompra = await prisma.ordenCompra.create({
                 data: { 
                     idArticulo, 
@@ -42,6 +63,7 @@ export const OrdenCompraController = {
             res.status(200).json({ msg: 'Se ha creado la Orden de Compra.', data: nuevoOrdenCompra });
         } catch (error: any) {
             res.status(500).json({ msg: 'Error al crear la Orden de Compra.', detail: error.message });
+            console.log(error)
         }
     },
     
@@ -88,8 +110,13 @@ export const OrdenCompraController = {
 
             // OC ya enviada (4) => no se permite modificar ni cancelar
             console.log(ordenCompraActual.idEstadoOrdenCompra) //a
-            if (ordenCompraActual.idEstadoOrdenCompra === 4) {
-                return res.status(400).json({ msg: 'La orden ya fue enviada y no puede ser modificada ni cancelada.' });
+            if (ordenCompraActual.idEstadoOrdenCompra === 1) {
+                return res.status(400).json({ msg: 'La orden ya fue Cancelada.' });
+            }
+
+            if (ordenCompraActual.idEstadoOrdenCompra === 4 && idEstadoOrdenCompra !== 2) {
+                // Enviada solo puede pasar a Finalizada
+                return res.status(400).json({ msg: 'Una orden Enviada solo puede cambiarse a Finalizada.' });
             }
 
             // Cancelar => solo si está en estado Pendiente (3)
@@ -101,9 +128,9 @@ export const OrdenCompraController = {
             }
 
             // Finalizar => actualizar stock y validar punto de pedido
-            if (idEstadoOrdenCompra === 2) {
-                if (ordenCompraActual.idEstadoOrdenCompra !== 3) {
-                    return res.status(400).json({ msg: 'Solo se puede finalizar una orden cuando está en estado Pendiente.' });
+            if (idEstadoOrdenCompra === 4) {
+                if (ordenCompraActual.idEstadoOrdenCompra !== 2) {
+                    return res.status(400).json({ msg: 'La orden Enviada solo puede pasar al estado Finalizada.' });
                 }
 
                 if (ordenCompraActual.cantidad === null || ordenCompraActual.cantidad <= 0) {

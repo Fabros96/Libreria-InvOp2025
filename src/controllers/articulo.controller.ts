@@ -66,6 +66,7 @@ export const ArticuloController = {
                 stock,
                 inventario: { ...{ create: { ...inventario } } }
             };
+            
             const nuevoArticulo = await prisma.articulo.create({
                 data,
                 include: { inventario: true }
