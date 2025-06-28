@@ -207,9 +207,9 @@ const Articulos = () => {
                     costoAlmacenamiento: nuevoArticulo.inventario.costoAlmacenamiento,
                     costoCompra: nuevoArticulo.inventario.costoCompra,
                     costoPedido: nuevoArticulo.inventario.costoPedido,
-                    stockSeguridad: nuevoArticulo.inventario.stockSeguridad,
-                    puntoPedido: nuevoArticulo.inventario.puntoPedido,
-                    loteOptimo: nuevoArticulo.inventario.loteOptimo,
+                    //stockSeguridad: nuevoArticulo.inventario.stockSeguridad,
+                    //puntoPedido: nuevoArticulo.inventario.puntoPedido,
+                    //loteOptimo: nuevoArticulo.inventario.loteOptimo,
                 },
                 articuloProveedor: {
                     idProveedor: nuevoArticulo.articuloProveedor.idProveedor,
