@@ -35,16 +35,18 @@ export const OrdenCompraController = {
         try {
 
             console.log("entra a try")
+            // Verificar si ya existe una orden de compra activa para este artículo (pendiente-enviada)
             const ordenExistente = await prisma.ordenCompra.findFirst({
                 where: {
                     idArticulo: Number(idArticulo),
                     idEstadoOrdenCompra: {
-                        in: [3, 4]
+                        in: [1, 4]
                     }
                 }
             });
 
             console.log(ordenExistente)
+            
             if (ordenExistente) {
                 return res.status(400).json({
                     msg: 'Ya existe una orden de compra activa para este artículo.'
@@ -67,117 +69,145 @@ export const OrdenCompraController = {
     },
     
     // Actualizar un ordenCompra (update)
+
     update: async (req: Request, res: Response) => {
-        const { id } = req.params;
-        let { idArticulo, idProveedor, idEstadoOrdenCompra, cantidad, fechaCreacion } = req.body;
-        let payload: any = { idArticulo, idProveedor, cantidad, fechaCreacion };
+    const { id } = req.params;
+    let { idArticulo, idProveedor, idEstadoOrdenCompra, cantidad, fechaCreacion } = req.body;
+    let payload: any = { idArticulo, idProveedor, cantidad, fechaCreacion };
 
-        try {
-            // Traer la OC actual
-            const ordenCompraActual = await prisma.ordenCompra.findUnique({
-                where: { idOrdenCompra: parseInt(id) },
-                select: {
-                    idEstadoOrdenCompra: true,
-                    cantidad: true,
-                    idArticulo: true
+    try {
+        // Traer la OC actual
+        const ordenCompraActual = await prisma.ordenCompra.findUnique({
+            where: { idOrdenCompra: parseInt(id) },
+            select: {
+                idEstadoOrdenCompra: true,
+                cantidad: true,
+                idArticulo: true
+            }
+        });
+
+        if (!ordenCompraActual) {
+            return res.status(404).json({ msg: 'Orden de compra no encontrada.' });
+        }
+
+        // Obtener el artículo relacionado
+        const articuloRelacionado = await prisma.articulo.findUnique({
+            where: { idArticulo: ordenCompraActual.idArticulo },
+            select: {
+                modeloInventario: true,
+                stock: true,
+                inventario: {
+                    select: { puntoPedido: true }
                 }
-            });
+            }
+        });
 
-            if (!ordenCompraActual) {
-                return res.status(404).json({ msg: 'Orden de compra no encontrada.' });
+        if (!articuloRelacionado) {
+            return res.status(404).json({ msg: 'Artículo relacionado no encontrado.' });
+        }
+
+        // Evitar modificación si está cancelada
+        if (ordenCompraActual.idEstadoOrdenCompra === 3) {
+            return res.status(400).json({ msg: 'La orden ya fue Cancelada.' });
+        }
+
+        // Enviada (4) solo puede pasar a Finalizada (2)
+        if (ordenCompraActual.idEstadoOrdenCompra === 4 && idEstadoOrdenCompra !== 2) {
+            return res.status(400).json({ msg: 'Una orden Enviada solo puede cambiarse a Finalizada.' });
+        }
+
+        // Solo permitir modificar campos si está en Pendiente
+        const estadoNoCambio = idEstadoOrdenCompra === ordenCompraActual.idEstadoOrdenCompra || idEstadoOrdenCompra === undefined;
+        const modificandoCampos = idArticulo !== ordenCompraActual.idArticulo || cantidad !== ordenCompraActual.cantidad;
+
+        if (estadoNoCambio && modificandoCampos && ordenCompraActual.idEstadoOrdenCompra !== 1) {
+            return res.status(400).json({ msg: 'Solo se puede modificar una orden cuando está en estado Pendiente.' });
+        }
+
+        // Cancelar => solo si está en Pendiente (1)
+        if (idEstadoOrdenCompra === 3) {
+            if (ordenCompraActual.idEstadoOrdenCompra !== 1) {
+                return res.status(400).json({ msg: 'Solo se puede cancelar una orden cuando está en estado Pendiente.' });
+            }
+            payload.idEstadoOrdenCompra = 3;
+        }
+
+        // Enviar => solo si está en Pendiente (1)
+        if (idEstadoOrdenCompra === 4) {
+            if (ordenCompraActual.idEstadoOrdenCompra !== 1) {
+                return res.status(400).json({ msg: 'Solo se puede enviar una orden que está en estado Pendiente.' });
+            }
+            payload.idEstadoOrdenCompra = 4;
+        }
+
+        // Finalizar (2) => solo si está en estado Enviada (4)
+        if (idEstadoOrdenCompra === 2) {
+            if (ordenCompraActual.idEstadoOrdenCompra !== 4) {
+                return res.status(400).json({ msg: 'Solo se puede finalizar una orden que está en estado Enviada.' });
             }
 
-            // Obtener el artículo relacionado (modeloInventario y puntoPedido)
-            const articuloRelacionado = await prisma.articulo.findUnique({
+            if (!ordenCompraActual.cantidad || ordenCompraActual.cantidad <= 0) {
+                return res.status(400).json({ msg: 'La cantidad debe ser mayor a cero para finalizar la orden.' });
+            }
+
+            payload.idEstadoOrdenCompra = 2;
+
+            // Actualizar stock
+            await prisma.articulo.update({
                 where: { idArticulo: ordenCompraActual.idArticulo },
-                select: {
-                    modeloInventario: true,
-                    stock: true,
-                    inventario: {
-                        select: {
-                            puntoPedido: true
-                        }
+                data: {
+                    stock: {
+                        increment: ordenCompraActual.cantidad
                     }
                 }
             });
 
-
-            if (!articuloRelacionado) {
-                return res.status(404).json({ msg: 'Artículo relacionado no encontrado.' });
-            }
-
-
-            // OC ya enviada (4) => no se permite modificar ni cancelar
-            console.log(ordenCompraActual.idEstadoOrdenCompra) //a
-            if (ordenCompraActual.idEstadoOrdenCompra === 1) {
-                return res.status(400).json({ msg: 'La orden ya fue Cancelada.' });
-            }
-
-            if (ordenCompraActual.idEstadoOrdenCompra === 4 && idEstadoOrdenCompra !== 2) {
-                // Enviada solo puede pasar a Finalizada
-                return res.status(400).json({ msg: 'Una orden Enviada solo puede cambiarse a Finalizada.' });
-            }
-
-            // Cancelar => solo si está en estado Pendiente (3)
-            if (idEstadoOrdenCompra === 1) {
-                if (ordenCompraActual.idEstadoOrdenCompra !== 3) {
-                    return res.status(400).json({ msg: 'Solo se puede cancelar una orden cuando está en estado Pendiente.' });
-                }
-                payload.idEstadoOrdenCompra = 1;
-            }
-
-            // Finalizar => actualizar stock y validar punto de pedido
-            if (idEstadoOrdenCompra === 4) {
-                if (ordenCompraActual.idEstadoOrdenCompra !== 2) {
-                    return res.status(400).json({ msg: 'La orden Enviada solo puede pasar al estado Finalizada.' });
-                }
-
-                if (ordenCompraActual.cantidad === null || ordenCompraActual.cantidad <= 0) {
-                    return res.status(400).json({ msg: 'La cantidad debe ser mayor a cero para finalizar la orden.' });
-                }
-
-                // Actualizar stock
-                await prisma.articulo.update({
-                    where: { idArticulo: ordenCompraActual.idArticulo },
-                    data: {
-                        stock: {
-                            increment: ordenCompraActual.cantidad
-                        }
-                    }
-                });
-
-                payload.idEstadoOrdenCompra = 2;
-
-                // Verificar Punto de Pedido si modelo es Lote Fijo (1002)
-            //if (
-                    //articuloRelacionado.modeloInventario === 1002 &&
-                  //  (articuloRelacionado.stock + ordenCompraActual.cantidad) < (articuloRelacionado.puntoPedido ?? 0)
-                //) {
-                    //return res.status(200).json({
-                     //   msg: 'Orden finalizada. Sin embargo, la cantidad total no supera el Punto de Pedido.',
-                   //     advertencia: true
-                 //   });
-               // }
-            }
-
-            // Si no es cancelación ni finalización, y el estado no está definido, mantenerlo
-            if (idEstadoOrdenCompra && !payload.idEstadoOrdenCompra) {
-                payload.idEstadoOrdenCompra = idEstadoOrdenCompra;
-            }
-
-            // Actualizar OC
+            // Actualizar orden antes de return
             const ordenCompraActualizado = await prisma.ordenCompra.update({
                 where: { idOrdenCompra: parseInt(id) },
-                data: payload,
+                data: payload
             });
 
-            res.status(200).json({ msg: 'Se ha actualizado la orden de compra.', data: ordenCompraActualizado });
+            // Validación Punto de Pedido
+            const nuevoStock = (articuloRelacionado.stock ?? 0) + ordenCompraActual.cantidad;
+            const puntoPedido = articuloRelacionado.inventario?.puntoPedido ?? 0;
 
-        } catch (error: any) {
-            res.status(500).json({ msg: 'Error al actualizar la orden de compra', detail: error.message });
+            if (
+                articuloRelacionado.modeloInventario === 'LF' &&
+                nuevoStock < puntoPedido
+            ) {
+                console.log("no supera")
+                return res.status(200).json({
+                    msg: 'Orden finalizada, pero la cantidad total no supera el Punto de Pedido.',
+                    advertencia: true,
+                    data: ordenCompraActualizado
+                });
+            }
+
+            return res.status(200).json({
+                msg: 'Orden finalizada correctamente.',
+                data: ordenCompraActualizado
+            });
         }
-    },
 
+        // Si no es finalización ni cancelación ni envío, mantener el estado actual o actualizado
+        if (idEstadoOrdenCompra && !payload.idEstadoOrdenCompra) {
+            payload.idEstadoOrdenCompra = idEstadoOrdenCompra;
+        }
+
+        // Actualizar orden si no fue finalizada (ya actualizada antes)
+        const ordenCompraActualizado = await prisma.ordenCompra.update({
+            where: { idOrdenCompra: parseInt(id) },
+            data: payload
+        });
+
+        return res.status(200).json({ msg: 'Se ha actualizado la orden de compra.', data: ordenCompraActualizado });
+
+    } catch (error: any) {
+        console.error(error);
+        return res.status(500).json({ msg: 'Error al actualizar la orden de compra', detail: error.message });
+    }
+},
 
     // Eliminar un ordenCompra (delete)
     delete: async (req: Request, res: Response) => {
