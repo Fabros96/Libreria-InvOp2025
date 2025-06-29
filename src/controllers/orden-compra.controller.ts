@@ -12,7 +12,7 @@ export const OrdenCompraController = {
             const ordenCompras = await ordenCompraRepository.findMany(decodeURIComponent(req.url));
             res.status(200).json({ msg: `${ordenCompras.length > 0 ? 'Se han encontrado registros' : 'No se han encontrado registros'}`, data: ordenCompras});
         } catch (error: any) {
-            res.status(500).json({ msg: 'Error al obtener las registros', detail: error.message });
+            res.status(500).json({ msg: 'Error al obtener networkeo registros', detail: error.message });
         }
     },
     
@@ -54,7 +54,7 @@ export const OrdenCompraController = {
                 data: { 
                     idArticulo, 
                     idProveedor, 
-                    idEstadoOrdenCompra: 3, 
+                    idEstadoOrdenCompra: 1, 
                     cantidad, 
                     fechaCreacion: new Date() 
                 },

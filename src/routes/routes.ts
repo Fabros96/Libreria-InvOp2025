@@ -38,6 +38,7 @@ router.get("/articulo-proveedores/:id", ArticuloProveedorController.getById);
 router.post("/articulo-proveedores", ArticuloProveedorController.create);
 router.put("/articulo-proveedores/:id", ArticuloProveedorController.update);
 router.delete("/articulo-proveedores/:id", ArticuloProveedorController.delete);
+router.get("/articulo-proveedores/predeterminado/:idArticulo", ArticuloProveedorController.getPredeterminadoPorArticulo);
 
 // articulo
 router.get("/articulos", ArticuloController.getAll);

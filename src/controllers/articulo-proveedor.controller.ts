@@ -7,16 +7,19 @@ const prisma = new PrismaClient();
 const articuloProveedorRepository = new ArticuloProveedorRepository();
 
 export const ArticuloProveedorController = {
+
     // Obtener todos los articuloProveedor
     getAll: async (req: Request, res: Response) => {
         try {
             const articuloProveedor = await articuloProveedorRepository.findMany(decodeURIComponent(req.url));
+            console.log(req.url)
+            console.log("hola")
             res.status(200).json({ msg: `${articuloProveedor.length > 0 ? 'Se han encontrado registros' : 'No se han encontrado registros'}`, data: articuloProveedor});
         } catch (error: any) {
             res.status(500).json({ msg: 'Error al obtener las registros', detail: error.message });
         }
     },
-    
+
     // Obtener un articuloProveedor por su ID (getById)
     getById: async (req: Request, res: Response) => {
         const { id } = req.params;
@@ -117,6 +120,29 @@ export const ArticuloProveedorController = {
             });
         }
     },
+
+    // En el controller
+    getPredeterminadoPorArticulo: async (req: Request, res: Response) => {
+        const { idArticulo } = req.params;
+        try {
+            const resultado = await prisma.articuloProveedor.findFirst({
+                where: {
+                    idArticulo: Number(idArticulo),
+                    esPredeterminado: true
+                },
+                include: {
+                    proveedor: true,
+                    articulo: true
+                }
+            });
+            res.status(200).json({ msg: 'Proveedor predeterminado encontrado', data: resultado });
+        } catch (error: any) {
+            res.status(500).json({ msg: 'Error al obtener proveedor predeterminado', detail: error.message });
+        }
+    },
+
+
+
 
 
 

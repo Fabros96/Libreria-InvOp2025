@@ -86,21 +86,126 @@ export const ArticuloController = {
 
 
     // Actualizar un articulo (update)
+    // update: async (req: Request, res: Response) => {
+    //     const { id } = req.params;
+    //     let { idInventario, fechaBaja, descripcion, modeloInventario, stock } = req.body;
+    //     let payload: any = { idInventario, descripcion, modeloInventario, stock };
+    //     console.log(payload)
+    //     console.log("articuloAeditar")
+    //     if (fechaBaja) payload['fechaBaja'] = fechaBaja;
+    //     try {
+    //         const articuloActualizado = await prisma.articulo.update({
+    //             where: { idArticulo: parseInt(id) },
+    //             data: payload,
+    //         });
+    //         res.status(200).json({ msg: 'Se ha actualizado el articulo.', data: articuloActualizado });
+    //     } catch (error: any) {
+    //         res.status(500).json({ msg: 'Error al actualizar el articulo', detail: error.message });
+    //     }
+    // },
+
+   
+
+
+    //actualizar articulo version mejorada
     update: async (req: Request, res: Response) => {
-        const { id } = req.params;
-        let { idInventario, fechaBaja, descripcion, modeloInventario, stock } = req.body;
-        let payload: any = { idInventario, descripcion, modeloInventario, stock };
-        if (fechaBaja) payload['fechaBaja'] = fechaBaja;
-        try {
-            const articuloActualizado = await prisma.articulo.update({
-                where: { idArticulo: parseInt(id) },
-                data: payload,
+    const { id } = req.params;
+    const {
+        idInventario,
+        fechaBaja,
+        descripcion,
+        modeloInventario,
+        stock,
+        inventario,
+        articuloProveedor
+    } = req.body;
+
+    const payload: any = { idInventario, descripcion, modeloInventario, stock };
+    if (fechaBaja) payload.fechaBaja = fechaBaja;
+
+    console.log("🟡 Payload artículo:", payload);
+    console.log("📦 Inventario:", inventario);
+    console.log("📦 ArtículoProveedor:", articuloProveedor);
+
+    try {
+        // 1. Actualizar artículo principal
+        const articuloActualizado = await prisma.articulo.update({
+            where: { idArticulo: parseInt(id) },
+            data: payload,
+        });
+
+        // 2. Actualizar inventario si viene presente
+        if (inventario && inventario.idInventario) {
+            await prisma.inventario.update({
+                where: { idInventario: inventario.idInventario },
+                data: {
+                    demandaArticulo: inventario.demandaArticulo,
+                    costoAlmacenamiento: inventario.costoAlmacenamiento,
+                    costoPedido: inventario.costoPedido,
+                    costoCompra: inventario.costoCompra,
+                },
             });
-            res.status(200).json({ msg: 'Se ha actualizado el articulo.', data: articuloActualizado });
-        } catch (error: any) {
-            res.status(500).json({ msg: 'Error al actualizar el articulo', detail: error.message });
         }
-    },
+
+        // 3. Actualizar artículo-proveedor si viene presente
+        if (articuloProveedor && articuloProveedor.idArticuloProveedor) {
+            await prisma.articuloProveedor.update({
+                where: { idArticuloProveedor: articuloProveedor.idArticuloProveedor },
+                data: {
+                    idProveedor: articuloProveedor.idProveedor,
+                    idArticulo: parseInt(id),
+                    precioUnitario: articuloProveedor.precioUnitario,
+                    demoraEntrega: articuloProveedor.demoraEntrega,
+                    cargoPedido: articuloProveedor.cargoPedido,
+                    esPredeterminado: articuloProveedor.esPredeterminado,
+                },
+            });
+        }
+
+        // 4. Recalcular inventario si todo está presente
+        if (
+            inventario &&
+            articuloProveedor &&
+            typeof inventario.demandaArticulo === "number" &&
+            typeof inventario.costoAlmacenamiento === "number" &&
+            typeof inventario.costoPedido === "number" &&
+            typeof articuloProveedor.demoraEntrega === "number"
+        ) {
+            const nuevosValores = calcularInventario({
+                demandaArticulo: inventario.demandaArticulo,
+                costoPedido: inventario.costoPedido,
+                costoAlmacenamiento: inventario.costoAlmacenamiento,
+                demoraEntrega: articuloProveedor.demoraEntrega,
+            });
+
+            console.log("🔁 Recalculando inventario con:", nuevosValores);
+            
+
+            await prisma.inventario.update({
+                where: { idInventario: inventario.idInventario },
+                data: {
+                    ...nuevosValores,
+                }
+            });
+        }
+
+        return res.status(200).json({
+            msg: 'Se ha actualizado el articulo y se ha recalculado el inventario.',
+            data: articuloActualizado,
+        });
+
+    } catch (error: any) {
+        console.error("❌ Error al actualizar artículo:", error);
+        return res.status(500).json({
+            msg: 'Error al actualizar el articulo',
+            detail: error.message,
+        });
+    }
+},
+
+
+
+
 
     // Eliminar un articulo (delete)
     // delete: async (req: Request, res: Response) => {
