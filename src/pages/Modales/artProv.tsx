@@ -70,6 +70,7 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
         }
         const fetchData = async () => {
             try {
+                console.log("hola")
                 let response: AxiosResponse<any, any> | null = null;
 
                 if (mode === "edit" || mode === "view") {

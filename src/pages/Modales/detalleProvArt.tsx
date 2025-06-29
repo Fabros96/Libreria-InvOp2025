@@ -112,7 +112,14 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
                 }
             });
 
-            setArticulosEditados(inicializados);
+            const sinDuplicados = inicializados.filter(
+                (item, index, self) =>
+                    index === self.findIndex((t) => t.idArticulo === item.idArticulo)
+            );
+
+            setArticulosEditados(sinDuplicados);
+
+            //setArticulosEditados(inicializados);
 
             // Inicializo formikStates con valores iniciales para cada artículo
             const estadosIniciales: Record<string, { precioUnitario: number; demoraEntrega: number; cargoPedido: number }> = {};
@@ -126,6 +133,16 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
             setFormikStates(estadosIniciales);
         }
     }, [articulos, proveedor]);
+
+
+
+
+
+
+
+
+
+
 
 
     // Formik para el artículo activo:
@@ -243,7 +260,7 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
                     {articulosEditados.map((art, index) => (
                         <Tab
                             eventKey={art.idArticulo.toString()}
-                            title={art.articulo.descripcion || "Sin nombre"}
+                            title={(art.articulo as Articulo)?.descripcion || "Sin nombre"}
                             key={art.idArticulo}
                         >
                             {activeKey === art.idArticulo.toString() && (

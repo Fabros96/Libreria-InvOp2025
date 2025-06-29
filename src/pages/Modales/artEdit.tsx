@@ -66,8 +66,10 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
     const [showProveedorModal, setShowProveedorModal] = useState(false);
     const [proveedorPredeterminado, setProveedorPredeterminado] = useState<any | null>(null);
     const [proveedoresCambiados, setProveedoresCambiados] = useState<ProveedorCambiado[]>([]);
+    const [modeloInventario, setModeloInventario] = useState<'LF' | 'PF' >("LF");
 
     useEffect(() => {
+        console.log("useEffect edit - articulo:", articulo);
         if (mode === "edit" && articulo) {
             setIdArticulo(articulo.idArticulo || "");
             setDescripcion(articulo.descripcion || "");
@@ -76,6 +78,8 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
             setCostoAlmacenamiento(articulo.inventario?.costoAlmacenamiento || 0);
             setCostoPedido(articulo.inventario?.costoPedido || 0);
             setCostoCompra(articulo.inventario?.costoCompra || 0);
+            setModeloInventario(articulo.modeloInventario || "LF");
+            setProveedorPredeterminado(articulo.articuloProveedor || null)
         } else if (mode === "new") {
             setIdArticulo("");
             setDescripcion("");
@@ -84,88 +88,180 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
             setCostoAlmacenamiento(0);
             setCostoPedido(0);
             setCostoCompra(0);
+            setModeloInventario(modeloInventario);
         }
     }, [articulo, mode]);
 
-    const handleSave = async () => {
-        try {
-            let updatedArticulo: Articulo;
+//     const handleSave = async () => {
+//         try {
+//             let updatedArticulo: Articulo;
 
-            if (mode === "edit") {
-                if (proveedoresCambiados.length > 0) {
-                    await Promise.all(
-                        proveedoresCambiados.map(async (prov) => {
-                            const response = await fetch(`http://localhost:3000/articulo-proveedores/${prov.idArticuloProveedor}`, {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify(prov),
-                            });
+//             if (mode === "edit") {
+//                 if (proveedoresCambiados.length > 0) {
+//                     await Promise.all(
+//                         proveedoresCambiados.map(async (prov) => {
+//                             const response = await fetch(`http://localhost:3000/articulo-proveedores/${prov.idArticuloProveedor}`, {
+//                                 method: "PUT",
+//                                 headers: { "Content-Type": "application/json" },
+//                                 body: JSON.stringify(prov),
+//                             });
 
-                            if (!response.ok) {
-                                throw new Error(`Error al actualizar proveedor con ID ${prov.idArticuloProveedor}`);
-                            }
-                        })
-                    );
-                }
+//                             if (!response.ok) {
+//                                 throw new Error(`Error al actualizar proveedor con ID ${prov.idArticuloProveedor}`);
+//                             }
+//                         })
+//                     );
+//                 }
 
-                updatedArticulo = {
-                    ...articulo,
-                    descripcion,
-                    stock,
-                    modeloInventario: 'LF',
-                    inventario: {
-                        demandaArticulo: demanda,
-                        costoAlmacenamiento,
-                        costoPedido,
-                        costoCompra,
-                        idInventario: articulo.inventario?.idInventario || 0,
-                        loteOptimo: 0,
-                        puntoPedido: 0,
-                        stockSeguridad: 0,
-                    },
-                    articuloProveedor: {
-                        idArticuloProveedor: articulo.articuloProveedor?.idArticuloProveedor || 0,
-                        cargoPedido: articulo.articuloProveedor?.cargoPedido || 0,
-                        demoraEntrega: articulo.articuloProveedor?.demoraEntrega || 0,
-                        esPredeterminado: true,
-                        idArticulo: articulo.idArticulo,
-                        idProveedor: proveedorPredeterminado?.idProveedor || 0,
-                        precioUnitario: proveedorPredeterminado?.precioUnitario || 0,
-                    },
-                };
-            } else {
-                updatedArticulo = {
-                    descripcion: descripcion,
-                    modeloInventario: 'LF',
-                    stock,
-                    inventario: {
-                        demandaArticulo: demanda,
-                        costoAlmacenamiento,
-                        costoPedido,
-                        costoCompra,
-                        loteOptimo: 0,
-                        puntoPedido: 0,
-                        stockSeguridad: 0,
-                    },
-                    articuloProveedor: {
-                        idArticuloProveedor: 0,
-                        cargoPedido: proveedorPredeterminado?.cargoPedido || 0,
-                        demoraEntrega: proveedorPredeterminado?.demoraEntrega || 0,
-                        esPredeterminado: true,
-                        idArticulo: 0,
-                        idProveedor: proveedorPredeterminado?.idProveedor || 0,
-                        precioUnitario: proveedorPredeterminado?.precioUnitario || 0,
-                    },
-                };
+//                 updatedArticulo = {
+//                     ...articulo,
+//                     descripcion,
+//                     stock,
+//                     modeloInventario: 'LF',
+//                     inventario: {
+//                         demandaArticulo: demanda,
+//                         costoAlmacenamiento,
+//                         costoPedido,
+//                         costoCompra,
+//                         idInventario: articulo.inventario?.idInventario || 0,
+//                         //loteOptimo: 0,
+//                         //puntoPedido: 0,
+//                         //stockSeguridad: 0,
+//                     },
+//                     articuloProveedor: {
+//                         idArticuloProveedor: articulo.articuloProveedor?.idArticuloProveedor || 0,
+//                         cargoPedido: articulo.articuloProveedor?.cargoPedido || 0,
+//                         demoraEntrega: articulo.articuloProveedor?.demoraEntrega || 0,
+//                         esPredeterminado: true,
+//                         idArticulo: articulo.idArticulo,
+//                         idProveedor: proveedorPredeterminado?.idProveedor || 0,
+//                         precioUnitario: proveedorPredeterminado?.precioUnitario || 0,
+//                     },
+//                 };
+//             } else {
+//                 updatedArticulo = {
+//                     descripcion,
+//                     modeloInventario: 'LF',
+//                     stock,
+//                     inventario: {
+//                         demandaArticulo: demanda,
+//                         costoAlmacenamiento,
+//                         costoPedido,
+//                         costoCompra,
+//                         //loteOptimo: 0,
+//                         //puntoPedido: 0,
+//                         //stockSeguridad: 0,
+//                     },
+//                     articuloProveedor: {
+//                         idArticuloProveedor: 0,
+//                         cargoPedido: proveedorPredeterminado?.cargoPedido || 0,
+//                         demoraEntrega: proveedorPredeterminado?.demoraEntrega || 0,
+//                         esPredeterminado: true,
+//                         idArticulo: 0,
+//                         idProveedor: proveedorPredeterminado?.idProveedor || 0,
+//                         precioUnitario: proveedorPredeterminado?.precioUnitario || 0,
+//                     },
+//                 };
+//             }
+// console.log("Articulo a guardar:", updatedArticulo);
+
+//             onSave(updatedArticulo);
+//         } catch (error) {
+//             console.error("Error al guardar artículo:", error);
+//             showToasty("Error al guardar proveedor", "error");
+//         }
+//     };
+
+       const handleSave = async () => {
+    try {
+        let updatedArticulo: Articulo;
+
+        if (mode === "edit") {
+            // 1. Actualizar proveedores modificados
+            if (proveedoresCambiados.length > 0) {
+                await Promise.all(
+                    proveedoresCambiados.map(async (prov) => {
+                        const response = await fetch(`http://localhost:3000/articulo-proveedores/${prov.idArticuloProveedor}`, {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(prov),
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`Error al actualizar proveedor con ID ${prov.idArticuloProveedor}`);
+                        }
+                    })
+                );
             }
-console.log("Articulo a guardar:", updatedArticulo);
 
-            onSave(updatedArticulo);
-        } catch (error) {
-            console.error("Error al guardar artículo:", error);
-            showToasty("Error al guardar proveedor", "error");
+            // 2. Preparar artículo para actualizar
+            updatedArticulo = {
+                ...articulo,
+                descripcion,
+                stock,
+                modeloInventario,
+                inventario: {
+                    idInventario: articulo.inventario?.idInventario ?? 0,
+                    demandaArticulo: demanda,
+                    costoAlmacenamiento,
+                    costoPedido,
+                    costoCompra,
+                },
+                articuloProveedor: {
+                    idArticuloProveedor: articulo.articuloProveedor?.idArticuloProveedor ?? 0,
+                    cargoPedido: proveedorPredeterminado?.cargoPedido ?? articulo.articuloProveedor?.cargoPedido ?? 0,
+                    demoraEntrega: proveedorPredeterminado?.demoraEntrega ?? articulo.articuloProveedor?.demoraEntrega ?? 0,
+                    esPredeterminado: true,
+                    idArticulo: articulo.idArticulo,
+                    idProveedor: proveedorPredeterminado?.idProveedor ?? articulo.articuloProveedor?.idProveedor ?? 0,
+                    precioUnitario: proveedorPredeterminado?.precioUnitario ?? articulo.articuloProveedor?.precioUnitario ?? 0,
+                },
+            };
+
+            console.log("articulo.ModeloInventario")
+            console.log(updatedArticulo.inventario)
+
+            console.log("🟡 MODO EDIT: artículoProveedor generado:");
+            console.log(updatedArticulo.articuloProveedor);
+
+        } else {
+            // 3. Crear nuevo artículo
+            updatedArticulo = {
+                descripcion,
+                modeloInventario: 'LF',
+                stock,
+                inventario: {
+                    demandaArticulo: demanda,
+                    costoAlmacenamiento,
+                    costoPedido,
+                    costoCompra,
+                },
+                articuloProveedor: {
+                    idArticuloProveedor: 1,
+                    cargoPedido: proveedorPredeterminado?.cargoPedido ?? 0,
+                    demoraEntrega: proveedorPredeterminado?.demoraEntrega ?? 0,
+                    esPredeterminado: true,
+                    idArticulo: 0,
+                    idProveedor: proveedorPredeterminado?.idProveedor ?? 0,
+                    precioUnitario: proveedorPredeterminado?.precioUnitario ?? 0,
+                },
+            };
+
+            console.log("🟢 MODO NEW: artículoProveedor generado:");
+            console.log(updatedArticulo.articuloProveedor);
         }
-    };
+
+        // Log completo del artículo
+        console.log("✅ Articulo a guardar:", updatedArticulo);
+
+        // Envío al backend
+        onSave(updatedArticulo);
+    } catch (error) {
+        console.error("❌ Error al guardar artículo:", error);
+        showToasty("Error al guardar proveedor", "error");
+    }
+};
+
 
     return (
         <Modal show={show} onHide={onHide} centered>

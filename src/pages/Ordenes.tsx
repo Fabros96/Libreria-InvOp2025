@@ -38,6 +38,7 @@ export default function Ordenes() {
   const [cantidad, setCantidad] = useState<number>(1);
   const [mensaje, setMensaje] = useState<string>("");
   const [ordenSeleccionada, setOrdenSeleccionada] = useState<OrdenCompra | null>(null);
+  
   const [modo, setModo] = useState<"crear" | "modificar" | "estado">("crear");
 
   useEffect(() => {
@@ -45,7 +46,7 @@ export default function Ordenes() {
       const resOrdenes = await axiosClient.get("/orden-compras?filter[include]=articulo,proveedor,estadoOrdenCompra");
       setOrdenes(resOrdenes.data);
 
-      const resArt = await axiosClient.get("/articulos");
+      const resArt = await axiosClient.get("/articulos?filter[fechaBaja][eq]=null");
       setArticulos(resArt.data);
 
       const resProv = await axiosClient.get("/proveedores");
@@ -53,6 +54,32 @@ export default function Ordenes() {
     };
     fetchData();
   }, []);
+
+  // Cargar proveedor predeterminado al cambiar el artículo
+useEffect(() => {
+  const buscarProveedorPredeterminado = async (idArt: number) => {
+    try {
+      const res = await axiosClient.get(`/articulo-proveedores/predeterminado/${idArt}`);
+      console.log("respuesta cruda: ", res.data)
+      const proveedor = res.data?.proveedor
+      if (proveedor?.idProveedor) {
+        setIdProveedor(proveedor.nombre);
+        console.log("Proveedor predeterminado seteado automáticamente:", proveedor.nombre);
+      } else {
+        console.log(res.data.proveedor.nombre)
+        console.log("No se encontró proveedor predeterminado");
+      }
+    } catch (error) {
+      console.error("Error al buscar proveedor predeterminado:", error);
+    }
+  };
+
+  if (idArticulo !== null && proveedores.length > 0) {
+    buscarProveedorPredeterminado(idArticulo);
+  }
+}, [idArticulo, proveedores]);
+
+
 
   const crearOrden = async () => {
     try {
@@ -73,6 +100,27 @@ export default function Ordenes() {
       setMensaje("Error al crear: " + (err.response?.data?.msg || err.message));
     }
   };
+
+  //   const buscarProveedorPredeterminado = async (idArticulo: number) => {
+  //   try {
+  //     const res = await axiosClient.get(`/articulo-proveedores/predeterminado/${idArticulo}`);
+  //     const lista = res.data?.datos || res.data || [];
+
+  //     if (lista.length > 0) {
+  //       const predeterminado = lista[0]; // debería haber solo uno
+  //       setIdProveedor(predeterminado.idProveedor);
+  //     } else {
+  //       setIdProveedor(null); // si no hay predeterminado
+  //     }
+  //   } catch (error) {
+  //     console.error("Error al buscar proveedor predeterminado:", error);
+  //     setIdProveedor(null);
+  //   }
+  // };
+
+
+
+
 
   const modificarOrden = async () => {
     if (!ordenSeleccionada) return;
@@ -195,33 +243,37 @@ export default function Ordenes() {
           <div className="space-y-4">
             <div>
               <label className="block">Artículo:</label>
-              <select
-                value={idArticulo ?? ""}
-                onChange={(e) => setIdArticulo(Number(e.target.value))}
-                className="border rounded px-2 py-1 w-full"
-              >
-                <option value="">Seleccionar...</option>
-                {articulos.map((a) => (
-                  <option key={a.idArticulo} value={a.idArticulo}>
-                    {a.descripcion}
-                  </option>
-                ))}
-              </select>
+            <select
+              value={idArticulo ?? ""}
+              onChange={(e) => {
+                const nuevoIdArticulo = Number(e.target.value);
+                setIdArticulo(nuevoIdArticulo); // ← solo esto
+              }}
+              className="border rounded px-2 py-1 w-full"
+            >
+              <option value="">Seleccionar...</option>
+              {articulos.map((a) => (
+                <option key={a.idArticulo} value={a.idArticulo}>
+                  {a.descripcion}
+                </option>
+              ))}
+            </select>
+
             </div>
             <div>
               <label className="block">Proveedor:</label>
-              <select
-                value={idProveedor ?? ""}
-                onChange={(e) => setIdProveedor(Number(e.target.value))}
-                className="border rounded px-2 py-1 w-full"
-              >
-                <option value="">Seleccionar...</option>
-                {proveedores.map((p) => (
-                  <option key={p.idProveedor} value={p.idProveedor}>
-                    {p.nombre}
-                  </option>
-                ))}
-              </select>
+            <select
+              value={idProveedor ?? ""}
+              onChange={(e) => setIdProveedor(Number(e.target.value))}
+              className="border rounded px-2 py-1 w-full"
+            >
+              <option value="">Seleccionar...</option>
+              {proveedores.map((p) => (
+                <option key={p.idProveedor} value={p.idProveedor}>
+                  {p.nombre}
+                </option>
+              ))}
+            </select>
             </div>
             <div>
               <label className="block">Cantidad:</label>

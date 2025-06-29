@@ -78,42 +78,134 @@ const Articulos = () => {
     };
 
 
-
-
     const handleClick = (ap: Articulo | null, op: typeof modalType) => {
         setSelectedArticulo(ap);
         setModalType(op);
         setShowModal(true);
     }
 
-    const handleUpdateArticulo = async (updatedArticulo: Articulo) => {
+    // const handleUpdateArticulo = async (updatedArticulo: Articulo) => {
+    //     if (!selectedArticulo) return;
+
+    //     const originalArticulo = selectedArticulo;
+
+    //     const cambios: Partial<Record<keyof Articulo, Articulo[keyof Articulo]>> = {};
+
+    //     console.log("cambiooooooooooooo")
+
+    //     console.log(cambios)
+
+    //     console.log("oooooooooooooooooo")
+
+    //     for (const key in updatedArticulo) {
+    //         if (
+    //             Object.prototype.hasOwnProperty.call(updatedArticulo, key) &&
+    //             key !== "inventario" &&
+    //             key !== "articuloProveedor"
+    //         ) {
+    //             if (updatedArticulo[key as keyof Articulo] !== originalArticulo[key as keyof Articulo]) {
+    //                 cambios[key as keyof Articulo] = updatedArticulo[key as keyof Articulo];
+    //             }
+    //         }
+    //     }
+
+    //     console.log(Object.keys(cambios).length)
+    //     console.log("arriba esta el length")
+    //     console.log(Object.keys(cambios))
+        
+    //     // Si no hay cambios en propiedades simples, salir
+    //     if (Object.keys(cambios).length === 0) {
+    //         setShowModal(false);
+    //         return;
+    //     }
+
+    //     // Agregamos los objetos completos
+    //     cambios.inventario = updatedArticulo.inventario;
+    //     cambios.articuloProveedor = updatedArticulo.articuloProveedor;
+
+    //     try {
+    //         const response = await fetch(`http://localhost:3000/articulos/${updatedArticulo.idArticulo}`, {
+    //             method: "PUT",
+    //             headers: {
+    //                 "Content-Type": "application/json",
+    //             },
+    //             body: JSON.stringify(cambios),
+    //         });
+
+    //         if (!response.ok) {
+    //             throw new Error("Error al actualizar artículo");
+    //         }
+
+    //        const result = await response.json(); // Parse the JSON response
+    //        console.log("resultado desde Articulos")
+    //        console.log(result.descripcion)
+    //        console.log("------------------")
+    //         if (!result || typeof result.descripcion !== 'string') {
+    //             throw new Error("Artículo inválido recibido del backend"); // Check the parsed result
+    //         }
+
+    //         setData(artData => {
+    //             const nuevosDatos = artData.datos.map(art =>
+    //                 art.idArticulo === result.data.idArticulo
+    //                     ? result.data
+    //                     : art
+    //             );
+
+    //             return {
+    //                 ...artData,
+    //                 datos: nuevosDatos
+    //             };
+    //         });
+    //         console.log(data)
+    //         showToasty("Artículo actualizado exitosamente", "success");
+    //         await fetchData(); // refresca toda la tabla desde el servidor
+    //         setShowModal(false);
+    //     } catch (error) {
+    //         console.error("Error al actualizar artículo:", error);
+    //     }
+    // };
+
+
+     
+    
+    
+//MODIFICACIÓN DE UN ARTICULO
+    
+
+
+const handleUpdateArticulo = async (updatedArticulo: Articulo) => {
         if (!selectedArticulo) return;
 
         const originalArticulo = selectedArticulo;
 
+        // Inicializamos cambios como Partial<Articulo>
         const cambios: Partial<Record<keyof Articulo, Articulo[keyof Articulo]>> = {};
 
+        //Comparar todos los campos simples (excluyendo inventario y articuloProveedor)
         for (const key in updatedArticulo) {
             if (
                 Object.prototype.hasOwnProperty.call(updatedArticulo, key) &&
                 key !== "inventario" &&
                 key !== "articuloProveedor"
             ) {
-                if (updatedArticulo[key as keyof Articulo] !== originalArticulo[key as keyof Articulo]) {
-                    cambios[key as keyof Articulo] = updatedArticulo[key as keyof Articulo];
+                const typedKey = key as keyof Articulo;
+                const nuevoValor = updatedArticulo[typedKey];
+                const valorOriginal = originalArticulo[typedKey];
+
+                // Solo guardar si cambió y no es null (Partial espera undefined si se omite)
+                if (nuevoValor !== valorOriginal && nuevoValor) {
+                    cambios[typedKey] = nuevoValor;
                 }
             }
         }
 
-        // Si no hay cambios en propiedades simples, salir
-        if (Object.keys(cambios).length === 0) {
-            setShowModal(false);
-            return;
-        }
+        console.log("Cambios detectados (simples):", cambios);
 
-        // Agregamos los objetos completos
+        // Agregar objetos completos (aunque no hayan cambiado)
         cambios.inventario = updatedArticulo.inventario;
         cambios.articuloProveedor = updatedArticulo.articuloProveedor;
+
+        console.log("Enviando al backend:", cambios);
 
         try {
             const response = await fetch(`http://localhost:3000/articulos/${updatedArticulo.idArticulo}`, {
@@ -124,29 +216,38 @@ const Articulos = () => {
                 body: JSON.stringify(cambios),
             });
 
+            console.log("Status:", response.status); // Debería mostrar 200
+            console.log("OK:", response.ok);         // Debería mostrar true
+
+            const result = await response.json();
+            console.log("Respuesta del backend:", result);
+            
+
             if (!response.ok) {
                 throw new Error("Error al actualizar artículo");
             }
 
-           const result = await response.json(); // Parse the JSON response
-            if (!result || typeof result.descripcion !== 'string') {
-                throw new Error("Artículo inválido recibido del backend"); // Check the parsed result
+
+
+
+        if (!result || typeof result.data?.descripcion !== 'string') {
+                throw new Error("Artículo inválido recibido del backend");
             }
 
-            setData(artData => {
-                const nuevosDatos = artData.datos.map(art =>
-                    art.idArticulo === result.data.idArticulo
-                        ? result.data
-                        : art
-                );
 
+            // Actualizar localmente la lista de artículos
+            setData((artData) => {
+                const nuevosDatos = artData.datos.map((art) =>
+                    art.idArticulo === result.data.idArticulo ? result.data : art
+                );
                 return {
                     ...artData,
-                    datos: nuevosDatos
+                    datos: nuevosDatos,
                 };
             });
+
             showToasty("Artículo actualizado exitosamente", "success");
-            await fetchData(); // refresca toda la tabla desde el servidor
+            await fetchData();
             setShowModal(false);
         } catch (error) {
             console.error("Error al actualizar artículo:", error);

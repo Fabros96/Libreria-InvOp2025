@@ -51,8 +51,6 @@ const ProvProv = ({ proveedor, show, onHide }: ProvProvProps) => {
     }, [proveedor]);
 
 
-
-
     const getFilteredData = () => {
         if (showAll) return data.datos;
 
