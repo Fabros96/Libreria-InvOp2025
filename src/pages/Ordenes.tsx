@@ -39,7 +39,11 @@ export default function Ordenes() {
   const [mensaje, setMensaje] = useState<string>("");
   const [ordenSeleccionada, setOrdenSeleccionada] = useState<OrdenCompra | null>(null);
   
+  
   const [modo, setModo] = useState<"crear" | "modificar" | "estado">("crear");
+
+  const esFinalizada = ordenSeleccionada?.idEstadoOrdenCompra === 2;
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -63,7 +67,7 @@ useEffect(() => {
       console.log("respuesta cruda: ", res.data)
       const proveedor = res.data?.proveedor
       if (proveedor?.idProveedor) {
-        setIdProveedor(proveedor.nombre);
+        setIdProveedor(proveedor.idProveedor);
         console.log("Proveedor predeterminado seteado automáticamente:", proveedor.nombre);
       } else {
         console.log(res.data.proveedor.nombre)
@@ -101,26 +105,6 @@ useEffect(() => {
     }
   };
 
-  //   const buscarProveedorPredeterminado = async (idArticulo: number) => {
-  //   try {
-  //     const res = await axiosClient.get(`/articulo-proveedores/predeterminado/${idArticulo}`);
-  //     const lista = res.data?.datos || res.data || [];
-
-  //     if (lista.length > 0) {
-  //       const predeterminado = lista[0]; // debería haber solo uno
-  //       setIdProveedor(predeterminado.idProveedor);
-  //     } else {
-  //       setIdProveedor(null); // si no hay predeterminado
-  //     }
-  //   } catch (error) {
-  //     console.error("Error al buscar proveedor predeterminado:", error);
-  //     setIdProveedor(null);
-  //   }
-  // };
-
-
-
-
 
   const modificarOrden = async () => {
     if (!ordenSeleccionada) return;
@@ -132,24 +116,42 @@ useEffect(() => {
         cantidad,
         fechaCreacion: ordenSeleccionada.fechaCreacion,
       };
-      await axiosClient.put(`/orden-compras/${ordenSeleccionada.idOrdenCompra}`, actualizada);
-      setMensaje("Orden modificada correctamente.");
+      const res = await axiosClient.put(`/orden-compras/${ordenSeleccionada.idOrdenCompra}`, actualizada);
+      const advertencia = res.data.advertencia;
+      const mensajeBase = res.data.msg || "Orden modificada exitosamente.";
+      setMensaje(advertencia ? `Advertencia: ${mensajeBase}` : mensajeBase)
+
     } catch (err: any) {
       setMensaje("Error al modificar: " + (err.response?.data?.msg || err.message));
     }
   };
 
-  const cambiarEstadoOrden = async (nuevoEstado: number) => {
-    if (!ordenSeleccionada) return;
-    try {
-      await axiosClient.put(`/orden-compras/${ordenSeleccionada.idOrdenCompra}`, {
-        idEstadoOrdenCompra: nuevoEstado,
-      });
-      setMensaje("Estado actualizado correctamente.");
-    } catch (err: any) {
-      setMensaje("Error al cambiar estado: " + (err.response?.data?.msg || err.message));
+const cambiarEstadoOrden = async (nuevoEstado: number) => {
+  if (!ordenSeleccionada) return;
+
+  try {
+    const res = await axiosClient.put(`/orden-compras/${ordenSeleccionada.idOrdenCompra}`, {
+      idEstadoOrdenCompra: nuevoEstado,
+    });
+
+    // Acceder correctamente al contenido
+    const respuesta = res.data.data;
+
+    console.log("Respuesta completa desde el servidor:", respuesta);
+    console.log("Mensaje:", respuesta.msg);
+    console.log("Advertencia:", respuesta.advertencia);
+
+    if (respuesta.advertencia) {
+      setMensaje(respuesta.msg || "Orden finalizada con advertencia.");
+    } else {
+      setMensaje(respuesta.msg || "Estado actualizado correctamente.");
     }
-  };
+
+  } catch (err: any) {
+    setMensaje("Error al cambiar estado: " + (err.response?.data?.msg || err.message));
+  }
+};
+
 
   return (
     <div className="p-6">
@@ -216,6 +218,8 @@ useEffect(() => {
                     setIdProveedor(orden.idProveedor);
                     setCantidad(orden.cantidad);
                   }}
+                  disabled={orden.idEstadoOrdenCompra === 3}
+                  title={orden.idEstadoOrdenCompra === 3 ? "La orden está cancelada y no puede modificarse": ""}
                 >
                   Modificar
                 </button>
@@ -225,6 +229,7 @@ useEffect(() => {
                     setModo("estado");
                     setOrdenSeleccionada(orden);
                   }}
+                  disabled={orden.idEstadoOrdenCompra === 2 || orden.idEstadoOrdenCompra === 3}
                 >
                   Cambiar estado
                 </button>
@@ -250,6 +255,7 @@ useEffect(() => {
                 setIdArticulo(nuevoIdArticulo); // ← solo esto
               }}
               className="border rounded px-2 py-1 w-full"
+              disabled={esFinalizada}
             >
               <option value="">Seleccionar...</option>
               {articulos.map((a) => (
@@ -266,6 +272,7 @@ useEffect(() => {
               value={idProveedor ?? ""}
               onChange={(e) => setIdProveedor(Number(e.target.value))}
               className="border rounded px-2 py-1 w-full"
+              disabled={esFinalizada}
             >
               <option value="">Seleccionar...</option>
               {proveedores.map((p) => (
@@ -283,11 +290,13 @@ useEffect(() => {
                 min={1}
                 onChange={(e) => setCantidad(Number(e.target.value))}
                 className="border rounded px-2 py-1 w-full"
+                disabled={esFinalizada}
               />
             </div>
             <button
               onClick={modo === "crear" ? crearOrden : modificarOrden}
               className="bg-green-600 text-white px-4 py-2 rounded"
+              disabled={esFinalizada}
             >
               {modo === "crear" ? "Crear Orden" : "Guardar Cambios"}
             </button>
@@ -306,7 +315,7 @@ useEffect(() => {
 
     <div className="flex space-x-2">
       <button
-        onClick={() => cambiarEstadoOrden(1)}
+        onClick={() => cambiarEstadoOrden(3)}
         className="bg-purple-600 text-white px-3 py-1 rounded"
       >
         Cancelada
@@ -318,7 +327,7 @@ useEffect(() => {
         Finalizada
       </button>
       <button
-        onClick={() => cambiarEstadoOrden(3)}
+        onClick={() => cambiarEstadoOrden(1)}
         className="bg-green-600 text-white px-3 py-1 rounded"
       >
         Pendiente
