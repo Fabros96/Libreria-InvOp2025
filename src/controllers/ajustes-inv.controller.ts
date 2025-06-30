@@ -49,7 +49,7 @@ export const AjusteInventarioController = {
         let payload: any = { idArticulo, cantidad, fechaCreacion, articulo };
         try {
             const ajusteInventarioActualizado = await prisma.ajusteInventario.update({
-                where: { idAjusteInv: parseInt(id) },
+                where: { idAjusteInventario: parseInt(id) },
                 data: payload,
             });
             res.status(200).json({ msg: 'Se ha actualizado el ajuste-inventario.', data: ajusteInventarioActualizado });
@@ -63,7 +63,7 @@ export const AjusteInventarioController = {
         const { id } = req.params;
         try {
             await prisma.ajusteInventario.delete({
-                where: { idAjusteInv: parseInt(id) },
+                where: { idAjusteInventario: parseInt(id) },
             });
             res.status(200).json({ msg: 'Se ha eliminado el ajuste-inventario.' });
         } catch (error: any) {

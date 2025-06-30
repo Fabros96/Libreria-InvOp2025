@@ -47,11 +47,11 @@ model Articulo {
   articuloProveedorList   ArticuloProveedor[]
   ordenCompraList         OrdenCompra[]
   ventaList               Venta[]
-  ajustesInventarioList   AjustesInventario[] // <- Relación 1:N (un usuario tiene muchos posts)
+  ajusteInventarioList   AjusteInventario[] // <- Relación 1:N (un usuario tiene muchos posts)
 }
 
-model AjustesInventario {
-  idAjusInv               Int    @id @default(autoincrement())
+model AjusteInventario {
+  idAjustesInventario               Int    @id @default(autoincrement())
   cantOrig                Int
   idArticulo              Int
   cantNew                 Int
