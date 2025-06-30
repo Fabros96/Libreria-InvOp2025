@@ -51,7 +51,7 @@ model Articulo {
 }
 
 model AjusteInventario {
-  idAjustesInventario               Int    @id @default(autoincrement())
+  idAjusteInventario               Int    @id @default(autoincrement())
   cantOrig                Int
   idArticulo              Int
   cantNew                 Int

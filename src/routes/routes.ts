@@ -6,7 +6,7 @@ import { ArticuloProveedorController } from "../controllers/articulo-proveedor.c
 import { ArticuloController } from "../controllers/articulo.controller";
 import { VentaController } from "../controllers/venta.controller";
 import { OrdenCompraController } from "../controllers/orden-compra.controller";
-import { AjusteInventarioController } from "../controllers/ajustes-inv.controller";
+import { AjusteInventarioController } from "../controllers/ajuste-inventario.controller";
 
 const router = express.Router();
 
