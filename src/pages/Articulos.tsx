@@ -109,7 +109,7 @@ const Articulos = () => {
             }
         }
 
-        // Si no hay cambios en propiedades simples, salir
+        // Si no hay cambios en propiedades npm isimples, salir
         if (Object.keys(cambios).length === 0 && !updateProveedor) {
             setShowModal(false);
             return;
@@ -117,8 +117,12 @@ const Articulos = () => {
         //crearAjusteInv(updatedArticulo, artOriginal, updateProveedor, provOriginal)
 
         // Agregamos los objetos completos
+        cambios.stock = updatedArticulo.stock;
+        cambios.descripcion = updatedArticulo.descripcion;
+        cambios.modeloInventario = updatedArticulo.modeloInventario;
         cambios.inventario = updatedArticulo.inventario;
         cambios.articuloProveedor = updatedArticulo.articuloProveedor;
+
 
         try {
             const responseUpdArt = await fetch(`http://localhost:3000/articulos/${updatedArticulo.idArticulo}`, {
