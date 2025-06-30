@@ -123,7 +123,7 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                 if (proveedoresCambiados.length > 0) {
                     onSave(updatedArticulo, articulo, proveedoresCambiados[0], proveedoresCambiados[1]);
                 } else {
-                    onSave(articulo, updatedArticulo);
+                    onSave(updatedArticulo, articulo);
                 }
 
             } else {
