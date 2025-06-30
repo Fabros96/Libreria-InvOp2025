@@ -28,8 +28,9 @@ export const InventarioController = {
     
     // Crear un nuevo inventario (create)
     create: async (req: Request, res: Response) => {
-        let { costoAlmacenamiento, costoCompra, costoPedido, demandaArticulo, loteOptimo, puntoPedido, stockSeguridad, articulo } = req.body;
+        let { costoAlmacenamiento, costoCompra, costoPedido, demandaArticulo, loteOptimo, puntoPedido, stockSeguridad, articulo, periodoRevision } = req.body;
         try {
+            console.log(periodoRevision)
             const nuevoInventario = await prisma.inventario.create({
                 data: { costoAlmacenamiento, costoCompra, costoPedido, demandaArticulo, loteOptimo, puntoPedido, stockSeguridad, articulo },
             });

@@ -143,6 +143,9 @@ export const ArticuloController = {
                     costoAlmacenamiento: inventario.costoAlmacenamiento,
                     costoPedido: inventario.costoPedido,
                     costoCompra: inventario.costoCompra,
+                    //periodoRevision: inventario.periodoRevision,
+                    
+                    
                 },
             });
         }
@@ -163,6 +166,10 @@ export const ArticuloController = {
         }
 
         // 4. Recalcular inventario si todo está presente
+        console.log("demoraaaaa desde el controller")
+        console.log(articuloProveedor.demoraEntrega)
+
+        console.log(articuloActualizado.modeloInventario)
         if (
             inventario &&
             articuloProveedor &&
@@ -176,6 +183,7 @@ export const ArticuloController = {
                 costoPedido: inventario.costoPedido,
                 costoAlmacenamiento: inventario.costoAlmacenamiento,
                 demoraEntrega: articuloProveedor.demoraEntrega,
+                modeloInventario:articuloActualizado.modeloInventario,
             });
 
             console.log("🔁 Recalculando inventario con:", nuevosValores);
@@ -196,6 +204,7 @@ export const ArticuloController = {
 
     } catch (error: any) {
         console.error("❌ Error al actualizar artículo:", error);
+        console.log("fffffffffffffffffff")
         return res.status(500).json({
             msg: 'Error al actualizar el articulo',
             detail: error.message,

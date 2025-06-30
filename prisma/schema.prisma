@@ -22,7 +22,10 @@ model Inventario {
   loteOptimo              Int?
   puntoPedido             Int?
   stockSeguridad          Int?
+  inventarioMaximo        Int?
+  periodoRevision         Int?
   articulo                Articulo?
+  
 }
 
 model Proveedor {
