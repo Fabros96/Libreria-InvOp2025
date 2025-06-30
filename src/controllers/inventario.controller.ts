@@ -78,4 +78,35 @@ export const InventarioController = {
             res.status(500).json({ msg: 'Error al obtener las registros', detail: error.message });
         }
     },
+
+    getLoteOptimoPorArticulo: async (req: Request, res: Response) => {
+        const { idArticulo } = req.params;
+
+        try {
+            const articulo = await prisma.articulo.findFirst({
+            where: {
+                idArticulo: Number(idArticulo)
+            },
+            include: {
+                inventario: {
+                    select: {
+                        loteOptimo: true
+                    }
+                }
+            }
+            });
+
+            if (!articulo || !articulo.inventario) {
+            return res.status(404).json({ msg: 'No se encontró Inventario no encontrado para el artículo' });
+            }
+            console.log(articulo.inventario.loteOptimo)
+
+            res.status(200).json({ msg: 'Lote óptimo encontrado', loteOptimo: articulo.inventario.loteOptimo });
+        } catch (error: any) {
+            res.status(500).json({ msg: 'Error al obtener lote óptimo', detail: error.message });
+        }
+        },
+
+
+   
 }

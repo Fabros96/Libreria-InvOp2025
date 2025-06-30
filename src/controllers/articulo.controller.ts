@@ -28,21 +28,6 @@ export const ArticuloController = {
         }
     },
 
-    // Crear un nuevo articulo (create)
-    // create: async (req: Request, res: Response) => {
-    //     let { idInventario, fechaBaja, descripcion, modeloInventario, stock } = req.body;
-    //     try {
-    //         const nuevoArticulo = await prisma.articulo.create({
-    //             data: { idInventario, fechaBaja, descripcion, modeloInventario, stock },
-    //         });
-    //         res.status(200).json({ msg: 'Se ha creado el articulo.', data: nuevoArticulo });
-    //         console.log(nuevoArticulo)
-    //     } catch (error: any) {
-    //         res.status(500).json({ msg: 'Error al crear el articulo', detail: error.message });
-    //         console.log(error)
-    //     }
-    // },
-
     create: async (req: Request, res: Response) => {
    
         const { descripcion, modeloInventario, stock, inventario } = req.body;
@@ -83,28 +68,6 @@ export const ArticuloController = {
             console.log(error);
         }
     },
-
-
-    // Actualizar un articulo (update)
-    // update: async (req: Request, res: Response) => {
-    //     const { id } = req.params;
-    //     let { idInventario, fechaBaja, descripcion, modeloInventario, stock } = req.body;
-    //     let payload: any = { idInventario, descripcion, modeloInventario, stock };
-    //     console.log(payload)
-    //     console.log("articuloAeditar")
-    //     if (fechaBaja) payload['fechaBaja'] = fechaBaja;
-    //     try {
-    //         const articuloActualizado = await prisma.articulo.update({
-    //             where: { idArticulo: parseInt(id) },
-    //             data: payload,
-    //         });
-    //         res.status(200).json({ msg: 'Se ha actualizado el articulo.', data: articuloActualizado });
-    //     } catch (error: any) {
-    //         res.status(500).json({ msg: 'Error al actualizar el articulo', detail: error.message });
-    //     }
-    // },
-
-   
 
 
     //actualizar articulo version mejorada
@@ -212,22 +175,6 @@ export const ArticuloController = {
     }
 },
 
-
-
-
-
-    // Eliminar un articulo (delete)
-    // delete: async (req: Request, res: Response) => {
-    //     const { id } = req.params;
-    //     try {
-    //         await prisma.articulo.delete({
-    //             where: { idArticulo: parseInt(id) },
-    //         });
-    //         res.status(200).json({ msg: 'Se ha eliminado el articulo.' });
-    //     } catch (error: any) {
-    //         res.status(500).json({ msg: 'Error al eliminar el articulo', detail: error.message });
-    //     }
-    // },
 
     // Eliminar articulo (Baja lógica)
     delete: async (req: Request, res: Response) => {

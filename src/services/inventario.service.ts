@@ -32,7 +32,7 @@ export const calcularInventario = ({
       loteOptimo: EOQ,
       stockSeguridad,
       puntoPedido,
-      //inventarioMaximo: null, // importante para consistencia
+      inventarioMaximo: null, // importante para consistencia
     };
   }
 
@@ -46,7 +46,7 @@ export const calcularInventario = ({
       loteOptimo: null,
       stockSeguridad,
       puntoPedido: null,
-      //inventarioMaximo,
+      inventarioMaximo,
     };
   }
 

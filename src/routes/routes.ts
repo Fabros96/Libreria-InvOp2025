@@ -30,6 +30,8 @@ router.post("/inventarios", InventarioController.create);
 router.put("/inventarios/:id", InventarioController.update);
 router.delete("/inventarios/:id", InventarioController.delete);
 router.get("/inventarios/recalculo", InventarioController.recalculo);
+router.get('/inventarios/lote-optimo/:idArticulo', InventarioController.getLoteOptimoPorArticulo);
+
 
 
 // articulo proveedor

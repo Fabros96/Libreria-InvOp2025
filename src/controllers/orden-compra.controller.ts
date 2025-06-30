@@ -40,7 +40,7 @@ export const OrdenCompraController = {
                 where: {
                     idArticulo: Number(idArticulo),
                     idEstadoOrdenCompra: {
-                        in: [1, 4]
+                        in: [1, 3]
                     }
                 }
             });
@@ -69,14 +69,12 @@ export const OrdenCompraController = {
     },
     
     // Actualizar un ordenCompra (update)
-
     update: async (req: Request, res: Response) => {
     const { id } = req.params;
     let { idArticulo, idProveedor, idEstadoOrdenCompra, cantidad, fechaCreacion } = req.body;
     let payload: any = { idArticulo, idProveedor, cantidad, fechaCreacion };
 
     try {
-        // Traer la OC actual
         const ordenCompraActual = await prisma.ordenCompra.findUnique({
             where: { idOrdenCompra: parseInt(id) },
             select: {
@@ -90,7 +88,10 @@ export const OrdenCompraController = {
             return res.status(404).json({ msg: 'Orden de compra no encontrada.' });
         }
 
-        // Obtener el artículo relacionado
+        if (ordenCompraActual.idEstadoOrdenCompra === 3 && idEstadoOrdenCompra === 1) {
+         return res.status(400).json({ msg: 'No se puede volver una orden Enviada al estado Pendiente.' });
+            }
+
         const articuloRelacionado = await prisma.articulo.findUnique({
             where: { idArticulo: ordenCompraActual.idArticulo },
             select: {
@@ -106,43 +107,25 @@ export const OrdenCompraController = {
             return res.status(404).json({ msg: 'Artículo relacionado no encontrado.' });
         }
 
-        // Evitar modificación si está cancelada
-        if (ordenCompraActual.idEstadoOrdenCompra === 3) {
-            return res.status(400).json({ msg: 'La orden ya fue Cancelada.' });
-        }
-
-        // Enviada (4) solo puede pasar a Finalizada (2)
-        if (ordenCompraActual.idEstadoOrdenCompra === 4 && idEstadoOrdenCompra !== 2) {
-            return res.status(400).json({ msg: 'Una orden Enviada solo puede cambiarse a Finalizada.' });
-        }
-
-        // Solo permitir modificar campos si está en Pendiente
-        const estadoNoCambio = idEstadoOrdenCompra === ordenCompraActual.idEstadoOrdenCompra || idEstadoOrdenCompra === undefined;
-        const modificandoCampos = idArticulo !== ordenCompraActual.idArticulo || cantidad !== ordenCompraActual.cantidad;
-
-        if (estadoNoCambio && modificandoCampos && ordenCompraActual.idEstadoOrdenCompra !== 1) {
-            return res.status(400).json({ msg: 'Solo se puede modificar una orden cuando está en estado Pendiente.' });
-        }
-
-        // Cancelar => solo si está en Pendiente (1)
-        if (idEstadoOrdenCompra === 3) {
+        // REGLA 1: Cancelar solo si está en estado Pendiente
+        if (idEstadoOrdenCompra === 2) {
             if (ordenCompraActual.idEstadoOrdenCompra !== 1) {
                 return res.status(400).json({ msg: 'Solo se puede cancelar una orden cuando está en estado Pendiente.' });
+            }
+            payload.idEstadoOrdenCompra = 2;
+        }
+
+        // REGLA 2: Enviar solo si está en estado Pendiente
+        if (idEstadoOrdenCompra === 3) {
+            if (ordenCompraActual.idEstadoOrdenCompra !== 1) {
+                return res.status(400).json({ msg: 'Solo se puede enviar una orden que está en estado Pendiente.' });
             }
             payload.idEstadoOrdenCompra = 3;
         }
 
-        // Enviar => solo si está en Pendiente (1)
+        // REGLA 3: Finalizar solo si está en estado Enviada
         if (idEstadoOrdenCompra === 4) {
-            if (ordenCompraActual.idEstadoOrdenCompra !== 1) {
-                return res.status(400).json({ msg: 'Solo se puede enviar una orden que está en estado Pendiente.' });
-            }
-            payload.idEstadoOrdenCompra = 4;
-        }
-
-        // Finalizar (2) => solo si está en estado Enviada (4)
-        if (idEstadoOrdenCompra === 2) {
-            if (ordenCompraActual.idEstadoOrdenCompra !== 4) {
+            if (ordenCompraActual.idEstadoOrdenCompra !== 3) {
                 return res.status(400).json({ msg: 'Solo se puede finalizar una orden que está en estado Enviada.' });
             }
 
@@ -150,9 +133,9 @@ export const OrdenCompraController = {
                 return res.status(400).json({ msg: 'La cantidad debe ser mayor a cero para finalizar la orden.' });
             }
 
-            payload.idEstadoOrdenCompra = 2;
+            payload.idEstadoOrdenCompra = 4;
 
-            // Actualizar stock
+            // Actualizar stock del artículo
             await prisma.articulo.update({
                 where: { idArticulo: ordenCompraActual.idArticulo },
                 data: {
@@ -162,13 +145,12 @@ export const OrdenCompraController = {
                 }
             });
 
-            // Actualizar orden antes de return
-            const ordenCompraActualizado = await prisma.ordenCompra.update({
+            const ordenFinalizada = await prisma.ordenCompra.update({
                 where: { idOrdenCompra: parseInt(id) },
                 data: payload
             });
 
-            // Validación Punto de Pedido
+            // Verificar punto de pedido si corresponde
             const nuevoStock = (articuloRelacionado.stock ?? 0) + ordenCompraActual.cantidad;
             const puntoPedido = articuloRelacionado.inventario?.puntoPedido ?? 0;
 
@@ -176,32 +158,38 @@ export const OrdenCompraController = {
                 articuloRelacionado.modeloInventario === 'LF' &&
                 nuevoStock < puntoPedido
             ) {
-                console.log("no supera")
                 return res.status(200).json({
                     msg: 'Orden finalizada, pero la cantidad total no supera el Punto de Pedido.',
                     advertencia: true,
-                    data: ordenCompraActualizado
+                    data: ordenFinalizada
                 });
             }
 
             return res.status(200).json({
                 msg: 'Orden finalizada correctamente.',
-                data: ordenCompraActualizado
+                data: ordenFinalizada
             });
         }
 
-        // Si no es finalización ni cancelación ni envío, mantener el estado actual o actualizado
+        // Solo permitir modificar campos si está en estado Pendiente
+        const estadoNoCambio = idEstadoOrdenCompra === ordenCompraActual.idEstadoOrdenCompra || idEstadoOrdenCompra === undefined;
+        const modificandoCampos = idArticulo !== ordenCompraActual.idArticulo || cantidad !== ordenCompraActual.cantidad;
+
+        if (estadoNoCambio && modificandoCampos && ordenCompraActual.idEstadoOrdenCompra !== 1) {
+            return res.status(400).json({ msg: 'Solo se puede modificar una orden cuando está en estado Pendiente.' });
+        }
+
+        // Si no es finalización ni cancelación ni envío, mantener o actualizar estado
         if (idEstadoOrdenCompra && !payload.idEstadoOrdenCompra) {
             payload.idEstadoOrdenCompra = idEstadoOrdenCompra;
         }
 
-        // Actualizar orden si no fue finalizada (ya actualizada antes)
-        const ordenCompraActualizado = await prisma.ordenCompra.update({
+        const ordenActualizada = await prisma.ordenCompra.update({
             where: { idOrdenCompra: parseInt(id) },
             data: payload
         });
 
-        return res.status(200).json({ msg: 'Se ha actualizado la orden de compra.', data: ordenCompraActualizado });
+        return res.status(200).json({ msg: 'Se ha actualizado la orden de compra.', data: ordenActualizada });
 
     } catch (error: any) {
         console.error(error);
@@ -209,6 +197,8 @@ export const OrdenCompraController = {
     }
 },
 
+
+ 
     // Eliminar un ordenCompra (delete)
     delete: async (req: Request, res: Response) => {
         const { id } = req.params;

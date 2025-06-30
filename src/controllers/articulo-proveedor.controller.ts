@@ -44,106 +44,66 @@ export const ArticuloProveedorController = {
     },
     
     // Actualizar un articuloProveedor (update)
-    // update: async (req: Request, res: Response) => {
-    //     const { id } = req.params;
-    //     let { idArticulo, idProveedor, cargoPedido, demoraEntrega, esPredeterminado, precioUnitario } = req.body;
-    //     let payload: any = { idArticulo, idProveedor, cargoPedido, demoraEntrega, esPredeterminado, precioUnitario };
-    //     try {
-    //         const articuloProveedorActualizado = await prisma.articuloProveedor.update({
-    //             where: { idArticuloProveedor: parseInt(id) },
-    //             data: payload,
-    //         });
-    //         res.status(200).json({ msg: 'Se ha actualizado el articuloProveedor.', data: articuloProveedorActualizado });
-    //     } catch (error: any) {
-    //         res.status(500).json({ msg: 'Error al actualizar el articuloProveedor', detail: error.message });
-    //     }
-    // },
+ update: async (req: Request, res: Response) => { 
+    const { id } = req.params;
+    let { idArticulo, idProveedor, cargoPedido, demoraEntrega, esPredeterminado, precioUnitario } = req.body;
+    let payload: any = { idArticulo, idProveedor, cargoPedido, demoraEntrega, esPredeterminado, precioUnitario };
 
-    // Actualizar un articuloProveedor (update)
+    try {
+        // 1. Actualizar artículoProveedor
+        const articuloProveedorActualizado = await prisma.articuloProveedor.update({
+            where: { idArticuloProveedor: parseInt(id) },
+            data: payload,
+        });
 
-
-    update: async (req: Request, res: Response) => { 
-            const { id } = req.params;
-            let { idArticulo, idProveedor, cargoPedido, demoraEntrega, esPredeterminado, precioUnitario } = req.body;
-            let payload: any = { idArticulo, idProveedor, cargoPedido, demoraEntrega, esPredeterminado, precioUnitario };
-
-            
-
-            try {
-                // 1. Actualizar artículoProveedor
-                const articuloProveedorActualizado = await prisma.articuloProveedor.update({
-                    where: { idArticuloProveedor: parseInt(id) },
-                    data: payload,
-                });
-                res.status(200).json({ msg: 'Se ha actualizado el articuloProveedor.', data: articuloProveedorActualizado });
-
-                // 2. Buscar inventario del artículo
-                const articulo = await prisma.articulo.findUnique({
-                    where: { idArticulo },
-                    include: {
-                        inventario: true
-                    }
-                
-                });
-
-                const articuloActual = await prisma.articulo.findUnique({
-                    where: { idArticulo },
-                    select: {
-                        modeloInventario: true
-                    }
-                })
-
-                console.log(articuloActual?.modeloInventario)
-                console.log("mimodelitoinventariooooo")
-
-                //const tipoInventario: 'LF' | 'PF' = articulo?.modeloInventario === 'PF' ? 'PF' : 'LF';
-
-                
-
-                if (articulo?.inventario) {
-                    const { demandaArticulo, costoPedido, costoAlmacenamiento, idInventario } = articulo.inventario;
-
-
-
-                    // 3. Calcular nuevos valores
-                    const nuevosValores = calcularInventario({
-                        demandaArticulo,
-                        costoPedido,
-                        costoAlmacenamiento,
-                        demoraEntrega,
-                        modeloInventario: articuloActual?.modeloInventario
-                    });
-
-                    console.log("recalculando")
-                    console.log(nuevosValores)
-                    console.log("recalculado..!!!")
-
-                    console.log(idInventario)
-                    // 4. Actualizar el inventario
-                    await prisma.inventario.update({
-                        
-                        where: { idInventario },
-                        data: nuevosValores
-                    });
-                }
-
-                res.status(200).json({
-                    msg: 'Se ha actualizado el articuloProveedor y recalculado el inventario.',
-                    data: {
-                        articuloProveedor: articuloProveedorActualizado,
-                        articulo: articulo,
-                    }
-                });
-            } catch (error: any) {
-                res.status(500).json({ msg: 'Error al actualizar el articuloProveedor', detail: error.message });
-                res.status(500).json({
-                    msg: 'Error al actualizar el articuloProveedor',
-                    detail: error.message
-                });
+        // 2. Buscar inventario del artículo
+        const articulo = await prisma.articulo.findUnique({
+            where: { idArticulo },
+            include: {
+                inventario: true
             }
-        },
-    
- 
+        });
+
+        const articuloActual = await prisma.articulo.findUnique({
+            where: { idArticulo },
+            select: { modeloInventario: true }
+        });
+
+        if (articulo?.inventario) {
+            const { demandaArticulo, costoPedido, costoAlmacenamiento, idInventario } = articulo.inventario;
+
+            const nuevosValores = calcularInventario({
+                demandaArticulo,
+                costoPedido,
+                costoAlmacenamiento,
+                demoraEntrega,
+                modeloInventario: articuloActual?.modeloInventario
+            });
+
+            await prisma.inventario.update({
+                where: { idInventario },
+                data: nuevosValores
+            });
+        }
+
+        // ✅ Responder una sola vez al final
+        return res.status(200).json({
+            msg: 'Se ha actualizado el articuloProveedor y recalculado el inventario.',
+            data: {
+                articuloProveedor: articuloProveedorActualizado,
+                articulo: articulo,
+            }
+        });
+
+    } catch (error: any) {
+        return res.status(500).json({
+            msg: 'Error al actualizar el articuloProveedor',
+            detail: error.message
+        });
+    }
+},
+
+
 
     // En el controller
     getPredeterminadoPorArticulo: async (req: Request, res: Response) => {
