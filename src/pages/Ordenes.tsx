@@ -130,12 +130,12 @@ const cambiarEstadoOrden = async (nuevoEstado: number) => {
   if (!ordenSeleccionada) return;
 
   try {
-    const res = await axiosClient.put(`/orden-compras/${ordenSeleccionada.idOrdenCompra}`, {
+    const res: any = await axiosClient.put(`/orden-compras/${ordenSeleccionada.idOrdenCompra}`, {
       idEstadoOrdenCompra: nuevoEstado,
     });
 
     // Acceder correctamente al contenido
-    const respuesta = res.data.data;
+    const respuesta = res
 
     console.log("Respuesta completa desde el servidor:", respuesta);
     console.log("Mensaje:", respuesta.msg);

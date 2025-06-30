@@ -228,7 +228,7 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
             // 3. Crear nuevo artículo
             updatedArticulo = {
                 descripcion,
-                modeloInventario: 'LF',
+                modeloInventario,
                 stock,
                 inventario: {
                     demandaArticulo: demanda,
@@ -281,9 +281,14 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
 
                     <Form.Label className="mt-3">Stock</Form.Label>
                     <Form.Control type="number" min={0} value={stock} onChange={(e) => setStock(Number(e.target.value))} />
-
-                    <Form.Label className="mt-3">Modelo de Inventario</Form.Label>
-                    <Form.Control type="text" value="Lote Fijo" readOnly disabled />
+                    <Form.Label>Modelo de Inventario</Form.Label>
+                    <Form.Select
+                    value={modeloInventario}
+                    onChange={(e) => setModeloInventario(e.target.value as 'LF' | 'PF')}
+                    >
+                    <option value="LF">Lote Fijo (LF)</option>
+                    <option value="PF">Intervalo Fijo (PF)</option>
+                    </Form.Select>
 
                     {mode === "edit" && (
                         <>
