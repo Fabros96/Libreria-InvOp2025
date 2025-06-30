@@ -64,19 +64,12 @@ useEffect(() => {
   const buscarProveedorPredeterminado = async (idArt: number) => {
     try {
       const res = await axiosClient.get(`/articulo-proveedores/predeterminado/${idArt}`);
-      console.log("respuesta cruda: ", res.data)
       const proveedor = res.data?.proveedor
       if (proveedor?.idProveedor) {
         setIdProveedor(proveedor.idProveedor);
-        console.log("Proveedor predeterminado seteado automáticamente:", proveedor.nombre);
-      } else {
-        console.log(res.data.proveedor.nombre)
-        console.log("No se encontró proveedor predeterminado");
       }
       // Buscar lote óptimo sugerido
         const resLote: any = await axiosClient.get(`/inventarios/lote-optimo/${idArt}`);
-        console.log(resLote.loteOptimo)
-
         setLoteOptimoSugerido(resLote.loteOptimo ?? null);
 
     } catch (error) {
@@ -144,10 +137,6 @@ const cambiarEstadoOrden = async (nuevoEstado: number) => {
 
     // Acceder correctamente al contenido
     const respuesta = res
-
-    console.log("Respuesta completa desde el servidor:", respuesta);
-    console.log("Mensaje:", respuesta.msg);
-    console.log("Advertencia:", respuesta.advertencia);
 
     if (respuesta.advertencia) {
       setMensaje(respuesta.msg || "Orden finalizada con advertencia.");

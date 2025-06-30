@@ -23,24 +23,20 @@ type Proveedor = {
 type Articulo = {
     idArticulo: number;  // Asegurarse que sea idArticulo, no idInventario
     descripcion: string;
-    fechaBaja: Date | null;
-
-    
+    // otros campos
 };
 
 type ArticuloProveedor = {
     idArticuloProveedor: number;
     idArticulo: number;
     idProveedor: number;
-    articulo: Articulo;
     // otros campos
 };
 
 const ProvAsoc = ({ show, onHide, proveedor, onSiguiente }: ProvAsocProps) => {
     const [selectedIdsArticulos, setSelectedIdsArticulos] = useState<string[]>([]);
     const [data, setData] = useState<ArticulosData>({ datos: [] });
-    //const [articulosProveedorList, setArticulosProveedorList] = useState<ArticuloProveedor[]>([]);
-    const [articulosProveedorList, setArticulosProveedorList] = useState<Articulo[]>([]);
+    const [articulosProveedorList, setArticulosProveedorList] = useState<ArticuloProveedor[]>([]);
     const [searchText, setSearchText] = useState("");
     const [showAll, setShowAll] = useState(true);
 
@@ -58,95 +54,28 @@ const ProvAsoc = ({ show, onHide, proveedor, onSiguiente }: ProvAsocProps) => {
     }, []);
 
     // Cargar artículos asociados al proveedor cuando cambia el proveedor o modal se abre
-    // useEffect(() => {
-    //     if (!proveedor) return;
-
-    //     const fetchArticulosProveedor = async () => {
-    //         try {
-    //             console.log("hola")
-    //             const response = await axiosClient.get(
-    //                 `articulo-proveedores/?filter[idProveedor][eq]=${proveedor.idProveedor}&filter[include]=articulo,proveedor&filter[articulo.fechaBaja][eq]=null`
-    //             );
-
-    //             const articulosProv: ArticuloProveedor[] = response.data || [];
-    //             setArticulosProveedorList(articulosProv);
-
-    //             // Inicializar checkboxes marcados con los idArticulo que ya están asociados
-    //             const idsSeleccionados = articulosProv.map((ap) => ap.idArticulo.toString());
-    //             setSelectedIdsArticulos(idsSeleccionados);
-    //         } catch (error) {
-    //             console.error("Error al obtener artículos del proveedor:", error);
-    //         }
-    //     };
-
-    //     fetchArticulosProveedor();
-    // }, [proveedor, show]);
-
     useEffect(() => {
-    if (!proveedor) return;
+        if (!proveedor) return;
 
-    const fetchArticulosProveedor = async () => {
-        try {
-            console.log("🔄 Iniciando búsqueda de artículos activos y asociaciones para proveedor ID:", proveedor.idProveedor);
+        const fetchArticulosProveedor = async () => {
+            try {
+                const response = await axiosClient.get(
+                    `articulo-proveedores/?filter[idProveedor][eq]=${proveedor.idProveedor}&filter[include]=articulo,proveedor&filter[articulo.fechaBaja][eq]=null`
+                );
 
-            // 1️⃣ Obtener todos los artículos activos (sin fecha de baja)
-            const responseArticulos = await axiosClient.get(
-                `articulos/?filter[fechaBaja][eq]=null`
-            );
-            const articulosActivos: Articulo[] = responseArticulos.data?.datos || responseArticulos.data || [];
-            console.log("📦 Artículos activos:", articulosActivos);
+                const articulosProv: ArticuloProveedor[] = response.data || [];
+                setArticulosProveedorList(articulosProv);
 
-            // 2️⃣ Obtener las asociaciones artículo-proveedor del proveedor actual
-            const responseAsociaciones = await axiosClient.get(
-                `articulo-proveedores/?filter[idProveedor][eq]=${proveedor.idProveedor}`
-            );
-            const asociaciones: ArticuloProveedor[] = responseAsociaciones.data?.datos || responseAsociaciones.data || [];
-            console.log("🔗 Artículos asociados al proveedor:", asociaciones);
+                // Inicializar checkboxes marcados con los idArticulo que ya están asociados
+                const idsSeleccionados = articulosProv.map((ap) => ap.idArticulo.toString());
+                setSelectedIdsArticulos(idsSeleccionados);
+            } catch (error) {
+                console.error("Error al obtener artículos del proveedor:", error);
+            }
+        };
 
-            // 3️⃣ Obtener los IDs de artículos asociados a este proveedor
-            const idsAsociados = asociaciones.map((ap) => ap.idArticulo.toString());
-
-            // 4️⃣ Guardar en el estado los artículos activos
-            setArticulosProveedorList(articulosActivos);
-
-            // 5️⃣ Guardar los IDs de artículos ya asociados al proveedor (para checkboxes)
-            setSelectedIdsArticulos(idsAsociados);
-
-            console.log("✅ IDs seleccionados:", idsAsociados);
-        } catch (error) {
-            console.error("❌ Error al obtener artículos o asociaciones:", error);
-        }
-    };
-
-
-    fetchArticulosProveedor();
-}, [proveedor, show]);
-
-/*para dar de alta el proveedor y muestro articulos activos asi puede asociar al  menos uno*/ 
-useEffect(() => {
-    if (proveedor) return; // este bloque es solo para proveedor nuevo
-
-    const fetchArticulosActivos = async () => {
-        try {
-            console.log("📦 Cargando artículos activos para nuevo proveedor...");
-
-            const response = await axiosClient.get(
-                `articulos/?filter[fechaBaja][eq]=null`
-            );
-            const articulosActivos: Articulo[] = response.data?.datos || response.data || [];
-            setArticulosProveedorList(articulosActivos);
-
-            console.log("✅ Artículos disponibles:", articulosActivos);
-        } catch (error) {
-            console.error("❌ Error al obtener artículos activos:", error);
-        }
-    };
-
-    fetchArticulosActivos();
-}, [show]);
-
-
-
+        fetchArticulosProveedor();
+    }, [proveedor, show]);
 
     const handleCheckboxChange = (idArticulo: string) => {
         setSelectedIdsArticulos((prev) =>
@@ -249,7 +178,7 @@ useEffect(() => {
                                         </td>
                                     </tr>
                                 ) : (
-                                    articulosProveedorList.map((art) => (
+                                    filteredData.map((art) => (
                                         <tr key={art.idArticulo}>
                                             <td>{art.idArticulo}</td>
                                             <td>{art.descripcion}</td>

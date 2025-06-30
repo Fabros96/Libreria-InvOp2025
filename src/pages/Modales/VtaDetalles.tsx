@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Modal, Button, Form } from "react-bootstrap";
 import { showToasty } from "../../utils/toasty";
 import axiosClient from "../../api/axiosClient";
+import { generarOCAutomatica } from "../../utils/ocAutomatica";
 
 interface VtaDetalleProps {
     show: boolean;
@@ -72,16 +73,18 @@ const VtaDetalle = ({ show, onHide, articulo }: VtaDetalleProps) => {
         }
     }, [cantidad, proveedorSeleccionado]);
 
-    // Cuando cambie el articulo (nuevo artículo), seleccionamos el primer proveedor por defecto
+
     useEffect(() => {
         if (articulo && articulo.articuloProveedorList && articulo.articuloProveedorList.length > 0) {
-            setProveedorSeleccionado(articulo.articuloProveedorList[0]);
+            const predeterminado = articulo.articuloProveedorList.find((p: any) => p.esPredeterminado);
+            setProveedorSeleccionado(predeterminado);
         } else {
             setProveedorSeleccionado(null);
         }
         setCantidad(0);
         setTotalPrice(0);
-    }, [articulo?.idArticulo]); // depende del id para detectar cambio
+    }, [articulo?.idArticulo]);
+
 
 
     const handleVta = async (nuevaVenta: {
@@ -92,53 +95,26 @@ const VtaDetalle = ({ show, onHide, articulo }: VtaDetalleProps) => {
     }) => {
         try {
 
+            if (articulo.modeloInventario === "LF" && cantidad <= articulo.stock) {
 
-            // Validamos órdenes pendientes o enviadas
-            const responsePendiente = await axiosClient.get(
-                `orden-compras/?filter[idArticulo][eq]=${articulo.idArticulo}&filter[include]=estadoOrdenCompra&filter[estadoOrdenCompra.nombre][eq]=Pendiente`
-            );
-            const responseEnviada = await axiosClient.get(
-                `orden-compras/?filter[idArticulo][eq]=${articulo.idArticulo}&filter[include]=estadoOrdenCompra&filter[estadoOrdenCompra.nombre][eq]=Enviado`
-            );
+                const response = await axiosClient.post("/ventas", nuevaVenta);
 
-            console.log("Órdenes pendientes:", responsePendiente.data);
-            console.log("Órdenes enviadas:", responseEnviada.data);
+                const ventaCreada = response.data;
 
-
-            const pendientes: any[] = responsePendiente.data || [];
-            const enviadas: any[] = responseEnviada.data || [];
-
-            const tieneOrdenes = pendientes.length > 0 || enviadas.length > 0;
-
-            if (tieneOrdenes) {
-                if (pendientes.length > 0) {
-                    showToasty('No se puede crear la venta, el artículo tiene órdenes pendientes', 'error');
-                }
-                if (enviadas.length > 0) {
-                    showToasty('No se puede  crear la venta, el artículo tiene órdenes enviadas', 'error');
-                }
-            } else {
-
-                if (articulo.modeloInventario === "LF" && cantidad <= articulo.stock) {
-
-
-                    const response = await axiosClient.post("/ventas", nuevaVenta);
-
-                    const ventaCreada = response.data;
-
-                    setData(prevData => ({
-                        ...prevData,
-                        datos: [...prevData.datos, ventaCreada],
-                    }));
-                    showToasty("Venta realizada exitosamente", "success");
-                    onHide();
-                }
-
-                if (articulo.modeloInventario !== "LF") {
-                    // Para modelo PF, no se puede vender si hay órdenes pendientes o enviadas
-                    showToasty("Solo se puede crear la venta para modelo LF", "error");
-                }
+                setData(prevData => ({
+                    ...prevData,
+                    datos: [...prevData.datos, ventaCreada],
+                }));
+                showToasty("Venta realizada exitosamente", "success");
+                onHide();
+                generarOCAutomatica(articulo, articulo.inventario)
             }
+
+            if (articulo.modeloInventario !== "LF") {
+                // Para modelo PF, no se puede vender si hay órdenes pendientes o enviadas
+                showToasty("Solo se puede crear la venta para modelo LF", "error");
+            }
+
         } catch (error) {
             console.error(error);
             showToasty("Error al crear la venta", "error");
@@ -163,24 +139,29 @@ const VtaDetalle = ({ show, onHide, articulo }: VtaDetalleProps) => {
                     </div>
                     <Form.Label>
                         <strong>Proveedor: </strong>
-                        {proveedorSeleccionado ? proveedorSeleccionado.nombreProveedor : "---"}
+
                     </Form.Label>
                     <Form.Select
-                        value={proveedorSeleccionado ? proveedorSeleccionado.idProveedor : ""}
+                        value={proveedorSeleccionado?.idProveedor ?? ''}
                         onChange={(e) => {
-                            const id = e.target.value;
-                            const proveedor = articulo.articuloProveedorList.find(
-                                (p: any) => p.idProveedor.toString() === id
+                            const seleccionado = articulo.articuloProveedorList.find(
+                                (p: any) => p.idProveedor === parseInt(e.target.value)
                             );
-                            setProveedorSeleccionado(proveedor);
+                            setProveedorSeleccionado(seleccionado || null);
                         }}
                     >
-                        {articulo?.articuloProveedorList?.map((p: any) => (
-                            <option key={p.idProveedor} value={p.idProveedor}>
-                                {p.proveedor.nombre} - ${p.precioUnitario}
-                            </option>
-                        )) || <option>No hay proveedores</option>}
+                        {articulo?.articuloProveedorList?.length > 0 ? (
+                            articulo.articuloProveedorList.map((p: any) => (
+                                <option key={p.idProveedor} value={p.idProveedor}>
+                                    {p.proveedor.nombre} - ${p.precioUnitario}
+                                </option>
+                            ))
+                        ) : (
+                            <option>No hay proveedores</option>
+                        )}
                     </Form.Select>
+
+
 
 
                     <div className="mt-3">

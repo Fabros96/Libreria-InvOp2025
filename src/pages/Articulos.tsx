@@ -6,6 +6,7 @@ import ArtProv from "./Modales/artProv";
 import ArtEdit from "./Modales/artEdit";
 import ArtDel from "./Modales/artDel";
 
+import { calculoCGI } from "../utils/recalcular";
 
 import './styles/Articulos.css';
 import '../App.css';
@@ -59,7 +60,7 @@ const Articulos = () => {
     const [searchText, setSearchText] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [selectedArticulo, setSelectedArticulo] = useState<Articulo | null>(null);
-    const [modalType, setModalType] = useState<"new" | "venta" | "view" | "edit" | "hdemanda" | "baja" | null>(null);
+    const [modalType, setModalType] = useState<"new" | "hist" | "view" | "edit" | "hdemanda" | "baja" | null>(null);
 
     const [filteredTotalPages, setFilteredTotalPages] = useState(0);
     const [filterOption, setFilterOption] = useState('');
@@ -84,131 +85,43 @@ const Articulos = () => {
         setShowModal(true);
     }
 
-    // const handleUpdateArticulo = async (updatedArticulo: Articulo) => {
-    //     if (!selectedArticulo) return;
-
-    //     const originalArticulo = selectedArticulo;
-
-    //     const cambios: Partial<Record<keyof Articulo, Articulo[keyof Articulo]>> = {};
-
-    //     console.log("cambiooooooooooooo")
-
-    //     console.log(cambios)
-
-    //     console.log("oooooooooooooooooo")
-
-    //     for (const key in updatedArticulo) {
-    //         if (
-    //             Object.prototype.hasOwnProperty.call(updatedArticulo, key) &&
-    //             key !== "inventario" &&
-    //             key !== "articuloProveedor"
-    //         ) {
-    //             if (updatedArticulo[key as keyof Articulo] !== originalArticulo[key as keyof Articulo]) {
-    //                 cambios[key as keyof Articulo] = updatedArticulo[key as keyof Articulo];
-    //             }
-    //         }
-    //     }
-
-    //     console.log(Object.keys(cambios).length)
-    //     console.log("arriba esta el length")
-    //     console.log(Object.keys(cambios))
-        
-    //     // Si no hay cambios en propiedades simples, salir
-    //     if (Object.keys(cambios).length === 0) {
-    //         setShowModal(false);
-    //         return;
-    //     }
-
-    //     // Agregamos los objetos completos
-    //     cambios.inventario = updatedArticulo.inventario;
-    //     cambios.articuloProveedor = updatedArticulo.articuloProveedor;
-
-    //     try {
-    //         const response = await fetch(`http://localhost:3000/articulos/${updatedArticulo.idArticulo}`, {
-    //             method: "PUT",
-    //             headers: {
-    //                 "Content-Type": "application/json",
-    //             },
-    //             body: JSON.stringify(cambios),
-    //         });
-
-    //         if (!response.ok) {
-    //             throw new Error("Error al actualizar artículo");
-    //         }
-
-    //        const result = await response.json(); // Parse the JSON response
-    //        console.log("resultado desde Articulos")
-    //        console.log(result.descripcion)
-    //        console.log("------------------")
-    //         if (!result || typeof result.descripcion !== 'string') {
-    //             throw new Error("Artículo inválido recibido del backend"); // Check the parsed result
-    //         }
-
-    //         setData(artData => {
-    //             const nuevosDatos = artData.datos.map(art =>
-    //                 art.idArticulo === result.data.idArticulo
-    //                     ? result.data
-    //                     : art
-    //             );
-
-    //             return {
-    //                 ...artData,
-    //                 datos: nuevosDatos
-    //             };
-    //         });
-    //         console.log(data)
-    //         showToasty("Artículo actualizado exitosamente", "success");
-    //         await fetchData(); // refresca toda la tabla desde el servidor
-    //         setShowModal(false);
-    //     } catch (error) {
-    //         console.error("Error al actualizar artículo:", error);
-    //     }
-    // };
+    //MODIFICACIÓN DE UN ARTICULO
 
 
-     
-    
-    
-//MODIFICACIÓN DE UN ARTICULO
-    
 
+    const handleUpdateArticulo = async (updatedArticulo: Articulo, artOriginal: Articulo, updateProveedor?: ArticuloProveedor, provOriginal?: ArticuloProveedor) => {
 
-const handleUpdateArticulo = async (updatedArticulo: Articulo) => {
         if (!selectedArticulo) return;
 
         const originalArticulo = selectedArticulo;
 
-        // Inicializamos cambios como Partial<Articulo>
         const cambios: Partial<Record<keyof Articulo, Articulo[keyof Articulo]>> = {};
 
-        //Comparar todos los campos simples (excluyendo inventario y articuloProveedor)
         for (const key in updatedArticulo) {
             if (
                 Object.prototype.hasOwnProperty.call(updatedArticulo, key) &&
-                key !== "inventario" &&
+                // key !== "inventario" &&
                 key !== "articuloProveedor"
             ) {
-                const typedKey = key as keyof Articulo;
-                const nuevoValor = updatedArticulo[typedKey];
-                const valorOriginal = originalArticulo[typedKey];
-
-                // Solo guardar si cambió y no es null (Partial espera undefined si se omite)
-                if (nuevoValor !== valorOriginal && nuevoValor) {
-                    cambios[typedKey] = nuevoValor;
+                if (updatedArticulo[key as keyof Articulo] !== originalArticulo[key as keyof Articulo]) {
+                    cambios[key as keyof Articulo] = updatedArticulo[key as keyof Articulo];
                 }
             }
         }
 
-        console.log("Cambios detectados (simples):", cambios);
+        // Si no hay cambios en propiedades simples, salir
+        if (Object.keys(cambios).length === 0 && !updateProveedor) {
+            setShowModal(false);
+            return;
+        }
+        //crearAjusteInv(updatedArticulo, artOriginal, updateProveedor, provOriginal)
 
-        // Agregar objetos completos (aunque no hayan cambiado)
+        // Agregamos los objetos completos
         cambios.inventario = updatedArticulo.inventario;
         cambios.articuloProveedor = updatedArticulo.articuloProveedor;
 
-        console.log("Enviando al backend:", cambios);
-
         try {
-            const response = await fetch(`http://localhost:3000/articulos/${updatedArticulo.idArticulo}`, {
+            const responseUpdArt = await fetch(`http://localhost:3000/articulos/${updatedArticulo.idArticulo}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -216,43 +129,65 @@ const handleUpdateArticulo = async (updatedArticulo: Articulo) => {
                 body: JSON.stringify(cambios),
             });
 
-            console.log("Status:", response.status); // Debería mostrar 200
-            console.log("OK:", response.ok);         // Debería mostrar true
-
-            const result = await response.json();
-            console.log("Respuesta del backend:", result);
-            
-
-            if (!response.ok) {
+            if (!responseUpdArt.ok) {
                 throw new Error("Error al actualizar artículo");
             }
 
+            if (updateProveedor) {
+
+                const responseUpdProv = await fetch(`http://localhost:3000/articulo-proveedores/${updateProveedor.idArticuloProveedor}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(updateProveedor),
+                });
+
+                if (!responseUpdProv.ok) {
+                    throw new Error(`Error al actualizar proveedor`);
+                }
+
+                if (provOriginal) {
 
 
+                    const responseProvOld = await fetch(
+                        `http://localhost:3000/articulo-proveedores/${provOriginal?.idArticuloProveedor}`,
+                        {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(provOriginal),
+                        }
+                    );
 
-        if (!result || typeof result.data?.descripcion !== 'string') {
-                throw new Error("Artículo inválido recibido del backend");
+                    if (!responseProvOld.ok) {
+                        console.error("Error al actualizar proveedor original");
+                        throw new Error(`Error al actualizar proveedor`);
+                    }
+                }
+
             }
+            const result = await responseUpdArt.json();
 
-
-            // Actualizar localmente la lista de artículos
-            setData((artData) => {
-                const nuevosDatos = artData.datos.map((art) =>
-                    art.idArticulo === result.data.idArticulo ? result.data : art
+            setData(artData => {
+                const nuevosDatos = artData.datos.map(art =>
+                    art.idArticulo === result.data.idArticulo
+                        ? result.data
+                        : art
                 );
+
                 return {
                     ...artData,
-                    datos: nuevosDatos,
+                    datos: nuevosDatos
                 };
             });
-
-            showToasty("Artículo actualizado exitosamente", "success");
-            await fetchData();
             setShowModal(false);
         } catch (error) {
             console.error("Error al actualizar artículo:", error);
         }
+        // recalcular(updatedArticulo.inventario!);
+        showToasty("Artículo actualizado exitosamente", "success");
+        await fetchData(); // refresca toda la tabla desde el servidor
     };
+
+
 
 
 
@@ -281,10 +216,9 @@ const handleUpdateArticulo = async (updatedArticulo: Articulo) => {
 
     //agrego para que se de alta un nuevo articulo
     const handleCreateArticulo = async (nuevoArticulo: Articulo) => {
-        
+
         try {
             // Validación básica
-            console.log(nuevoArticulo)
             if (!nuevoArticulo.descripcion) {
                 showToasty("Faltan datos obligatorlo", "error");
                 return;
@@ -344,8 +278,6 @@ const handleUpdateArticulo = async (updatedArticulo: Articulo) => {
         try {
             const response = await axiosClient.get("articulos/?filter[fechaBaja][eq]=null&filter[include]=inventario");
             const allData: Articulo[] = response.data || [];
-            console.log(allData);
-
 
             if (allData.length > 0) {
                 setData({
@@ -368,20 +300,25 @@ const handleUpdateArticulo = async (updatedArticulo: Articulo) => {
 
         fetchData();
     }, []);
-console.log("HOLA1")
-    console.log('data.datos:', data.datos);
 
     const filteredData = data.datos
-        .filter(ap =>
-            ap && typeof ap.descripcion === 'string'
-        )
-
+        .filter(ap => ap && typeof ap.descripcion === 'string')
         .filter(ap => {
-            if (filterOption === 'stock') {
-                return ap.inventario?.stockSeguridad !== undefined && ap.inventario.stockSeguridad >= ap.stock;
-            } else if (filterOption === 'pedido') {
-                return ap.inventario?.puntoPedido !== undefined && ap.inventario.puntoPedido >= ap.stock;
+            if (!ap.descripcion.toLowerCase().includes(searchText.toLowerCase())) {
+                return false;
             }
+
+            const inv = ap.inventario;
+            if (!inv || inv.puntoPedido === undefined || inv.stockSeguridad === undefined) return false;
+
+            const stock = ap.stock ?? 0;
+
+            if (filterOption === 'faltante') {
+                return stock <= inv.stockSeguridad;
+            } else if (filterOption === 'reponer') {
+                return stock > inv.stockSeguridad && stock <= inv.puntoPedido;
+            }
+
             return true;
         });
 
@@ -395,11 +332,25 @@ console.log("HOLA1")
     }, [filteredData, page]);
 
 
+    const controlarStock = (ap: Articulo): string => {
+        const inv = ap.inventario;
+        if (!inv || inv.puntoPedido === undefined || inv.stockSeguridad === undefined) return "";
+        const stock = ap.stock ?? 0;
+        if (stock <= inv.stockSeguridad) {
+            return "faltante" // Faltante: stock < stock de seguridad
+        } else if (stock > inv.stockSeguridad && stock <= inv.puntoPedido) {
+            return "reponer" // A reponer: stock está entre stockSeguridad y puntoPedido (exclusivo en SS, inclusivo en PP)
+        }
+        return "normal";  // sin filtro, mostrar todo
+    }
+
+
     const currentData: Articulo[] = filteredData.slice(startIndex, endIndex);
 
     const handleChangePage = useCallback((page: number) => {
         setPage(page)
     }, [])
+    
     return (
         <>
             {showModal && (modalType === "edit") && (
@@ -487,20 +438,20 @@ console.log("HOLA1")
                                 )}
 
                                 {filterOption === '' && 'Filtrar por'}
-                                {filterOption === 'stock' && 'Prods. Faltantes'}
-                                {filterOption === 'pedido' && 'Prods. a Reponer'}
+                                {filterOption === 'faltante' && 'Prods. Faltantes'}
+                                {filterOption === 'reponer' && 'Prods. a Reponer'}
                             </Dropdown.Toggle>
 
 
                             <Dropdown.Menu>
                                 <Dropdown.Item onClick={() => {
-                                    setFilterOption('stock');
+                                    setFilterOption('faltante');
                                     setShowDropdown(false);
                                 }}>
                                     Prods. Faltantes
                                 </Dropdown.Item>
                                 <Dropdown.Item onClick={() => {
-                                    setFilterOption('pedido');
+                                    setFilterOption('reponer');
                                     setShowDropdown(false);
                                 }}>
                                     Prods. a Reponer
@@ -518,7 +469,7 @@ console.log("HOLA1")
                         {sinDatos ? (
                             <div style={{ fontSize: '18px', color: '#666' }}>No hay datos para mostrar</div>
                         ) : (
-                            <Table className="tableArticulos">
+                            <Table className="tableArticulos" >
                                 <thead>
                                     <tr>
                                         <th>#</th>
@@ -529,15 +480,14 @@ console.log("HOLA1")
                                 <tbody>
                                     {[...new Map(currentData.map(item => [item.idArticulo, item])).values()].map(
                                         (ap: Articulo) => (
-                                            <tr key={ap.idArticulo}>
+                                            <tr key={ap.idArticulo} >
                                                 <td style={{ width: '5%' }} >
                                                     <p>{ap.idArticulo}</p>
                                                 </td>
                                                 <td style={{ width: '70%' }} >
-                                                    <Accordion defaultActiveKey="1" >
-
-                                                        <Accordion.Item eventKey="0">
-                                                            <Accordion.Header>{ap.descripcion}</Accordion.Header>
+                                                    <Accordion defaultActiveKey="1"  >
+                                                        <Accordion.Item eventKey="0" className={`item-stock-${controlarStock(ap)}`}>
+                                                            <Accordion.Header >{ap.descripcion}</Accordion.Header>
                                                             <Accordion.Body>
                                                                 <div style={{ paddingLeft: "1rem", fontSize: "0.85rem" }}>
                                                                     <div>
@@ -548,7 +498,6 @@ console.log("HOLA1")
                                                                     </div>
                                                                     <div>
                                                                         <strong> Costo de Almacenamiento:</strong> {ap.inventario?.costoAlmacenamiento} --
-                                                                        <strong> Costo de Compra:</strong> {ap.inventario?.costoCompra} --
                                                                         <strong> Costo de Pedido:</strong> {ap.inventario?.costoPedido}
                                                                     </div>
                                                                     <div style={{ fontSize: "1.2rem" }}>
@@ -556,7 +505,23 @@ console.log("HOLA1")
                                                                             <>
                                                                                 <strong> Lote Óptimo: </strong>{ap.inventario?.loteOptimo} --
                                                                                 <strong> Punto de Pedido: </strong>{ap.inventario?.puntoPedido} --
-                                                                                <strong> Stock de Seguridad: </strong>{ap.inventario?.stockSeguridad}
+                                                                                <strong> Stock de Seguridad: </strong>{ap.inventario?.stockSeguridad} --
+                                                                                <strong> CGI:</strong>
+                                                                                {ap.inventario
+                                                                                    ? calculoCGI(
+                                                                                        {
+                                                                                            demandaAnual: ap.inventario.demandaArticulo,
+                                                                                            costoPedido: ap.inventario.costoPedido,
+                                                                                            costoAlmacenamiento: ap.inventario.costoAlmacenamiento,
+                                                                                            stockSeguridad: ap.inventario.stockSeguridad,
+                                                                                            modeloInventario: ap.modeloInventario,
+                                                                                            invMaximo: ap.inventario.inventarioMaximo ?? 0,
+                                                                                            loteOptimo: ap.inventario.loteOptimo,
+                                                                                            puntoPedido: ap.inventario.puntoPedido
+                                                                                        },
+                                                                                        ap.stock
+                                                                                    )
+                                                                                    : 0}
                                                                             </>
                                                                             : ap.modeloInventario === 'PF' ?
                                                                                 <>
@@ -571,15 +536,9 @@ console.log("HOLA1")
                                                     </Accordion>
                                                 </td>
                                                 <td className="botoneraTabla" >
-                                                    <OverlayTrigger key={ap.idArticulo + 'btn1'} overlay={<Tooltip id={`top`}> Calcular CGI </Tooltip>} >
-                                                        <Button variant="light" onClick={() => handleClick(ap, "venta")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                                            fill="currentColor" className="bi bi-box-seam" viewBox="0 0 16 16">
-                                                            <path d="M8.186 1.113a.5.5 0 0 0-.372 0L1.846 3.5l2.404.961L10.404 2zm3.564 1.426L5.596 5 8 5.961 14.154 3.5zm3.25 1.7-6.5 2.6v7.922l6.5-2.6V4.24zM7.5 14.762V6.838L1 4.239v7.923zM7.443.184a1.5 1.5 0 0 1 1.114 0l7.129 2.852A.5.5 0 0 1 16 3.5v8.662a1 1 0 0 1-.629.928l-7.185 2.874a.5.5 0 0 1-.372 0L.63 13.09a1 1 0 0 1-.63-.928V3.5a.5.5 0 0 1 .314-.464z" />
-                                                        </svg>
-                                                        </Button>
-                                                    </OverlayTrigger>
                                                     <OverlayTrigger key={ap.idArticulo + 'btn2'} overlay={<Tooltip id={`top`}> Ver Proveedores </Tooltip>} >
-                                                        <Button variant="primary" onClick={() => handleClick(ap, "view")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-truck" viewBox="0 0 16 16">
+                                                        <Button variant="primary" onClick={() => handleClick(ap, "view")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                            fill="currentColor" className="bi bi-truck" viewBox="0 0 16 16">
                                                             <path d="M0 3.5A1.5 1.5 0 0 1 1.5 2h9A1.5 1.5 0 0 1 12 3.5V5h1.02a1.5 1.5 0 0 1 1.17.563l1.481 1.85a1.5 1.5 0 0 1 .329.938V10.5a1.5 1.5 0 0 1-1.5 1.5H14a2 2 0 1 1-4 0H5a2 2 0 1 1-3.998-.085A1.5 1.5 0 0 1 0 10.5zm1.294 7.456A2 2 0 0 1 4.732 11h5.536a2 2 0 0 1 .732-.732V3.5a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 .294.456M12 10a2 2 0 0 1 1.732 1h.768a.5.5 0 0 0 .5-.5V8.35a.5.5 0 0 0-.11-.312l-1.48-1.85A.5.5 0 0 0 13.02 6H12zm-9 1a1 1 0 1 0 0 2 1 1 0 0 0 0-2m9 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2" />
                                                         </svg>
                                                         </Button>
@@ -587,6 +546,15 @@ console.log("HOLA1")
                                                     <OverlayTrigger key={ap.idArticulo + 'btn3'} overlay={<Tooltip id={`top`}> Editar Artículo </Tooltip>} >
                                                         <Button variant="warning" onClick={() => { handleClick(ap, "edit"); }} > <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                                                             fill="currentColor" className="bi bi-pen" viewBox="0 0 16 16"><path d="m13.498.795.149-.149a1.207 1.207 0 1 1 1.707 1.708l-.149.148a1.5 1.5 0 0 1-.059 2.059L4.854 14.854a.5.5 0 0 1-.233.131l-4 1a.5.5 0 0 1-.606-.606l1-4a.5.5 0 0 1 .131-.232l9.642-9.642a.5.5 0 0 0-.642.056L6.854 4.854a.5.5 0 1 1-.708-.708L9.44.854A1.5 1.5 0 0 1 11.5.796a1.5 1.5 0 0 1 1.998-.001m-.644.766a.5.5 0 0 0-.707 0L1.95 11.756l-.764 3.057 3.057-.764L14.44 3.854a.5.5 0 0 0 0-.708z" />
+                                                        </svg>
+                                                        </Button>
+                                                    </OverlayTrigger>
+                                                    <OverlayTrigger key={ap.idArticulo + 'btn1'} overlay={<Tooltip id={`top`}> Historial de Ajustes </Tooltip>} >
+                                                        <Button variant="light" onClick={() => handleClick(ap, "hist")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                            fill="currentColor" className="bi bi-clock-history" viewBox="0 0 16 16">
+                                                            <path d="M8.515 1.019A7 7 0 0 0 8 1V0a8 8 0 0 1 .589.022zm2.004.45a7 7 0 0 0-.985-.299l.219-.976q.576.129 1.126.342zm1.37.71a7 7 0 0 0-.439-.27l.493-.87a8 8 0 0 1 .979.654l-.615.789a7 7 0 0 0-.418-.302zm1.834 1.79a7 7 0 0 0-.653-.796l.724-.69q.406.429.747.91zm.744 1.352a7 7 0 0 0-.214-.468l.893-.45a8 8 0 0 1 .45 1.088l-.95.313a7 7 0 0 0-.179-.483m.53 2.507a7 7 0 0 0-.1-1.025l.985-.17q.1.58.116 1.17zm-.131 1.538q.05-.254.081-.51l.993.123a8 8 0 0 1-.23 1.155l-.964-.267q.069-.247.12-.501m-.952 2.379q.276-.436.486-.908l.914.405q-.24.54-.555 1.038zm-.964 1.205q.183-.183.35-.378l.758.653a8 8 0 0 1-.401.432z" />
+                                                            <path d="M8 1a7 7 0 1 0 4.95 11.95l.707.707A8.001 8.001 0 1 1 8 0z" />
+                                                            <path d="M7.5 3a.5.5 0 0 1 .5.5v5.21l3.248 1.856a.5.5 0 0 1-.496.868l-3.5-2A.5.5 0 0 1 7 9V3.5a.5.5 0 0 1 .5-.5" />
                                                         </svg>
                                                         </Button>
                                                     </OverlayTrigger>

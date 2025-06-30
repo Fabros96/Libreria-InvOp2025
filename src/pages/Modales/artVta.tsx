@@ -28,9 +28,9 @@ const ArtVta = ({ show, onHide, ap, onVta }: ArtVtaProps) => {
     const [selectedDescripcion, setSelectedDescripcion] = useState<string>("");
 
     const [fechaSeleccionada, setFechaSeleccionada] = useState<Date | null>(null);
-
     const datePickerRef = useRef(null); 
     const [mostrarCalendario, setMostrarCalendario] = useState(false);
+
 
     const [stock, setStock] = useState(0);
     const [precio, setPrecio] = useState(ap.precioUnitario);

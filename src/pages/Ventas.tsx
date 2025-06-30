@@ -1,11 +1,19 @@
 import { Table, Col, Form, Row, Stack, Button, Accordion, Dropdown, OverlayTrigger, Tooltip, Modal } from "react-bootstrap"
 import axiosClient from "../api/axiosClient";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type SetStateAction } from "react";
 import MyPagination from "../components/Pagination/myPagination";
-import ArtVta from "./Modales/artVta";
-import ArtProv from "./Modales/artProv";
-import ArtEdit from "./Modales/artEdit";
-import ArtDel from "./Modales/artDel";
+import dayjs from "dayjs";
+import "dayjs/locale/es";
+
+
+import { useRef } from "react";
+import { CSSTransition } from "react-transition-group";
+import MyDatePicker from "../utils/DatePicker";
+
+
+
+import "../utils/calendarAnimation.css";
+import 'bootstrap-icons/font/bootstrap-icons.css';
 
 
 import './styles/Proveedores.css';
@@ -27,7 +35,7 @@ interface Articulo {
 interface Venta {
     idVenta: number;
     idArticulo: number;
-    fecha: Date;
+    fechaCreacion: Date;
     cantidad: number;
     articulo: Articulo;
 }
@@ -44,20 +52,21 @@ const Ventas = () => {
     const [data, setData] = useState<VentasData>({ datos: [], totalPages: 0 });
     const [sinDatos, setSinDatos] = useState(false);
     const [page, setPage] = useState(1);
-    const [searchText, setSearchText] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [selectedVenta, setSelectedVenta] = useState<Venta | null>(null);
     const [modalType, setModalType] = useState<"new" | "view" | "edit" | "baja" | null>(null);
 
+    const [fechaSeleccionada, setFechaSeleccionada] = useState<Date | null>(null);
+    const datePickerRef = useRef(null);
+    const [mostrarCalendario, setMostrarCalendario] = useState(false);
+    const [inputFecha, setInputFecha] = useState('');
+
+
     const [searchDescripcion, setSearchDescripcion] = useState('');
-    const [searchFecha, setSearchFecha] = useState('');
     const [searchIdArticulo, setSearchIdArticulo] = useState('');
     const [searchIdVenta, setSearchIdVenta] = useState('');
 
-
     const [filteredTotalPages, setFilteredTotalPages] = useState(0);
-    const [filterOption, setFilterOption] = useState('');
-    const [showDropdown, setShowDropdown] = useState(false);
 
     const [articuloSeleccionado, setArticuloSeleccionado] = useState<any | null>(null);
     const [showVtaNew, setShowVtaNew] = useState(false);
@@ -70,16 +79,6 @@ const Ventas = () => {
 
     const startIndex = (page - 1) * PAGE_SIZE;
     const endIndex = startIndex + PAGE_SIZE;
-
-    const handleToggle = (nextShow: boolean) => {
-        if (filterOption !== '') {
-            setFilterOption('');
-            setShowDropdown(false);
-        } else {
-            setShowDropdown(nextShow);
-        }
-    };
-
 
 
 
@@ -150,31 +149,6 @@ const Ventas = () => {
         }
     };
 
-
-
-
-    const handleDelVenta = (ventaToDelete: Venta) => {
-        axiosClient.delete(`/ventas/${ventaToDelete.idVenta}`)
-            .then(() => {
-                setData(prevData => {
-                    const nuevosDatos = prevData.datos.filter(
-                        venta => venta.idVenta !== ventaToDelete.idVenta
-                    );
-                    return {
-                        ...prevData,
-                        datos: nuevosDatos
-                    };
-                });
-
-                setShowModal(false);
-                showToasty("Venta Eliminado exitosamente", "success");
-            })
-            .catch(error => {
-                console.error("Error al eliminar el venta:", error);
-                alert("No se pudo eliminar el venta. Intente nuevamente.");
-            });
-    };
-
     //agrego para que se de alta un nuevo venta
     const handleCreateVenta = async (nuevoVenta: Venta) => {
         try {
@@ -197,14 +171,18 @@ const Ventas = () => {
     };
 
 
+
     const fetchData = async () => {
         try {
             const response = await axiosClient.get("ventas/?filter[include]=articulo");
-            const allData: Venta[] = response.data || [];
+
+
+            // Ajustá según la estructura real:
+            const allData: Venta[] = Array.isArray(response.data) ? response.data : response.data?.data || [];
 
             if (allData.length > 0) {
                 setData({
-                    datos: allData.map((ap) => ap),
+                    datos: allData,
                     totalPages: Math.ceil(allData.length / PAGE_SIZE),
                 });
                 setSinDatos(false);
@@ -213,23 +191,40 @@ const Ventas = () => {
             }
 
         } catch (error) {
-            console.error("El Error es: ", error);
+            console.error("Error en fetchData:", error);
             setSinDatos(true);
         }
-
     };
+
+
+
 
     useEffect(() => {
 
         fetchData();
     }, []);
 
+    useEffect(() => {
+        if (fechaSeleccionada) {
+            setInputFecha(dayjs(fechaSeleccionada).format("DD/MM/YYYY"));
+        } else {
+            setInputFecha('');
+        }
+    }, [fechaSeleccionada]);
 
-    const filteredData = data.datos.filter(ap =>
-        ap.articulo.descripcion.toLowerCase().includes(searchDescripcion.toLowerCase()) &&
-        ap.idVenta.toString().toLowerCase().includes(searchIdVenta.toLowerCase()) &&
-        ap.idArticulo.toString().toLowerCase().includes(searchIdArticulo.toLowerCase())
-    );
+    const filteredData = data.datos.filter(ap => {
+        const cumpleDescripcion = ap.articulo.descripcion.toLowerCase().includes(searchDescripcion.toLowerCase());
+        const cumpleIdVenta = ap.idVenta.toString().includes(searchIdVenta);
+        const cumpleIdArticulo = ap.idArticulo.toString().includes(searchIdArticulo);
+        const cumpleFecha = fechaSeleccionada
+            ? dayjs(ap.fechaCreacion).startOf('day').isSame(dayjs(fechaSeleccionada).startOf('day'))
+            || dayjs(ap.fechaCreacion).startOf('day').isAfter(dayjs(fechaSeleccionada).startOf('day'))
+            : true;
+
+
+        return cumpleDescripcion && cumpleIdVenta && cumpleIdArticulo && cumpleFecha;
+    });
+
 
 
     useEffect(() => {
@@ -249,47 +244,146 @@ const Ventas = () => {
     }, [])
 
 
-
-
-
-
-
     return (
         <>
             <Stack className="proveedores-container">
                 <div className="p-2"><h3>Ventas</h3></div>
                 <Row className="p-2 barraBusquedaDiv">
 
-                    <Col sm={2}>
+                    <Col sm={1}>
                         <Form.Control
                             type="text"
-                            placeholder="Buscar por ID Venta"
+                            placeholder="ID Venta"
                             value={searchIdVenta}
                             onChange={(e) => setSearchIdVenta(e.target.value)}
                         />
                     </Col>
-                    <Col sm={2}>
+                    <Col sm={1}>
                         <Form.Control
                             type="text"
-                            placeholder="Buscar por ID Artículo"
+                            placeholder="ID Artículo"
                             className="mr-sm-2"
                             value={searchIdArticulo}
                             onChange={(e) => setSearchIdArticulo(e.target.value)}
                         />
                     </Col>
-                    <Col sm={4}>
+                    <Col sm={6}>
                         <Form.Control
                             type="text"
-                            placeholder="Buscar por descripción"
+                            placeholder="Descripción"
                             className="mr-sm-2"
                             value={searchDescripcion}
                             onChange={(e) => setSearchDescripcion(e.target.value)}
 
                         />
                     </Col>
+                    <Col sm={2}>
+                        <Stack direction="horizontal" gap={2}>
+                            {/* <Form.Control
+                                type="text"
+                                placeholder="Fecha"
+                                value={fechaSeleccionada ? fechaSeleccionada.toLocaleDateString("es-AR") : ""}
+                                readOnly
+                                onClick={() => setMostrarCalendario(!mostrarCalendario)}
+                                /> */}
+                            <div style={{ position: "relative" }}>
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    value={inputFecha}
+                                    placeholder="Fecha Desde"
+                                    onFocus={() => setMostrarCalendario(true)}
+                                    maxLength={10}
+                                    onChange={(e) => {
+                                        let valor = e.target.value;
 
-                    <Col sm={1}></Col>
-                    <Col sm={3}>
+                                        // Eliminar todo excepto números
+                                        valor = valor.replace(/\D/g, "");
+
+                                        // Insertar '/' en posición 2 y 4
+                                        if (valor.length > 2) {
+                                            valor = valor.slice(0, 2) + "/" + valor.slice(2);
+                                        }
+                                        if (valor.length > 5) {
+                                            valor = valor.slice(0, 5) + "/" + valor.slice(5);
+                                        }
+
+                                        setInputFecha(valor);
+
+                                        // Si la longitud es 10, intentar parsear y actualizar fechaSeleccionada
+                                        if (valor.length === 10) {
+                                            const fecha = dayjs(valor, "DD/MM/YYYY", true);
+                                            if (fecha.isValid()) {
+                                                setFechaSeleccionada(fecha.toDate());
+                                                setMostrarCalendario(false); // Cerramos calendario al ingresar fecha completa
+                                                setPage(1); // Reiniciar página si usas paginación
+                                            } else {
+                                                setFechaSeleccionada(null);
+                                            }
+                                        } else {
+                                            setFechaSeleccionada(null);
+                                        }
+                                    }}
+                                    onBlur={() => {
+                                        // Si al perder foco hay fecha seleccionada, sincronizamos el input con el formato correcto
+                                        if (fechaSeleccionada) {
+                                            setInputFecha(dayjs(fechaSeleccionada).format("DD/MM/YYYY"));
+                                        } else {
+                                            setInputFecha('');
+                                        }
+                                    }}
+                                />
+
+
+                                <CSSTransition
+                                    in={mostrarCalendario}
+                                    timeout={300}
+                                    classNames="fade"
+                                    unmountOnExit
+                                    nodeRef={datePickerRef}
+                                >
+                                    <div
+                                        ref={datePickerRef}
+                                        style={{
+                                            position: "absolute",
+                                            top: "100%",
+                                            left: 0,
+                                            zIndex: 9999,
+                                            backgroundColor: "white",
+                                            boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                                            borderRadius: "0.5rem",
+                                            padding: "0.5rem",
+                                        }}
+                                    >
+                                        <MyDatePicker
+                                            selectedDate={fechaSeleccionada || new Date()}
+                                            minDate={new Date(2020, 0, 1)}
+                                            maxDate={new Date(2030, 11, 31)}
+                                            onChange={(fecha: Date | false) => {
+                                                if (fecha && typeof fecha !== "boolean") {
+                                                    setFechaSeleccionada(fecha);
+                                                } else {
+                                                    setFechaSeleccionada(null);
+                                                }
+                                                setMostrarCalendario(false);
+                                                setPage(1);  // Reiniciamos página al filtrar por fecha
+                                            }}
+                                        />
+                                    </div>
+                                </CSSTransition>
+                            </div>
+
+                            <Button
+                                variant="outline-primary"
+                                onClick={() => setMostrarCalendario(!mostrarCalendario)}
+                            >
+                                {mostrarCalendario ? <i className="bi bi-x" /> : <i className="bi bi-calendar-check" />}
+                            </Button>
+                        </Stack>
+
+                    </Col>
+
+                    <Col sm={2}>
                         <Button className="newProvButton1" onClick={() => {
                             setShowVtaNew(!showVtaNew);
                             setSelectedVenta(null);
@@ -319,6 +413,7 @@ const Ventas = () => {
                                         <th>IdVenta</th>
                                         <th >IdArticulo</th>
                                         <th >Descripción</th>
+                                        <th >Fecha</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -331,7 +426,7 @@ const Ventas = () => {
                                                 <td style={{ width: '5%' }} >
                                                     <p>{vta.idArticulo}</p>
                                                 </td>
-                                                <td style={{ width: '70%' }} >
+                                                <td style={{ width: '40%' }} >
                                                     <Form.Control
                                                         type="text"
                                                         placeholder="Buscar por descripción"
@@ -339,6 +434,22 @@ const Ventas = () => {
                                                         value={vta.articulo.descripcion}
                                                         readOnly
                                                     />
+
+                                                </td>
+                                                <td style={{ width: '10%' }} >
+                                                    <Form.Control
+                                                        type="text"
+                                                        placeholder="Buscar por descripción"
+                                                        className="mr-sm-2"
+                                                        value={vta.fechaCreacion
+                                                            ? dayjs(vta.fechaCreacion).format("DD/MM/YYYY")
+                                                            : "Sin fecha"}
+
+                                                        readOnly
+                                                    />
+
+                                                </td>
+                                                <td style={{ width: '10%' }} >
 
                                                 </td>
                                             </tr>

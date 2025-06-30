@@ -48,7 +48,7 @@ type ArticulosData = {
 
 const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredeterminadoChange }: ArtProvProps) => {
 
-    
+
 
     const [data, setData] = useState<ArticulosData>({ datos: [] });
     const [searchText, setSearchText] = useState("");
@@ -61,16 +61,15 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
 
 
     useEffect(() => {
-
         if (articulo && articulo.proveedor) {
             setSelectedPredeterminado(articulo.proveedor);
             if (onProveedorPredeterminadoChange) {
                 onProveedorPredeterminadoChange(articulo.proveedor);
             }
         }
+
         const fetchData = async () => {
             try {
-                console.log("hola")
                 let response: AxiosResponse<any, any> | null = null;
 
                 if (mode === "edit" || mode === "view") {
@@ -83,13 +82,24 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
 
                 const allData = response?.data?.datos || response?.data || [];
 
-                const proveedores = allData.map((item: any) => ({
-                    ...item.proveedor,
-                    esPredeterminado: item.esPredeterminado,
-                }));
+                // ⚠️ CORRECTO FILTRADO DE DUPLICADOS
+                const mapa = new Map<number, ArticuloProveedor>();
 
-                const proveedorPredeterminado = allData.find((item: any) => item.esPredeterminado === true) || null;
-                // ACA
+                for (const item of allData) {
+                    const existente = mapa.get(item.idProveedor);
+                    // Si no existe, o si este es predeterminado y el anterior no, lo reemplaza
+                    if (!existente || item.esPredeterminado) {
+                        mapa.set(item.idProveedor, item);
+                    }
+                }
+
+                const dataUnicaPorProveedor = Array.from(mapa.values());
+
+                // ✔️ Buscar el predeterminado entre los datos únicos
+                const proveedorPredeterminado = dataUnicaPorProveedor.find(
+                    (item) => item.esPredeterminado === true
+                ) || null;
+
                 setProveedorDeterminadoOriginal(proveedorPredeterminado);
                 setSelectedPredeterminado(proveedorPredeterminado);
 
@@ -97,15 +107,20 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
                     onProveedorPredeterminadoChange(proveedorPredeterminado);
                 }
 
+                // ✅ Setear solo los datos únicos
+                setData({ datos: dataUnicaPorProveedor });
+                setOriginales(JSON.parse(JSON.stringify(dataUnicaPorProveedor)));
 
-                setData({ datos: allData });
-                setOriginales(JSON.parse(JSON.stringify(allData)));
             } catch (error) {
                 console.error("Error al obtener datos:", error);
             }
         };
+
         fetchData();
     }, [articulo, mode]);
+
+
+
 
 
     // RESETEAR estados cuando se cierra el modal
@@ -158,6 +173,7 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
         // Le pasás al padre: proveedor predeterminado y lista de cambios
         if (onSave) {
             if (!proveedorSeleccionado) return;
+
             onSave({
                 proveedorPredeterminado: proveedorSeleccionado,
                 cambios,
@@ -174,6 +190,8 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
     const getFilteredData = () => {
         if (showAll) return data.datos;
         if (searchText.trim().length < 1) return data.datos;
+        console.log(data);
+        console.log(data.datos);
 
         return data.datos.filter(articulo =>
             articulo.proveedor.nombre?.toLowerCase().includes(searchText.toLowerCase())

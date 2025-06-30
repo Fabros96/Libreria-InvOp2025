@@ -196,3 +196,23 @@ button {
   --bs-modal-width:60% !important;
 }
 
+.item-stock-faltante {
+  Button{
+    background-color: #ff6262; /* rojo claro */
+  }
+    background-color: #ff6262; /* rojo claro */
+}
+
+.item-stock-reponer {
+  Button{
+    background-color: #ffd549; /* amarillo claro */
+  }
+    background-color: #ffd549; /* amarillo claro */
+}
+
+.item-stock-normal {
+  Button{
+    background-color: #96ffaf; /* verde claro */
+  }
+    background-color: #96ffaf; /* verde claro */
+}
