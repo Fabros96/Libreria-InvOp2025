@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
 import { ArticuloProveedorRepository } from "../repositories/articulo-proveedor.repository";
-import { calcularInventario } from "../services/inventario.service";
+//import { calcularInventario } from "../services/inventario.service";
 
 const prisma = new PrismaClient();
 const articuloProveedorRepository = new ArticuloProveedorRepository();
@@ -60,66 +60,78 @@ export const ArticuloProveedorController = {
     // },
 
     // Actualizar un articuloProveedor (update)
+
+
+//     update: async (req: Request, res: Response) => {
+//     const { id } = req.params;
+//     let { idArticulo, idProveedor, cargoPedido, demoraEntrega, esPredeterminado, precioUnitario } = req.body;
+//     let payload: any = { idArticulo, idProveedor, cargoPedido, demoraEntrega, esPredeterminado, precioUnitario };
+
+//     try {
+//         // 1. Actualizar artículoProveedor
+//         const articuloProveedorActualizado = await prisma.articuloProveedor.update({
+//             where: { idArticuloProveedor: parseInt(id) },
+//             data: payload,
+//         });
+
+//         // 2. Buscar artículo con inventario
+//         const articulo = await prisma.articulo.findUnique({
+//             where: { idArticulo },
+//             include: { inventario: true }
+//         });
+
+//         if (articulo?.inventario) {
+//             const {
+//                 demandaArticulo,
+//                 costoPedido,
+//                 costoAlmacenamiento,
+//                 idInventario,
+//                 //periodoRevision // necesario si modeloInventario es PF
+//             } = articulo.inventario;
+
+//             const tipoInventario: 'LF' | 'PF' = articulo.modeloInventario === 'PF' ? 'PF' : 'LF';
+
+
+//             console.log("Tipo inventario:", tipoInventario);
+//             console.log("Inventario actual:", articulo.inventario);
+
+//             // 3. Calcular nuevos valores
+//             const nuevosValores = calcularInventario({
+//                 demandaArticulo,
+//                 costoPedido,
+//                 costoAlmacenamiento,
+//                 demoraEntrega,
+//                 tipoInventario,
+//                 //periodoRevision // puede ser undefined si LF
+//             });
+
+//             console.log("Recalculando...");
+//             console.log(nuevosValores);
+
+//             // 4. Actualizar inventario
+//             await prisma.inventario.update({
+//                 where: { idInventario },
+//                 data: nuevosValores
+//             });
+//         }
+
+//         res.status(200).json({
+//             msg: 'Se ha actualizado el articuloProveedor y recalculado el inventario.',
+//             data: {
+//                 articuloProveedor: articuloProveedorActualizado,
+//                 articulo: articulo,
+//             }
+//         });
+//     } catch (error: any) {
+//         res.status(500).json({
+//             msg: 'Error al actualizar el articuloProveedor',
+//             detail: error.message
+//         });
+//     }
+// },
+
     
-    update: async (req: Request, res: Response) => {
-        const { id } = req.params;
-        let { idArticulo, idProveedor, cargoPedido, demoraEntrega, esPredeterminado, precioUnitario } = req.body;
-        let payload: any = { idArticulo, idProveedor, cargoPedido, demoraEntrega, esPredeterminado, precioUnitario };
-
-        try {
-            // 1. Actualizar artículoProveedor
-            const articuloProveedorActualizado = await prisma.articuloProveedor.update({
-                where: { idArticuloProveedor: parseInt(id) },
-                data: payload,
-            });
-
-            // 2. Buscar inventario del artículo
-            const articulo = await prisma.articulo.findUnique({
-                where: { idArticulo },
-                include: { inventario: true }
-            });
-
-            if (articulo?.inventario) {
-                const { demandaArticulo, costoPedido, costoAlmacenamiento, idInventario } = articulo.inventario;
-
-                console.log(articulo.inventario)
-
-
-                // 3. Calcular nuevos valores
-                const nuevosValores = calcularInventario({
-                    demandaArticulo,
-                    costoPedido,
-                    costoAlmacenamiento,
-                    demoraEntrega
-                });
-
-                console.log("recalculando")
-                console.log(nuevosValores)
-                console.log("recalculado..!!!")
-
-                console.log(idInventario)
-                // 4. Actualizar el inventario
-                await prisma.inventario.update({
-                    
-                    where: { idInventario },
-                    data: nuevosValores
-                });
-            }
-
-            res.status(200).json({
-                msg: 'Se ha actualizado el articuloProveedor y recalculado el inventario.',
-                data: {
-                    articuloProveedor: articuloProveedorActualizado,
-                    articulo: articulo,
-                }
-            });
-        } catch (error: any) {
-            res.status(500).json({
-                msg: 'Error al actualizar el articuloProveedor',
-                detail: error.message
-            });
-        }
-    },
+ 
 
     // En el controller
     getPredeterminadoPorArticulo: async (req: Request, res: Response) => {
