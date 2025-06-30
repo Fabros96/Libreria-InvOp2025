@@ -22,12 +22,16 @@ export const calcularInventario = ({
 
   console.log("el modelo inventario que llega a services es:", modeloInventario);
 
+  const demandaDiaria = demandaArticulo / 365;
   if (modeloInventario === 'LF') {
     console.log("Recalcularé con lote fijo");
-    const demandaAnual = demandaArticulo * 365;
-    const EOQ = Math.round(Math.sqrt((2 * demandaAnual * costoPedido) / (costoAlmacenamiento * demoraEntrega)));
-    const stockSeguridad = Math.round((demandaArticulo * demoraEntrega) * 0.2);
-    const puntoPedido = Math.round((demandaArticulo * demoraEntrega) + stockSeguridad);
+
+    const EOQ = Math.round(Math.sqrt((2 * demandaArticulo * costoPedido) / costoAlmacenamiento));
+
+    const stockSeguridad = Math.round((demandaDiaria * demoraEntrega) * 0.2);
+
+    const puntoPedido = Math.round((demandaDiaria * demoraEntrega) + stockSeguridad);
+
     return {
       loteOptimo: EOQ,
       stockSeguridad,
@@ -39,8 +43,8 @@ export const calcularInventario = ({
   if (modeloInventario === 'PF') {
     console.log("Recalcularé con punto fijo");
     console.log("demoraEntrega: ",demoraEntrega)
-    const stockSeguridad = Math.round((demandaArticulo * demoraEntrega) * 0.2);
-    const inventarioMaximo = Math.round((demandaArticulo * 10) + stockSeguridad); // 10: periodo revisión fijo de prueba
+    const stockSeguridad = Math.round((demandaDiaria * demoraEntrega) * 0.2);
+    const inventarioMaximo = demandaDiaria * (10 + demoraEntrega) + stockSeguridad; // 10: periodo revisión fijo de prueba
 
     return {
       loteOptimo: null,
