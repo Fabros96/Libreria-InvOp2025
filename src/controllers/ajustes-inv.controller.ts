@@ -10,7 +10,7 @@ export const AjusteInventarioController = {
     getAll: async (req: Request, res: Response) => {
         try {
             const ajusteInventarios = await ajusteInventarioRepository.findMany(decodeURIComponent(req.url));
-            res.status(200).json({ msg: `${ajusteInventario.length > 0 ? 'Se han encontrado registros' : 'No se han encontrado registros'}`, data: ajusteInventarios });
+            res.status(200).json({ msg: `${ajusteInventarios.length > 0 ? 'Se han encontrado registros' : 'No se han encontrado registros'}`, data: ajusteInventarios });
         } catch (error: any) {
             res.status(500).json({ msg: 'Error al obtener las registros', detail: error.message });
         }
