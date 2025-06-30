@@ -1,11 +1,11 @@
 /*
   Warnings:
 
-  - You are about to drop the `user` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `User` table. If the table is not empty, all the data it contains will be lost.
 
 */
 -- DropTable
-DROP TABLE `user`;
+DROP TABLE `User`;
 
 -- CreateTable
 CREATE TABLE `Inventario` (
@@ -42,6 +42,21 @@ CREATE TABLE `Articulo` (
     UNIQUE INDEX `Articulo_idInventario_key`(`idInventario`),
     PRIMARY KEY (`idArticulo`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `AjustesInv` (
+    `idAjusInv` INTEGER NOT NULL AUTO_INCREMENT,
+    `idArticulo` INTEGER NOT NULL,
+    `cantOrig` INTEGER NOT NULL,
+    `cantNew` INTEGER NOT NULL,
+    `fecha` DATETIME(3) NULL,
+    `UserName` VARCHAR(80) NULL,
+
+    PRIMARY KEY (`idAjusInv`),
+
+    CONSTRAINT `fk_ajustesinv_articulo` FOREIGN KEY (`idArticulo`) REFERENCES `Articulo`(`idArticulo`) ON DELETE CASCADE
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 
 -- CreateTable
 CREATE TABLE `ArticuloProveedor` (

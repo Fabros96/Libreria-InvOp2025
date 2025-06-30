@@ -1,3 +1,3 @@
 -- AlterTable
-ALTER TABLE `inventario` ADD COLUMN `inventarioMaximo` INTEGER NULL,
+ALTER TABLE `Inventario` ADD COLUMN `inventarioMaximo` INTEGER NULL,
     ADD COLUMN `periodoRevision` INTEGER NULL;

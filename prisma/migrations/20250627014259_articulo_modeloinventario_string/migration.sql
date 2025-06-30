@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE `articulo` MODIFY `modeloInventario` VARCHAR(191) NULL;
+ALTER TABLE `Articulo` MODIFY `modeloInventario` VARCHAR(191) NULL;
