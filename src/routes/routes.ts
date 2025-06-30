@@ -36,7 +36,7 @@ router.get("/inventarios/recalculo", InventarioController.recalculo);
 router.get("/articulo-proveedores", ArticuloProveedorController.getAll);
 router.get("/articulo-proveedores/:id", ArticuloProveedorController.getById);
 router.post("/articulo-proveedores", ArticuloProveedorController.create);
-//router.put("/articulo-proveedores/:id", ArticuloProveedorController.update);
+router.put("/articulo-proveedores/:id", ArticuloProveedorController.update);
 router.delete("/articulo-proveedores/:id", ArticuloProveedorController.delete);
 router.get("/articulo-proveedores/predeterminado/:idArticulo", ArticuloProveedorController.getPredeterminadoPorArticulo);
 

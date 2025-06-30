@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
 import { ArticuloProveedorRepository } from "../repositories/articulo-proveedor.repository";
-//import { calcularInventario } from "../services/inventario.service";
+import { calcularInventario } from "../services/inventario.service";
 
 const prisma = new PrismaClient();
 const articuloProveedorRepository = new ArticuloProveedorRepository();
@@ -62,73 +62,73 @@ export const ArticuloProveedorController = {
     // Actualizar un articuloProveedor (update)
 
 
-//     update: async (req: Request, res: Response) => {
-//     const { id } = req.params;
-//     let { idArticulo, idProveedor, cargoPedido, demoraEntrega, esPredeterminado, precioUnitario } = req.body;
-//     let payload: any = { idArticulo, idProveedor, cargoPedido, demoraEntrega, esPredeterminado, precioUnitario };
+    update: async (req: Request, res: Response) => {
+    const { id } = req.params;
+    let { idArticulo, idProveedor, cargoPedido, demoraEntrega, esPredeterminado, precioUnitario } = req.body;
+    let payload: any = { idArticulo, idProveedor, cargoPedido, demoraEntrega, esPredeterminado, precioUnitario };
 
-//     try {
-//         // 1. Actualizar artículoProveedor
-//         const articuloProveedorActualizado = await prisma.articuloProveedor.update({
-//             where: { idArticuloProveedor: parseInt(id) },
-//             data: payload,
-//         });
+    try {
+        // 1. Actualizar artículoProveedor
+        const articuloProveedorActualizado = await prisma.articuloProveedor.update({
+            where: { idArticuloProveedor: parseInt(id) },
+            data: payload,
+        });
 
-//         // 2. Buscar artículo con inventario
-//         const articulo = await prisma.articulo.findUnique({
-//             where: { idArticulo },
-//             include: { inventario: true }
-//         });
+        // 2. Buscar artículo con inventario
+        const articulo = await prisma.articulo.findUnique({
+            where: { idArticulo },
+            include: { inventario: true }
+        });
 
-//         if (articulo?.inventario) {
-//             const {
-//                 demandaArticulo,
-//                 costoPedido,
-//                 costoAlmacenamiento,
-//                 idInventario,
-//                 //periodoRevision // necesario si modeloInventario es PF
-//             } = articulo.inventario;
+        if (articulo?.inventario) {
+            const {
+                demandaArticulo,
+                costoPedido,
+                costoAlmacenamiento,
+                idInventario,
+                
+            } = articulo.inventario;
 
-//             const tipoInventario: 'LF' | 'PF' = articulo.modeloInventario === 'PF' ? 'PF' : 'LF';
+            const tipoInventario: 'LF' | 'PF' = articulo.modeloInventario === 'PF' ? 'PF' : 'LF';
 
 
-//             console.log("Tipo inventario:", tipoInventario);
-//             console.log("Inventario actual:", articulo.inventario);
+            console.log("Tipo inventario:", tipoInventario);
+            console.log("Inventario actual:", articulo.inventario);
 
-//             // 3. Calcular nuevos valores
-//             const nuevosValores = calcularInventario({
-//                 demandaArticulo,
-//                 costoPedido,
-//                 costoAlmacenamiento,
-//                 demoraEntrega,
-//                 tipoInventario,
-//                 //periodoRevision // puede ser undefined si LF
-//             });
+            // 3. Calcular nuevos valores
+            const nuevosValores = calcularInventario({
+                demandaArticulo,
+                costoPedido,
+                costoAlmacenamiento,
+                demoraEntrega,
+                
+                //periodoRevision // puede ser undefined si LF
+            });
 
-//             console.log("Recalculando...");
-//             console.log(nuevosValores);
+            console.log("Recalculando...");
+            console.log(nuevosValores);
 
-//             // 4. Actualizar inventario
-//             await prisma.inventario.update({
-//                 where: { idInventario },
-//                 data: nuevosValores
-//             });
-//         }
+            // 4. Actualizar inventario
+            await prisma.inventario.update({
+                where: { idInventario },
+                data: nuevosValores
+            });
+        }
 
-//         res.status(200).json({
-//             msg: 'Se ha actualizado el articuloProveedor y recalculado el inventario.',
-//             data: {
-//                 articuloProveedor: articuloProveedorActualizado,
-//                 articulo: articulo,
-//             }
-//         });
-//     } catch (error: any) {
-//         res.status(500).json({
-//             msg: 'Error al actualizar el articuloProveedor',
-//             detail: error.message
-//         });
-//     }
-// },
+        res.status(200).json({
+            msg: 'Se ha actualizado el articuloProveedor y recalculado el inventario.',
+            data: {
+                articuloProveedor: articuloProveedorActualizado,
+                articulo: articulo,
+            }
+        });
+    } catch (error: any) {
+        res.status(500).json({
+            msg: 'Error al actualizar el articuloProveedor',
+            detail: error.message
+        });
+    }
+},
 
     
  
