@@ -38,13 +38,13 @@ export default function Ordenes() {
   const [cantidad, setCantidad] = useState<number>(1);
   const [mensaje, setMensaje] = useState<string>("");
   const [ordenSeleccionada, setOrdenSeleccionada] = useState<OrdenCompra | null>(null);
+  const [loteOptimoSugerido, setLoteOptimoSugerido] = useState<number | null>(null);
   
   
   const [modo, setModo] = useState<"crear" | "modificar" | "estado">("crear");
 
-  const esFinalizada = ordenSeleccionada?.idEstadoOrdenCompra === 2;
-
-
+  const esFinalizada = ordenSeleccionada?.idEstadoOrdenCompra === 4;
+ 
   useEffect(() => {
     const fetchData = async () => {
       const resOrdenes = await axiosClient.get("/orden-compras?filter[include]=articulo,proveedor,estadoOrdenCompra");
@@ -73,10 +73,18 @@ useEffect(() => {
         console.log(res.data.proveedor.nombre)
         console.log("No se encontró proveedor predeterminado");
       }
+      // Buscar lote óptimo sugerido
+        const resLote: any = await axiosClient.get(`/inventarios/lote-optimo/${idArt}`);
+        console.log(resLote.loteOptimo)
+
+        setLoteOptimoSugerido(resLote.loteOptimo ?? null);
+
     } catch (error) {
       console.error("Error al buscar proveedor predeterminado:", error);
     }
   };
+
+  
 
   if (idArticulo !== null && proveedores.length > 0) {
     buscarProveedorPredeterminado(idArticulo);
@@ -94,7 +102,7 @@ useEffect(() => {
       const nuevaOrden = {
         idArticulo,
         idProveedor,
-        idEstadoOrdenCompra: 3,
+        idEstadoOrdenCompra: 1,
         cantidad,
         fechaCreacion: new Date().toISOString(),
       };
@@ -218,8 +226,8 @@ const cambiarEstadoOrden = async (nuevoEstado: number) => {
                     setIdProveedor(orden.idProveedor);
                     setCantidad(orden.cantidad);
                   }}
-                  disabled={orden.idEstadoOrdenCompra === 3}
-                  title={orden.idEstadoOrdenCompra === 3 ? "La orden está cancelada y no puede modificarse": ""}
+                  disabled={orden.idEstadoOrdenCompra === 2}
+                  title={orden.idEstadoOrdenCompra === 2 ? "La orden está cancelada y no puede modificarse": ""}
                 >
                   Modificar
                 </button>
@@ -229,7 +237,7 @@ const cambiarEstadoOrden = async (nuevoEstado: number) => {
                     setModo("estado");
                     setOrdenSeleccionada(orden);
                   }}
-                  disabled={orden.idEstadoOrdenCompra === 2 || orden.idEstadoOrdenCompra === 3}
+                  disabled={orden.idEstadoOrdenCompra === 2 || orden.idEstadoOrdenCompra === 4}
                 >
                   Cambiar estado
                 </button>
@@ -283,6 +291,11 @@ const cambiarEstadoOrden = async (nuevoEstado: number) => {
             </select>
             </div>
             <div>
+              {loteOptimoSugerido !== null && (
+  <div className="text-sm text-gray-600 mb-1">
+    Sugerencia de cantidad (lote óptimo): <span className="font-semibold">{loteOptimoSugerido}</span>
+  </div>
+)}
               <label className="block">Cantidad:</label>
               <input
                 type="number"
@@ -315,13 +328,13 @@ const cambiarEstadoOrden = async (nuevoEstado: number) => {
 
     <div className="flex space-x-2">
       <button
-        onClick={() => cambiarEstadoOrden(3)}
+        onClick={() => cambiarEstadoOrden(2)}
         className="bg-purple-600 text-white px-3 py-1 rounded"
       >
         Cancelada
       </button>
       <button
-        onClick={() => cambiarEstadoOrden(2)}
+        onClick={() => cambiarEstadoOrden(4)}
         className="bg-red-600 text-white px-3 py-1 rounded"
       >
         Finalizada
@@ -333,7 +346,7 @@ const cambiarEstadoOrden = async (nuevoEstado: number) => {
         Pendiente
       </button>
       <button
-        onClick={() => cambiarEstadoOrden(4)}
+        onClick={() => cambiarEstadoOrden(3)}
         className="bg-green-600 text-white px-3 py-1 rounded"
       >
         Enviada

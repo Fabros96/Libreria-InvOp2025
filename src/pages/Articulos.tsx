@@ -32,7 +32,7 @@ interface Inventario {
     loteOptimo: number;
     puntoPedido: number;
     stockSeguridad: number;
-    invMaximo?: number; // Solo para modelo PF
+    inventarioMaximo?: number; // Solo para modelo PF
 }
 interface ArticuloProveedor {
     idArticuloProveedor: number;
@@ -561,7 +561,7 @@ console.log("HOLA1")
                                                                             : ap.modeloInventario === 'PF' ?
                                                                                 <>
                                                                                     <strong> Stock de Seguridad: </strong>{ap.inventario?.stockSeguridad} --
-                                                                                    <strong> Inventario Máximo: </strong>{ap.inventario?.invMaximo}
+                                                                                    <strong> Inventario Máximo: </strong>{ap.inventario?.inventarioMaximo}
                                                                                 </>
                                                                                 : ''} </div>
                                                                 </div>
