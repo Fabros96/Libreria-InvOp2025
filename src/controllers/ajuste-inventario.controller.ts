@@ -27,12 +27,11 @@ export const AjusteInventarioController = {
     },
 
     create: async (req: Request, res: Response) => {
-        let { idArticulo, cantidad, fechaCreacion } = req.body;
+        let { idArticulo, cantOrig, cantNew, fecha, userName } = req.body;
         try {
-            if (!fechaCreacion) fechaCreacion = new Date();
 
             const nuevoAjusteInventario = await prisma.ajusteInventario.create({
-                data: { idArticulo, cantidad, fechaCreacion }
+                data: { idArticulo, cantOrig, cantNew, fecha, userName }
             });
 
             res.status(201).json({ msg: 'Ajuste inv creado correctamente.', data: nuevoAjusteInventario });
@@ -45,8 +44,8 @@ export const AjusteInventarioController = {
     // Actualizar un ajuste-inventario (update)
     update: async (req: Request, res: Response) => {
         const { id } = req.params;
-        let { idArticulo, cantidad, fechaCreacion, articulo } = req.body;
-        let payload: any = { idArticulo, cantidad, fechaCreacion, articulo };
+        let { idArticulo, cantOrig, cantNew, fecha, userName } = req.body;
+        let payload: any = { idArticulo, cantOrig, cantNew, fecha, userName };
         try {
             const ajusteInventarioActualizado = await prisma.ajusteInventario.update({
                 where: { idAjusteInventario: parseInt(id) },
