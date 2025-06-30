@@ -1,4 +1,3 @@
-
 # README
 
 Este es el archivo README para el proyecto. Aquí encontrarás las instrucciones necesarias para ejecutar el proyecto correctamente.
@@ -55,7 +54,3 @@ npx nodemon
 o npm run dev (http://localhost:3000/)
 
 Esto iniciará el servidor y podrás acceder a la aplicación en `http://localhost:<PORT>`.
-=======
-# Libreria-InvOp2025
-INTEGRADOR
-
