@@ -5,7 +5,7 @@
 
 */
 -- AlterTable
-ALTER TABLE `ordencompra` ADD COLUMN `idEstadoOrdenCompra` INTEGER NOT NULL;
+ALTER TABLE `OrdenCompra` ADD COLUMN `idEstadoOrdenCompra` INTEGER NOT NULL;
 
 -- CreateTable
 CREATE TABLE `EstadoOrdenCompra` (
