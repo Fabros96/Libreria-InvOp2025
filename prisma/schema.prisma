@@ -47,19 +47,18 @@ model Articulo {
   articuloProveedorList   ArticuloProveedor[]
   ordenCompraList         OrdenCompra[]
   ventaList               Venta[]
-  ajustesInv              AjustesInv[] // <- Relación 1:N (un usuario tiene muchos posts)
+  ajustesInventarioList   AjustesInventario[] // <- Relación 1:N (un usuario tiene muchos posts)
 }
 
-model AjustesInv {
+model AjustesInventario {
   idAjusInv               Int    @id @default(autoincrement())
   cantOrig                Int
   idArticulo              Int
   cantNew                 Int
   fecha                   DateTime
-  UserName                String
+  userName                String
   articulo                Articulo @relation(fields: [idArticulo], references: [idArticulo])
 }
-
 
 model ArticuloProveedor {
   idArticuloProveedor     Int     @id @default(autoincrement())

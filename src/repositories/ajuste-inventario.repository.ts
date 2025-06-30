@@ -1,6 +1,6 @@
 import { BaseRepository } from "./base.repository";
 
-export class AjustesRepository extends BaseRepository {
+export class AjusteInventarioRepository extends BaseRepository {
 
   constructor() {
     super();

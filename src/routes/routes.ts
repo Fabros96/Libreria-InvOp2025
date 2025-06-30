@@ -6,6 +6,7 @@ import { ArticuloProveedorController } from "../controllers/articulo-proveedor.c
 import { ArticuloController } from "../controllers/articulo.controller";
 import { VentaController } from "../controllers/venta.controller";
 import { OrdenCompraController } from "../controllers/orden-compra.controller";
+import { AjusteInventarioController } from "../controllers/ajustes-inv.controller";
 
 const router = express.Router();
 
@@ -62,5 +63,13 @@ router.get("/orden-compras/:id", OrdenCompraController.getById);
 router.post("/orden-compras", OrdenCompraController.create);
 router.put("/orden-compras/:id", OrdenCompraController.update);
 router.delete("/orden-compras/:id", OrdenCompraController.delete);
+
+// ajuste inv
+router.get("/ajuste-inventarios", AjusteInventarioController.getAll);
+router.get("/ajuste-inventarios/:id", AjusteInventarioController.getById);
+router.post("/ajuste-inventarios", AjusteInventarioController.create);
+router.put("/ajuste-inventarios/:id", AjusteInventarioController.update);
+router.delete("/ajuste-inventarios/:id", AjusteInventarioController.delete);
+
 
 export default router;
