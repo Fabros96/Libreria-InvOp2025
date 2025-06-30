@@ -201,6 +201,26 @@ async function main() {
   }
   await prisma.venta.createMany({ data: ventas });
   console.log(`${TOTAL_VENTAS} ventas creadas exitosamente!`);
+
+  const ajuste1 = await prisma.ajusteInventario.create({
+    data: {
+      cantOrig: 150,
+      idArticulo: 1, // Asegúrate de que el artículo con id 1 exista
+      cantNew: 145,
+      fecha: new Date(),
+      userName: 'admin',
+    },
+  });
+
+  const ajuste2 = await prisma.ajusteInventario.create({
+    data: {
+      cantOrig: 75,
+      idArticulo: 2, // Asegúrate de que el artículo con id 2 exista
+      cantNew: 80,
+      fecha: new Date(),
+      userName: 'operario_ajustes',
+    },
+  });
 }
 
 main()
