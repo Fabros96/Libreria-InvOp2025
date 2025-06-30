@@ -25,6 +25,8 @@ interface Inventario {
     loteOptimo?: number;
     puntoPedido?: number;
     stockSeguridad?: number;
+    invMaximo?: number; // Solo para modelo PF
+    periodoRevision?: number; // Solo para modelo PF
 }
 
 interface ArticuloProveedor {
@@ -67,6 +69,7 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
     const [proveedorPredeterminado, setProveedorPredeterminado] = useState<any | null>(null);
     const [proveedoresCambiados, setProveedoresCambiados] = useState<ProveedorCambiado[]>([]);
     const [modeloInventario, setModeloInventario] = useState<'LF' | 'PF' >("LF");
+    const [periodoRevision, setPeriodoRevision] = useState(0);
 
     useEffect(() => {
         console.log("useEffect edit - articulo:", articulo);
@@ -78,7 +81,7 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
             setCostoAlmacenamiento(articulo.inventario?.costoAlmacenamiento || 0);
             setCostoPedido(articulo.inventario?.costoPedido || 0);
             setCostoCompra(articulo.inventario?.costoCompra || 0);
-            setModeloInventario(articulo.modeloInventario || "LF");
+            setModeloInventario(articulo.modeloInventario);
             setProveedorPredeterminado(articulo.articuloProveedor || null)
         } else if (mode === "new") {
             setIdArticulo("");
@@ -206,6 +209,7 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                     costoAlmacenamiento,
                     costoPedido,
                     costoCompra,
+                    periodoRevision, //agrego para enviarle el periodo si es PF
                 },
                 articuloProveedor: {
                     idArticuloProveedor: articulo.articuloProveedor?.idArticuloProveedor ?? 0,
@@ -235,6 +239,8 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                     costoAlmacenamiento,
                     costoPedido,
                     costoCompra,
+                    periodoRevision
+                                             //agrego para enviarle el periodo si es PF
                 },
                 articuloProveedor: {
                     idArticuloProveedor: 1,
@@ -289,6 +295,20 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                     <option value="LF">Lote Fijo (LF)</option>
                     <option value="PF">Intervalo Fijo (PF)</option>
                     </Form.Select>
+
+                    {modeloInventario === 'PF' && (
+                        <>
+                            <label>Período de Revisión (días)</label>
+                            <input
+                            type="number"
+                            value={periodoRevision}
+                            onChange={(e) => setPeriodoRevision(Number(e.target.value))}
+                            min={1}
+                            />
+                        </>
+                        )}
+
+
 
                     {mode === "edit" && (
                         <>
