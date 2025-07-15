@@ -1,36 +1,49 @@
 export const calcularInventario = ({
-  demandaArticulo,
+  demandaArticulo, //esto se utiliza como demanda diaria del artículo
   costoPedido,
   costoAlmacenamiento,
   demoraEntrega,
   modeloInventario,
+  nivelServicio,
+  desviacionEstandar,
+  periodoRevision,
 }: {
   demandaArticulo: number | null;
   costoPedido: number | null;
   costoAlmacenamiento: number | null;
   demoraEntrega: number | null;
   modeloInventario?: string;
+  nivelServicio?: number;
+  desviacionEstandar?: number;
+  periodoRevision?: number;
 }) => {
   if (
     demandaArticulo == null ||
     costoPedido == null ||
     costoAlmacenamiento == null ||
-    demoraEntrega == null
+    demoraEntrega == null ||
+    nivelServicio == null ||
+    desviacionEstandar == null ||
+    periodoRevision == null
   ) {
     throw new Error("Parámetros inválidos para el cálculo de inventario");
   }
 
   console.log("el modelo inventario que llega a services es:", modeloInventario);
 
-  const demandaDiaria = demandaArticulo / 365;
+  
   if (modeloInventario === 'LF') {
     console.log("Recalcularé con lote fijo");
 
-    const EOQ = Math.round(Math.sqrt((2 * demandaArticulo * costoPedido) / costoAlmacenamiento));
+    const demandaAnual = demandaArticulo * 360; //360 por que común en planificación, control de stock, y contabilidad usar "año comercial" = 12 meses de 30 días
 
-    const stockSeguridad = Math.round((demandaDiaria * demoraEntrega) * 0.2);
+    const EOQ = Math.round(Math.sqrt((2 * demandaAnual * costoPedido) / costoAlmacenamiento));
 
-    const puntoPedido = Math.round((demandaDiaria * demoraEntrega) + stockSeguridad);
+    const stockSeguridad = Math.round( nivelServicio * desviacionEstandar * Math.sqrt(demoraEntrega))
+
+    const puntoPedido = Math.round((demandaArticulo * demoraEntrega) + stockSeguridad);
+
+    //calculo para CGI = ( demandaArticulo * precioUnitario ) + (demandaArticulo / loteOptimo) + (loteOptimo/2 * costoAlmacenamiento)
 
     return {
       loteOptimo: EOQ,
@@ -41,10 +54,11 @@ export const calcularInventario = ({
   }
 
   if (modeloInventario === 'PF') {
-    console.log("Recalcularé con punto fijo");
-    console.log("demoraEntrega: ",demoraEntrega)
-    const stockSeguridad = Math.round((demandaDiaria * demoraEntrega) * 0.2);
-    const inventarioMaximo = demandaDiaria * (10 + demoraEntrega) + stockSeguridad; // 10: periodo revisión fijo de prueba
+
+    console.log("Recalcularé con Periodo Fijo");
+    
+    const stockSeguridad = Math.round( nivelServicio * desviacionEstandar * Math.sqrt(demoraEntrega))
+    const inventarioMaximo = Math.round(demandaArticulo *(periodoRevision+demoraEntrega)+stockSeguridad)
 
     return {
       loteOptimo: null,
@@ -54,7 +68,6 @@ export const calcularInventario = ({
     };
   }
 
-  // ⚠️ Este fallback evita retornar undefined
   throw new Error("Modelo de inventario no reconocido. Debe ser 'LF' o 'PF'");
 };
 

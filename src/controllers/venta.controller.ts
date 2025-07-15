@@ -27,13 +27,49 @@ export const VentaController = {
     },
 
     create: async (req: Request, res: Response) => {
-        let { idArticulo, cantidad, fechaCreacion } = req.body;
+        let { idArticulo, cantidad, fechaCreacion, forzarVenta } = req.body;
         try {
-            if (!fechaCreacion) fechaCreacion = new Date();
+            if (!fechaCreacion) fechaCreacion = new Date(Date.now());
 
+            // Traer stock actual
             const stockArticulo = await prisma.articulo.findUnique({
                 where: { idArticulo },
                 select: { stock: true }
+            });
+
+            // Traer modeloInventario y datos de inventario
+            const inventarioArticulo = await prisma.articulo.findUnique({
+                where: { idArticulo },
+                select: {
+                    modeloInventario: true,
+                    inventario: {
+                        select: {
+                            loteOptimo: true,
+                            puntoPedido: true,
+                        }
+                    }
+                }
+            });
+
+            // Verificar OC existente
+            const ordenExistente = await prisma.ordenCompra.findFirst({
+                where: {
+                    idArticulo,
+                    idEstadoOrdenCompra: { in: [1, 3] } // pendiente o enviada
+                }
+            });
+
+            if (ordenExistente && !forzarVenta) {
+                return res.status(200).json({
+                    advertencia: true,
+                    msg: 'Existe una orden de compra activa para este artículo y no se va a generar una orden automática hasta que finalice la orden de compra. ¿Desea continuar con la venta?'
+                })
+            }
+
+            // Traer proveedores del artículo
+            const articuloProveedor = await prisma.articuloProveedor.findMany({
+                where: { idArticulo },
+                orderBy: { precioUnitario: 'desc' }
             });
 
             if (!stockArticulo) {
@@ -48,10 +84,12 @@ export const VentaController = {
                 return res.status(400).json({ msg: 'La cantidad solicitada supera el stock disponible.' });
             }
 
+            // Generar la venta
             const nuevaVenta = await prisma.venta.create({
                 data: { idArticulo, cantidad, fechaCreacion }
             });
 
+            // Decrementar stock
             const updateArticulo = await prisma.articulo.update({
                 where: { idArticulo },
                 data: {
@@ -64,48 +102,41 @@ export const VentaController = {
                 }
             });
 
+            // Revisar si hay que generar OC
+            const nuevoStock = updateArticulo.stock;
+            const puntoPedido = updateArticulo.inventario?.puntoPedido ?? 0;
+            const loteOptimo = updateArticulo.inventario?.loteOptimo ?? 0;
+            const modeloInventario = inventarioArticulo?.modeloInventario;
+            
             if (
-                updateArticulo.modeloInventario === 'LF' &&
-                updateArticulo.stock! < updateArticulo.inventario.puntoPedido!
+                modeloInventario === 'LF' &&
+                nuevoStock < puntoPedido &&
+                !ordenExistente
             ) {
-                const ordenExistente = await prisma.ordenCompra.findFirst({
-                    where: {
+                await prisma.ordenCompra.create({
+                    data: {
                         idArticulo,
-                        idEstadoOrdenCompra: {
-                            in: [1, 4] // pendiente o enviada
-                        }
+                        idProveedor: articuloProveedor[0].idProveedor,
+                        idEstadoOrdenCompra: 1, // pendiente
+                        cantidad: loteOptimo,
+                        fechaCreacion: new Date(Date.now()),
                     }
                 });
-
-                if (!ordenExistente) {
-                    const articuloProveedor = await prisma.articuloProveedor.findMany({
-                        where: { idArticulo },
-                        orderBy: { precioUnitario: 'desc' }
-                    });
-
-                    const cantidadAPedir = Math.round(
-                        updateArticulo.inventario.demandaArticulo! *
-                        articuloProveedor[0].demoraEntrega! -
-                        (updateArticulo.stock! + cantidad)
-                    );
-
-                    await prisma.ordenCompra.create({
-                        data: {
-                            idArticulo,
-                            idProveedor: articuloProveedor[0].idProveedor,
-                            idEstadoOrdenCompra: 1, // Estado pendiente
-                            cantidad: cantidadAPedir
-                        }
-                    });
-                }
             }
 
-            res.status(201).json({ msg: 'Venta creada correctamente.', data: nuevaVenta });
+            res.status(201).json({
+                msg: 'Venta creada correctamente.',
+                data: nuevaVenta,
+                updateArticulo
+            });
 
         } catch (error: any) {
             res.status(500).json({ msg: 'Error al crear la venta', detail: error.message });
         }
     },
+
+
+
 
     // Actualizar un venta (update)
     update: async (req: Request, res: Response) => {

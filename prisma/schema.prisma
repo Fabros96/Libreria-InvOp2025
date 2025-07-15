@@ -68,6 +68,8 @@ model ArticuloProveedor {
   demoraEntrega           Int?
   esPredeterminado        Boolean?
   precioUnitario          Int?
+  nivelServicio           Float?
+  desviacionEstandar      Float?
   articulo                Articulo @relation(fields: [idArticulo], references: [idArticulo])
   proveedor               Proveedor @relation(fields: [idProveedor], references: [idProveedor])
 }
@@ -86,6 +88,7 @@ model OrdenCompra {
   idEstadoOrdenCompra     Int
   cantidad                Int?
   fechaCreacion           DateTime?
+  fechaBaja               DateTime?
   articulo                Articulo @relation(fields: [idArticulo], references: [idArticulo])
   proveedor               Proveedor @relation(fields: [idProveedor], references: [idProveedor])
   estadoOrdenCompra       EstadoOrdenCompra @relation(fields: [idEstadoOrdenCompra], references: [idEstadoOrdenCompra])

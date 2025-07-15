@@ -177,7 +177,7 @@ async function main() {
     }),
   ]);
 
-  const TOTAL_VENTAS = 1000;           // Cantidad de registros que quieres crear
+  const TOTAL_VENTAS = 5;           // Cantidad de registros que quieres crear
   const MAX_CANTIDAD = 20;             // Cantidad máxima por venta
   const FECHA_INICIO = new Date(2023, 0, 1);
   const FECHA_FIN = new Date(2023, 11, 31);
