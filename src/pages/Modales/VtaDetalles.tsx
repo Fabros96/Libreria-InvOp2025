@@ -64,6 +64,7 @@ const VtaDetalle = ({ show, onHide, articulo }: VtaDetalleProps) => {
     const [proveedorSeleccionado, setProveedorSeleccionado] = useState<any | null>(null);
     const [data, setData] = useState<VentasData>({ datos: [], totalPages: 0 });
 
+
     // Al cambiar la cantidad o el proveedor, calculamos el total
     useEffect(() => {
         if (proveedorSeleccionado && cantidad > 0) {
@@ -87,6 +88,47 @@ const VtaDetalle = ({ show, onHide, articulo }: VtaDetalleProps) => {
 
 
 
+    // const handleVta = async (nuevaVenta: {
+    //     idArticulo: number;
+    //     cantidad: number;
+    //     fecha: Date;
+    //     articulo: Articulo;
+    // }) => {
+    //     try {
+
+    //         if (articulo.modeloInventario === "LF" && cantidad <= articulo.stock) {
+
+    //             const response = await axiosClient.post("/ventas", nuevaVenta);
+    //             console.log(response)
+
+    //             const ventaCreada = response.data;
+
+    //             setData(prevData => ({
+    //                 ...prevData,
+    //                 datos: [...prevData.datos, ventaCreada],
+    //             }));
+    //             showToasty("Venta realizada exitosamente", "success");
+    //             onHide();
+    //             generarOCAutomatica(articulo, articulo.inventario, cantidad)
+    //         }
+
+    //         if (articulo.modeloInventario !== "LF") {
+    //             // Para modelo PF, no se puede vender si hay órdenes pendientes o enviadas
+    //             showToasty("Solo se puede crear la venta para modelo LF", "error");
+    //         }
+    //         if (cantidad > articulo.stock) {
+    //             // Para modelo PF, no se puede vender si hay órdenes pendientes o enviadas
+    //             showToasty("La cantidad es mayor al stock", "error");
+    //         }
+
+    //     } catch (error) {
+    //         console.error(error);
+    //         showToasty("Error al crear la venta", "error");
+    //     }
+    // };
+
+
+
     const handleVta = async (nuevaVenta: {
         idArticulo: number;
         cantidad: number;
@@ -94,35 +136,55 @@ const VtaDetalle = ({ show, onHide, articulo }: VtaDetalleProps) => {
         articulo: Articulo;
     }) => {
         try {
+            // Intento inicial de crear la venta
+            const response: any = await axiosClient.post("/ventas", nuevaVenta);
 
-            if (articulo.modeloInventario === "LF" && cantidad <= articulo.stock) {
+            if (cantidad > articulo.stock) {
+                showToasty("La cantidad es mayor al stock", "error");
+            }
 
-                const response = await axiosClient.post("/ventas", nuevaVenta);
+            // Si el backend devuelve advertencia, consultamos al usuario
+            if (response.advertencia) {
+                const confirmar = window.confirm(response.msg);
+                if (!confirmar) {
+                    showToasty("Venta cancelada por el usuario.", "info");
+                    return; // Salimos sin crear la venta
+                }
 
-                const ventaCreada = response.data;
+                // Usuario confirmó continuar → reenviamos con forzarVenta: true
+                const confirmResponse = await axiosClient.post("/ventas", {
+                    ...nuevaVenta,
+                    forzarVenta: true
+                });
 
                 setData(prevData => ({
                     ...prevData,
-                    datos: [...prevData.datos, ventaCreada],
+                    datos: [...prevData.datos, confirmResponse.data],
                 }));
+
                 showToasty("Venta realizada exitosamente", "success");
                 onHide();
-                generarOCAutomatica(articulo, articulo.inventario)
+                return;
             }
 
-            if (articulo.modeloInventario !== "LF") {
-                // Para modelo PF, no se puede vender si hay órdenes pendientes o enviadas
-                showToasty("Solo se puede crear la venta para modelo LF", "error");
-            }
+            // Si no hubo advertencia, guardamos la venta directamente
+            setData(prevData => ({
+                ...prevData,
+                datos: [...prevData.datos, response.data],
+            }));
+            
 
-        } catch (error) {
+            showToasty("Venta realizada exitosamente", "success");
+            onHide();
+
+        } catch (error: any) {
             console.error(error);
-            showToasty("Error al crear la venta", "error");
+
+            const msg = error?.response?.data?.msg || "Error al crear la venta.";
+            console.log("mostrando toasty", msg);
+            showToasty(msg, "error");
         }
     };
-
-
-
 
     return (
         <Modal show={show} onHide={onHide} centered>
@@ -190,7 +252,7 @@ const VtaDetalle = ({ show, onHide, articulo }: VtaDetalleProps) => {
                             onChange={(e) => setCantidad(Number(e.target.value))}
                             onBlur={() => {
                                 if (cantidad > (articulo?.stock ?? 0)) {
-                                    setCantidad(articulo.stock);
+                                    setCantidad(cantidad);
                                 } else if (cantidad < 0) {
                                     setCantidad(0);
                                 }
@@ -217,7 +279,7 @@ const VtaDetalle = ({ show, onHide, articulo }: VtaDetalleProps) => {
                         const nuevaVenta = {
                             idArticulo: articulo.idArticulo,
                             cantidad: cantidad,
-                            fecha: new Date(),
+                            fecha: new Date(Date.now()),
                             articulo: articulo,
                         };
 

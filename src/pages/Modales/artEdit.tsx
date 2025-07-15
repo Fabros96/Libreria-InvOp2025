@@ -26,6 +26,7 @@ interface Inventario {
     loteOptimo?: number;
     puntoPedido?: number;
     stockSeguridad?: number;
+    periodoRevision?: number;
     invMaximo?: number;
 }
 
@@ -99,14 +100,15 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
             let updatedArticulo: Articulo;
             const demoraEntrega = proveedorPredeterminado?.demoraEntrega || 0;
 
-            const inventarioCalculado = calcularDatosInventario({
-                demanda,
-                costoPedido,
-                costoAlmacenamiento,
-                modeloInventario,
-                demoraEntrega,
+            // const inventarioCalculado = calcularDatosInventario({
+            //     demanda,
+            //     costoPedido,
+            //     costoAlmacenamiento,
+            //     modeloInventario,
+            //     demoraEntrega,
 
-            });
+            // });
+
             if (mode === "edit") {
                 updatedArticulo = {
                     ...articulo,
@@ -114,8 +116,12 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                     stock,
                     modeloInventario,
                     inventario: {
-                        ...inventarioCalculado,
+                        //...inventarioCalculado,
                         idInventario: articulo.inventario?.idInventario,
+                        periodoRevision,
+                        demandaArticulo: demanda,
+                        costoAlmacenamiento,
+                        costoPedido,
                     },
                     articuloProveedor: proveedorPredeterminado,
                 };
@@ -131,7 +137,7 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                     descripcion,
                     modeloInventario,
                     stock,
-                    inventario: inventarioCalculado,
+                    //inventario: inventarioCalculado,
                     articuloProveedor: {
                         idArticuloProveedor: 0,
                         cargoPedido: proveedorPredeterminado?.cargoPedido || 0,
@@ -208,7 +214,7 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                     <div className="d-flex justify-content-between gap-2 mt-3">
 
                         <div style={{ width: "33%" }}>
-                            <Form.Label>Demanda Anual</Form.Label>
+                            <Form.Label>Demanda Diaria</Form.Label>
                             <Form.Control type="number" min={0} value={demanda} onChange={(e) => setDemanda(Number(e.target.value))} />
                         </div>
                         <div style={{ width: "33%" }}>

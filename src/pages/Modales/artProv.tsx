@@ -38,6 +38,8 @@ type ArticuloProveedor = {
     demoraEntrega: number,
     esPredeterminado: boolean,
     precioUnitario: number,
+    nivelServicio: number,
+    desviacionEstandar: number,
     proveedor: Proveedor,
     articulo: Articulo,
 };

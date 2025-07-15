@@ -39,6 +39,8 @@ type ArticuloProveedor = {
     demoraEntrega: number,
     esPredeterminado: boolean,
     precioUnitario: number,
+    nivelServicio: number,
+    desviacionEstandar: number,
     proveedor: Proveedor,
     articulo: Articulo,
 };
@@ -98,7 +100,6 @@ const Proveedores = () => {
     const handleUpdateProveedor = async (updatedProveedor: any) => {
         try {
 
-
             // Procesar artículos
             for (const articulo of updatedProveedor.articulos) {
                 const data = {
@@ -107,6 +108,8 @@ const Proveedores = () => {
                     cargoPedido: articulo.cargoPedido,
                     demoraEntrega: articulo.demoraEntrega,
                     precioUnitario: articulo.precioUnitario,
+                    nivelServicio: articulo.nivelServicio,
+                    desviacionEstandar: articulo.desviacionEstandar,
                 };
 
                 if (articulo.idArticuloProveedor && articulo.idArticuloProveedor !== 0) {
@@ -179,6 +182,8 @@ const Proveedores = () => {
                     cargoPedido: articulo.cargoPedido,
                     demoraEntrega: articulo.demoraEntrega,
                     precioUnitario: articulo.precioUnitario,
+                    nivelServicio: articulo.nivelServicio,
+                    desviacionEstandar: articulo.desviacionEstandar,
                 };
 
                 const responseArt = await fetch(`http://localhost:3000/articulo-proveedores`, {

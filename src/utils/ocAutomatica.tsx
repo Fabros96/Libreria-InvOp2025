@@ -2,9 +2,13 @@ import axiosClient from "../api/axiosClient";
 import { tieneOrdenesActivas } from "./tieneOrdenesActivas";
 import { showToasty } from "./toasty";
 
-export async function generarOCAutomatica(art: any, inv: any) {
+export async function generarOCAutomatica(art: any, inv: any, cantidad: any) {
+  console.log("estoy entrando")
   // Verificar si ya hay órdenes activas para este artículo
   const ords = await tieneOrdenesActivas({ idObj: art.idArticulo, tipo: "art" });
+
+  console.log(ords)
+  console.log(art)
 
   // Si el modelo de inventario es LF, el stock es mayor o igual al punto de pedido,
   // y no hay órdenes pendientes/enviadas, crear una orden de compra.
@@ -13,9 +17,9 @@ export async function generarOCAutomatica(art: any, inv: any) {
 //  if (art.modeloInventario === 'LF' && (art.stock <= inv.puntoPedido) && (!ords)) {
 
 // OPCION 1
+const stk = art.inventario.puntoPedido;
     if (art.modeloInventario === 'LF' && (art.stock >= inv.puntoPedido) && (!ords)) {
     const idA = art.idArticulo;
-    const stk = art.inventario.stockSeguridad;
 
     try {
       // Buscar proveedor predeterminado para el artículo
@@ -26,7 +30,7 @@ export async function generarOCAutomatica(art: any, inv: any) {
       const idP = proveedor.data[0]?.idProveedor;
 
       // Validación de datos
-      if (!idA || !idP || stk <= 0) {
+      if (!stk) {
         showToasty("Todos los campos son obligatorios y la cantidad debe ser mayor que cero.", "error");
         return;
       }
@@ -36,9 +40,11 @@ export async function generarOCAutomatica(art: any, inv: any) {
         idArticulo: idA,
         idProveedor: idP,
         idEstadoOrdenCompra: 3, // Estado "pendiente"
-        cantidad: stk,
+        cantidad,
         fechaCreacion: new Date().toISOString(),
       };
+      console.log("unciona")
+      console.log(art.inventario.puntoPedido)
 
       // Enviar orden al servidor
       await axiosClient.post("/orden-compras", nuevaOrden);

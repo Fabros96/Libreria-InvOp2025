@@ -9,7 +9,7 @@ import MaintenancePage from '../pages/MaintenancePage';
 import Articulos from '../pages/Articulos';
 import Proveedores from '../pages/Proveedores';
 import Ventas from '../pages/Ventas';
-import Ordenes from '../pages/Ordenes';
+import Ordenes from '../pages/Ordenes' 
 
 const AppRoutes: React.FC = () => {
   return (

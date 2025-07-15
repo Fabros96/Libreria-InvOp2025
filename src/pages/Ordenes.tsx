@@ -1,33 +1,10 @@
 import { useEffect, useState } from "react";
 import axiosClient from "../api/axiosClient";
-
-interface OrdenCompra {
-  idOrdenCompra: number;
-  idArticulo: number;
-  idProveedor: number;
-  idEstadoOrdenCompra: number;
-  cantidad: number;
-  fechaCreacion: string;
-  articulo: {
-    descripcion: string;
-  };
-  proveedor: {
-    nombre: string;
-  };
-  estadoOrdenCompra: {
-    nombre: string;
-  };
-}
-
-interface Articulo {
-  idArticulo: number;
-  descripcion: string;
-}
-
-interface Proveedor {
-  idProveedor: number;
-  nombre: string;
-}
+import type { OrdenCompra, Articulo, Proveedor } from "../types/ordenCompra";
+import { Modal, Button, Form, Table, Container } from "react-bootstrap";
+import { showToasty } from "../utils/toasty";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 export default function Ordenes() {
   const [ordenes, setOrdenes] = useState<OrdenCompra[]>([]);
@@ -36,60 +13,59 @@ export default function Ordenes() {
   const [idArticulo, setIdArticulo] = useState<number | null>(null);
   const [idProveedor, setIdProveedor] = useState<number | null>(null);
   const [cantidad, setCantidad] = useState<number>(1);
-  const [mensaje, setMensaje] = useState<string>("");
   const [ordenSeleccionada, setOrdenSeleccionada] = useState<OrdenCompra | null>(null);
-  const [loteOptimoSugerido, setLoteOptimoSugerido] = useState<number | null>(null);
-  
-  
   const [modo, setModo] = useState<"crear" | "modificar" | "estado">("crear");
+  const [showModal, setShowModal] = useState(false);
+  const [showEstadoModal, setShowEstadoModal] = useState(false);
+  const [loteOptimoSugerido, setLoteOptimoSugerido] = useState<number | null>(null);
+
+  const [paginaActual, setPaginaActual] = useState(1);
+  const porPagina = 10;
 
   const esFinalizada = ordenSeleccionada?.idEstadoOrdenCompra === 4;
- 
-  useEffect(() => {
-    const fetchData = async () => {
-      const resOrdenes = await axiosClient.get("/orden-compras?filter[include]=articulo,proveedor,estadoOrdenCompra");
-      setOrdenes(resOrdenes.data);
 
+  const fetchOrdenes = async () => {
+    const res = await axiosClient.get("/orden-compras?filter[include]=articulo,proveedor,estadoOrdenCompra");
+    setOrdenes(res.data);
+    setPaginaActual(1);
+  };
+
+  useEffect(() => {
+    fetchOrdenes();
+    const fetchDatos = async () => {
       const resArt = await axiosClient.get("/articulos?filter[fechaBaja][eq]=null");
       setArticulos(resArt.data);
-
       const resProv = await axiosClient.get("/proveedores");
       setProveedores(resProv.data);
     };
-    fetchData();
+    fetchDatos();
   }, []);
 
-  // Cargar proveedor predeterminado al cambiar el artículo
-useEffect(() => {
-  const buscarProveedorPredeterminado = async (idArt: number) => {
-    try {
-      const res = await axiosClient.get(`/articulo-proveedores/predeterminado/${idArt}`);
-      const proveedor = res.data?.proveedor
-      if (proveedor?.idProveedor) {
-        setIdProveedor(proveedor.idProveedor);
-      }
-      // Buscar lote óptimo sugerido
+  useEffect(() => {
+    const buscarProveedorPredeterminado = async (idArt: number) => {
+      try {
+        const res = await axiosClient.get(`/articulo-proveedores/predeterminado/${idArt}`);
+        const proveedor = res.data?.proveedor;
+        if (proveedor?.idProveedor) setIdProveedor(proveedor.idProveedor);
+
         const resLote: any = await axiosClient.get(`/inventarios/lote-optimo/${idArt}`);
         setLoteOptimoSugerido(resLote.loteOptimo ?? null);
+      } catch (error) {
+        console.error("Error al buscar proveedor predeterminado:", error);
+      }
+    };
 
-    } catch (error) {
-      console.error("Error al buscar proveedor predeterminado:", error);
+    if (idArticulo !== null && proveedores.length > 0) {
+      buscarProveedorPredeterminado(idArticulo);
+    } else {
+      setLoteOptimoSugerido(null);
     }
-  };
-
-  
-
-  if (idArticulo !== null && proveedores.length > 0) {
-    buscarProveedorPredeterminado(idArticulo);
-  }
-}, [idArticulo, proveedores]);
-
-
+  }, [idArticulo, proveedores]);
 
   const crearOrden = async () => {
     try {
       if (!idArticulo || !idProveedor || cantidad <= 0) {
-        setMensaje("Todos los campos son obligatorios y la cantidad debe ser mayor que cero.");
+        showToasty("Todos los campos son obligatorios.", "error");
         return;
       }
       const nuevaOrden = {
@@ -100,12 +76,13 @@ useEffect(() => {
         fechaCreacion: new Date().toISOString(),
       };
       await axiosClient.post("/orden-compras", nuevaOrden);
-      setMensaje("Orden creada exitosamente.");
+      showToasty("Orden creada exitosamente.", "success");
+      setShowModal(false);
+      await fetchOrdenes();
     } catch (err: any) {
-      setMensaje("Error al crear: " + (err.response?.data?.msg || err.message));
+      showToasty("Error al crear: " + (err.response?.data?.msg || err.message), "error");
     }
   };
-
 
   const modificarOrden = async () => {
     if (!ordenSeleccionada) return;
@@ -118,233 +95,263 @@ useEffect(() => {
         fechaCreacion: ordenSeleccionada.fechaCreacion,
       };
       const res = await axiosClient.put(`/orden-compras/${ordenSeleccionada.idOrdenCompra}`, actualizada);
-      const advertencia = res.data.advertencia;
       const mensajeBase = res.data.msg || "Orden modificada exitosamente.";
-      setMensaje(advertencia ? `Advertencia: ${mensajeBase}` : mensajeBase)
-
+      if (res.data.advertencia) {
+        showToasty("Advertencia: " + mensajeBase, "warning");
+      } else {
+        showToasty(mensajeBase, "success");
+      }
+      setShowModal(false);
+      await fetchOrdenes();
     } catch (err: any) {
-      setMensaje("Error al modificar: " + (err.response?.data?.msg || err.message));
+      showToasty("Error al modificar: " + (err.response?.data?.msg || err.message), "error");
     }
   };
 
-const cambiarEstadoOrden = async (nuevoEstado: number) => {
-  if (!ordenSeleccionada) return;
+  const cambiarEstadoOrden = async (nuevoEstado: number) => {
+    if (!ordenSeleccionada) return;
 
-  try {
-    const res: any = await axiosClient.put(`/orden-compras/${ordenSeleccionada.idOrdenCompra}`, {
-      idEstadoOrdenCompra: nuevoEstado,
-    });
+    try {
+      // 🚨 Recordá: axiosClient ya devuelve directamente el response.data
+      const res: any = await axiosClient.put(`/orden-compras/${ordenSeleccionada.idOrdenCompra}`, {
+        idEstadoOrdenCompra: nuevoEstado,
+      });
 
-    // Acceder correctamente al contenido
-    const respuesta = res
+      // 🔍 Si hay advertencia (pero no error), consultamos al usuario
+      if (res.advertencia) {
+        const confirmar = window.confirm(`${res.msg}\n¿Desea continuar de todos modos?`);
+        if (!confirmar) {
+          showToasty("El estado de la orden no fue modificado.", "info");
+          return;
+        }
 
-    if (respuesta.advertencia) {
-      setMensaje(respuesta.msg || "Orden finalizada con advertencia.");
-    } else {
-      setMensaje(respuesta.msg || "Estado actualizado correctamente.");
+        // Si confirmó continuar, reenviamos la misma solicitud con "forzar"
+        const confirmacion: any = await axiosClient.put(`/orden-compras/${ordenSeleccionada.idOrdenCompra}`, {
+          idEstadoOrdenCompra: nuevoEstado,
+          confirmarEnvioForzado: true, //flag para confirmar el envio de que quiere continuar con la cantidad < al punto pedido
+        });
+
+        showToasty(confirmacion.msg || "Estado actualizado correctamente.", "success");
+      } else {
+        //No hubo advertencia, todo ok
+        showToasty(res.msg || "Estado actualizado correctamente.", "success");
+      }
+
+      setShowEstadoModal(false);
+      await fetchOrdenes();
+
+    } catch (err: any) {
+      showToasty("Error al cambiar estado: " + (err.response?.data?.msg || err.message), "error");
     }
+  };
 
-  } catch (err: any) {
-    setMensaje("Error al cambiar estado: " + (err.response?.data?.msg || err.message));
-  }
-};
 
+
+
+
+  const eliminarOrden = async (id: number) => {
+    const confirmacion = window.confirm("¿Está seguro de que desea eliminar esta orden?");
+    if (!confirmacion) return;
+
+    try {
+      await axiosClient.delete(`/orden-compras/${id}`);
+      showToasty("Orden eliminada correctamente.", "success");
+      await fetchOrdenes();
+    } catch (err: any) {
+      showToasty("Error al eliminar: " + (err.response?.data?.msg || err.message), "error");
+    }
+  };
+
+  const ordenesActivas = ordenes.filter((orden) => !orden.fechaBaja);
+  const totalPaginas = Math.ceil(ordenesActivas.length / porPagina);
+  const ordenesPaginadas = ordenesActivas.slice(
+    (paginaActual - 1) * porPagina,
+    paginaActual * porPagina
+  );
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Órdenes de Compra</h1>
+    <Container className="mt-4">
+      <h2 className="text-center mb-4">Órdenes de Compra</h2>
 
-      {mensaje && (
-        <div className="mb-4 text-sm text-green-600 bg-green-100 px-4 py-2 rounded">
-          {mensaje}
-        </div>
-      )}
-
-    <div className="mb-1">
-    <button
-        onClick={() => {
-        setModo("crear");
-        setIdArticulo(null);
-        setIdProveedor(null);
-        setCantidad(1);
-        setOrdenSeleccionada(null);
-        }}
-        className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1.5 text-sm rounded flex items-center space-x-2"
-    >
-        <svg
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        strokeWidth={2}
-        stroke="currentColor"
-        className="w-1 h-1"
+      <div className="d-flex justify-content-end mb-3">
+        <Button
+          variant="primary"
+          onClick={() => {
+            setModo("crear");
+            setOrdenSeleccionada(null);
+            setIdArticulo(null);
+            setIdProveedor(null);
+            setCantidad(1);
+            setLoteOptimoSugerido(null);
+            setShowModal(true);
+          }}
         >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-        </svg>
-        <span>Nueva Orden</span>
-    </button>
-    </div>
+          Nueva Orden
+        </Button>
+      </div>
 
-
-      <table className="w-full table-auto border border-gray-300">
-        <thead className="bg-gray-100">
+      <Table striped bordered hover responsive className="text-center">
+        <thead className="table-light">
           <tr>
-            <th className="px-4 py-2 border">Artículo</th>
-            <th className="px-4 py-2 border">Proveedor</th>
-            <th className="px-4 py-2 border">Cantidad</th>
-            <th className="px-4 py-2 border">Fecha</th>
-            <th className="px-4 py-2 border">Estado</th>
-            <th className="px-4 py-2 border">Acciones</th>
+            <th>Artículo</th>
+            <th>Proveedor</th>
+            <th>Cantidad</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+            <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
-          {ordenes.map((orden) => (
-            <tr key={orden.idOrdenCompra} className="text-center">
-              <td className="px-4 py-2 border">{orden.articulo?.descripcion}</td>
-              <td className="px-4 py-2 border">{orden.proveedor?.nombre}</td>
-              <td className="px-4 py-2 border">{orden.cantidad}</td>
-              <td className="px-4 py-2 border">{new Date(orden.fechaCreacion).toLocaleDateString()}</td>
-              <td className="px-4 py-2 border">{orden.estadoOrdenCompra?.nombre}</td>
-              <td className="px-4 py-2 border space-x-2">
-                <button
-                  className="bg-yellow-500 text-white px-3 py-1 rounded"
+          {ordenesPaginadas.map((orden) => (
+            <tr key={orden.idOrdenCompra}>
+              <td>{orden.articulo?.descripcion}</td>
+              <td>{orden.proveedor?.nombre}</td>
+              <td>{orden.cantidad}</td>
+              <td>{new Date(orden.fechaCreacion).toLocaleDateString()}</td>
+              <td>{orden.estadoOrdenCompra?.nombre}</td>
+              <td>
+                <Button
+                  size="sm"
+                  variant="warning"
+                  className="me-2"
+                  disabled={orden.idEstadoOrdenCompra === 2 || orden.idEstadoOrdenCompra === 4}
                   onClick={() => {
                     setModo("modificar");
                     setOrdenSeleccionada(orden);
                     setIdArticulo(orden.idArticulo);
                     setIdProveedor(orden.idProveedor);
                     setCantidad(orden.cantidad);
+                    setShowModal(true);
                   }}
-                  disabled={orden.idEstadoOrdenCompra === 2}
-                  title={orden.idEstadoOrdenCompra === 2 ? "La orden está cancelada y no puede modificarse": ""}
                 >
                   Modificar
-                </button>
-                <button
-                  className="bg-blue-500 text-white px-3 py-1 rounded"
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="me-2"
+                  disabled={orden.idEstadoOrdenCompra === 2 || orden.idEstadoOrdenCompra === 4}
                   onClick={() => {
                     setModo("estado");
                     setOrdenSeleccionada(orden);
+                    setShowEstadoModal(true);
                   }}
-                  disabled={orden.idEstadoOrdenCompra === 2 || orden.idEstadoOrdenCompra === 4}
                 >
-                  Cambiar estado
-                </button>
+                  Cambiar Estado
+                </Button>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => eliminarOrden(orden.idOrdenCompra)}
+                >
+                  Eliminar
+                </Button>
               </td>
             </tr>
           ))}
         </tbody>
-      </table>
+      </Table>
 
-      {/* Formulario dinámico */}
-      {modo === "crear" || modo === "modificar" ? (
-        <div className="mt-6 border-t pt-4">
-          <h2 className="text-lg font-semibold mb-2">
-            {modo === "crear" ? "Crear Nueva Orden" : "Modificar Orden"}
-          </h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block">Artículo:</label>
-            <select
+      <div className="d-flex justify-content-center align-items-center mt-3 gap-2">
+        <Button
+          variant="outline-secondary"
+          size="sm"
+          disabled={paginaActual === 1}
+          onClick={() => setPaginaActual(paginaActual - 1)}
+        >
+          Anterior
+        </Button>
+        <span>Página {paginaActual} de {totalPaginas}</span>
+        <Button
+          variant="outline-secondary"
+          size="sm"
+          disabled={paginaActual === totalPaginas || totalPaginas === 0}
+          onClick={() => setPaginaActual(paginaActual + 1)}
+        >
+          Siguiente
+        </Button>
+      </div>
+
+      <Modal show={showModal} onHide={() => setShowModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>{modo === "crear" ? "Crear Orden" : "Modificar Orden"}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group className="mb-2">
+            <Form.Label>Artículo</Form.Label>
+            <Form.Select
               value={idArticulo ?? ""}
-              onChange={(e) => {
-                const nuevoIdArticulo = Number(e.target.value);
-                setIdArticulo(nuevoIdArticulo); // ← solo esto
-              }}
-              className="border rounded px-2 py-1 w-full"
+              onChange={(e) => setIdArticulo(Number(e.target.value))}
               disabled={esFinalizada}
             >
               <option value="">Seleccionar...</option>
               {articulos.map((a) => (
-                <option key={a.idArticulo} value={a.idArticulo}>
-                  {a.descripcion}
-                </option>
+                <option key={a.idArticulo} value={a.idArticulo}>{a.descripcion}</option>
               ))}
-            </select>
+            </Form.Select>
+          </Form.Group>
 
-            </div>
-            <div>
-              <label className="block">Proveedor:</label>
-            <select
+          <Form.Group className="mb-2">
+            <Form.Label>Proveedor</Form.Label>
+            <Form.Select
               value={idProveedor ?? ""}
               onChange={(e) => setIdProveedor(Number(e.target.value))}
-              className="border rounded px-2 py-1 w-full"
               disabled={esFinalizada}
             >
               <option value="">Seleccionar...</option>
               {proveedores.map((p) => (
-                <option key={p.idProveedor} value={p.idProveedor}>
-                  {p.nombre}
-                </option>
+                <option key={p.idProveedor} value={p.idProveedor}>{p.nombre}</option>
               ))}
-            </select>
-            </div>
-            <div>
-              {loteOptimoSugerido !== null && (
-  <div className="text-sm text-gray-600 mb-1">
-    Sugerencia de cantidad (lote óptimo): <span className="font-semibold">{loteOptimoSugerido}</span>
-  </div>
-)}
-              <label className="block">Cantidad:</label>
-              <input
-                type="number"
-                value={cantidad}
-                min={1}
-                onChange={(e) => setCantidad(Number(e.target.value))}
-                className="border rounded px-2 py-1 w-full"
-                disabled={esFinalizada}
-              />
-            </div>
-            <button
-              onClick={modo === "crear" ? crearOrden : modificarOrden}
-              className="bg-green-600 text-white px-4 py-2 rounded"
+            </Form.Select>
+          </Form.Group>
+
+          {loteOptimoSugerido !== null && (
+            <Form.Text className="text-muted">
+              Lote óptimo sugerido: <strong>{loteOptimoSugerido}</strong>
+            </Form.Text>
+          )}
+
+          <Form.Group className="mt-3">
+            <Form.Label>Cantidad</Form.Label>
+            <Form.Control
+              type="number"
+              min={1}
+              value={cantidad}
+              onChange={(e) => setCantidad(Number(e.target.value))}
               disabled={esFinalizada}
-            >
-              {modo === "crear" ? "Crear Orden" : "Guardar Cambios"}
-            </button>
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="success" onClick={modo === "crear" ? crearOrden : modificarOrden}>
+            {modo === "crear" ? "Crear" : "Guardar Cambios"}
+          </Button>
+          <Button variant="secondary" onClick={() => setShowModal(false)}>Cancelar</Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={showEstadoModal} onHide={() => setShowEstadoModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Cambiar Estado</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>
+            Orden #{ordenSeleccionada?.idOrdenCompra} — Artículo:{" "}
+            <strong>{ordenSeleccionada?.articulo?.descripcion}</strong>
+          </p>
+          <div className="d-grid gap-2">
+            <Button variant="outline-success" onClick={() => cambiarEstadoOrden(1)}>Pendiente</Button>
+            <Button variant="outline-primary" onClick={() => cambiarEstadoOrden(3)}>Enviada</Button>
+            <Button variant="outline-dark" onClick={() => cambiarEstadoOrden(2)}>Cancelada</Button>
+            <Button variant="outline-danger" onClick={() => cambiarEstadoOrden(4)}>Finalizada</Button>
           </div>
-        </div>
-      ) : null}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowEstadoModal(false)}>Cerrar</Button>
+        </Modal.Footer>
+      </Modal>
 
-      {modo === "estado" && ordenSeleccionada && (
-  <div className="mt-6 border-t pt-4">
-    <h2 className="text-lg font-semibold mb-2">Cambiar Estado</h2>
-
-    {/* Nombre del artículo */}
-    <div className="text-sm text-gray-700 mb-3">
-      Orden #{ordenSeleccionada.idOrdenCompra} — Artículo: <span className="font-medium">{ordenSeleccionada.articulo?.descripcion}</span>
-    </div>
-
-    <div className="flex space-x-2">
-      <button
-        onClick={() => cambiarEstadoOrden(2)}
-        className="bg-purple-600 text-white px-3 py-1 rounded"
-      >
-        Cancelada
-      </button>
-      <button
-        onClick={() => cambiarEstadoOrden(4)}
-        className="bg-red-600 text-white px-3 py-1 rounded"
-      >
-        Finalizada
-      </button>
-      <button
-        onClick={() => cambiarEstadoOrden(1)}
-        className="bg-green-600 text-white px-3 py-1 rounded"
-      >
-        Pendiente
-      </button>
-      <button
-        onClick={() => cambiarEstadoOrden(3)}
-        className="bg-green-600 text-white px-3 py-1 rounded"
-      >
-        Enviada
-      </button>
-    </div>
-  </div>
-)}
-
-    </div>
+      <ToastContainer position="top-center" autoClose={5000} hideProgressBar />
+    </Container>
   );
 }
-

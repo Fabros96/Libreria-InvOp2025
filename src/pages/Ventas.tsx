@@ -154,6 +154,7 @@ const Ventas = () => {
         try {
 
             // VER ESTO A LA HORA DE CREAR UN ARTICULO NUEVO TIRA ERROR SERA POR Inventario? 
+            console.log("handleCreateVenta")
             const response = await axiosClient.post("/ventas", nuevoVenta);
 
             const ventaCreado = response.data;

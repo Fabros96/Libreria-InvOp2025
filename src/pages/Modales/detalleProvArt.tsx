@@ -9,7 +9,7 @@ type Proveedor = {
 };
 
 type Articulo = {
-    cargoPedido: number;
+    //cargoPedido: number;
     demoraEntrega: number;
     precioUnitario: number;
     articulo: number;
@@ -22,10 +22,12 @@ type ArticuloProveedor = {
     idArticuloProveedor: number,
     idArticulo: number,
     idProveedor: number,
-    cargoPedido: number | null,
+    //cargoPedido: number | null,
     demoraEntrega: number,
     esPredeterminado: boolean,
     precioUnitario: number,
+    nivelServicio: number,
+    desviacionEstandar: number,
     proveedor: Proveedor,
     articulo: Articulo,
 };
@@ -50,7 +52,10 @@ interface DetalleProvArtProps {
 const validationSchema = Yup.object({
     precioUnitario: Yup.number().required("El precio unitario es requerido").min(1, "El precio unitario debe ser mayor a 0"),
     demoraEntrega: Yup.number().required("La demora de entrega es requerida").min(1, "La demora de entrega debe ser mayor a 0"),
-    cargoPedido: Yup.number().required("El cargo por pedido es requerido").min(1, "El cargo por pedido debe ser mayor a 0"),
+    //cargoPedido: Yup.number().required("El cargo por pedido es requerido").min(1, "El cargo por pedido debe ser mayor a 0"),
+    nivelServicio: Yup.number().required("El nivel de servicio es requerido").min(1, "El nivel de servicio debe ser mayor a 0"),
+    desviacionEstandar: Yup.number().required("La desviación estándar es requerida").min(1, "La desviación estándar debe ser mayor a 0"),
+
 });
 
 const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTabsModalProps) => {
@@ -62,7 +67,7 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
             idArticuloProveedor: (art as any).idArticuloProveedor ?? 0,
             idArticulo: typeof art.idArticulo === "object" ? (art.idArticulo as any).idArticulo : art.idArticulo, // usa el id correctamente
             idProveedor: proveedor?.idProveedor ?? 0,
-            cargoPedido: art.cargoPedido || 0,
+            //cargoPedido: art.cargoPedido || 0,
             demoraEntrega: art.demoraEntrega || 0,
             precioUnitario: art.precioUnitario || 0,
             articulo: (art as any).idArticulo || (art as any).articulo,  // asegurate de tenerlo
@@ -75,7 +80,9 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
     const [formikStates, setFormikStates] = useState<Record<string, {
         precioUnitario: number;
         demoraEntrega: number;
-        cargoPedido: number;
+        //cargoPedido: number;
+        nivelServicio: number;
+        desviacionEstandar: number;
     }>>({});
 
 
@@ -95,6 +102,8 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
                         articulo: (item as any).articulo && typeof (item as any).articulo === "object"
                             ? (item as any).articulo
                             : articulos.find((a: Articulo) => a.idArticulo === (item as any).idArticulo) ?? item,
+                        nivelServicio: (item as any).nivelServicio ?? 1.65,
+                        desviacionEstandar: (item as any).desviacionEstandar ?? 0.0,
                     } as ArticuloProveedor;
                 } else {
                     // Sino es Articulo simple, transformamos a ArticuloProveedor "vacío"
@@ -102,12 +111,14 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
                         idArticuloProveedor: 0,
                         idArticulo: item.idArticulo,
                         idProveedor: proveedor?.idProveedor ?? 0,
-                        cargoPedido: null,
+                        //cargoPedido: null,
                         demoraEntrega: 0,
                         esPredeterminado: false,
                         precioUnitario: 0,
                         proveedor: proveedor ?? { idProveedor: 0, nombre: "" },
                         articulo: item,
+                        nivelServicio: 1.65,
+                        desviacionEstandar: 0.0,
                     } as ArticuloProveedor;
                 }
             });
@@ -122,26 +133,24 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
             //setArticulosEditados(inicializados);
 
             // Inicializo formikStates con valores iniciales para cada artículo
-            const estadosIniciales: Record<string, { precioUnitario: number; demoraEntrega: number; cargoPedido: number }> = {};
+            const estadosIniciales: Record<string, { 
+                precioUnitario: number; 
+                demoraEntrega: number; 
+                //cargoPedido: number; 
+                nivelServicio: number; 
+                desviacionEstandar: number; }> = {};
             inicializados.forEach(item => {
                 estadosIniciales[item.idArticulo.toString()] = {
                     precioUnitario: item.precioUnitario ?? 0,
                     demoraEntrega: item.demoraEntrega ?? 0,
-                    cargoPedido: item.cargoPedido ?? 0,
+                    //cargoPedido: item.cargoPedido ?? 0,
+                    nivelServicio: item.nivelServicio ?? 1.65,
+                    desviacionEstandar: item.desviacionEstandar ?? 0.0,
                 };
             });
             setFormikStates(estadosIniciales);
         }
     }, [articulos, proveedor]);
-
-
-
-
-
-
-
-
-
 
 
 
@@ -151,10 +160,14 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
         initialValues: formikStates[activeKey] || {
             precioUnitario: 0,
             demoraEntrega: 0,
-            cargoPedido: 0,
+            //cargoPedido: 0,
+            nivelServicio: 1.65,
+            desviacionEstandar: 0.0,
         },
         validationSchema,
         onSubmit: (values) => {
+            console.log("holaaa")
+            console.log("valores enviados: ", values)
             // Actualizo el estado global formikStates con los valores actuales
             setFormikStates(prev => ({ ...prev, [activeKey]: values }));
 
@@ -192,6 +205,7 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
 
     const handleNext = async () => {
         // Validar formulario actual
+        console.log("hola")
         const errors = await formik.validateForm();
         const hasErrors = Object.keys(errors).length > 0;
 
@@ -199,7 +213,9 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
             formik.setTouched({
                 precioUnitario: true,
                 demoraEntrega: true,
-                cargoPedido: true,
+                //cargoPedido: true,
+                nivelServicio: true,
+                desviacionEstandar: true,
             });
             return;
         }
@@ -210,7 +226,9 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
             ...actualizados[currentIndex],
             precioUnitario: formik.values.precioUnitario,
             demoraEntrega: formik.values.demoraEntrega,
-            cargoPedido: formik.values.cargoPedido,
+            //cargoPedido: formik.values.cargoPedido,
+            nivelServicio: formik.values.nivelServicio,
+            desviacionEstandar: formik.values.desviacionEstandar,
         };
 
         if (currentIndex < articulosEditados.length - 1) {
@@ -222,9 +240,12 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
                 values: {
                     precioUnitario: siguiente.precioUnitario,
                     demoraEntrega: siguiente.demoraEntrega,
-                    cargoPedido: siguiente.cargoPedido ?? 0,
+                    //cargoPedido: siguiente.cargoPedido ?? 0,
+                    nivelServicio: siguiente.nivelServicio ?? 1.65,
+                    desviacionEstandar: siguiente.desviacionEstandar ?? 0.0,
                 }
             });
+        console.log(formik.values)
         } else {
 
             if (onVolver) onVolver(actualizados);
@@ -293,7 +314,7 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
                                             {formik.errors.demoraEntrega}
                                         </Form.Control.Feedback>
                                     </Form.Group>
-                                    <Form.Group className="mb-3">
+                                    {/* <Form.Group className="mb-3">
                                         <Form.Label>Cargos Pedido</Form.Label>
                                         <Form.Control
                                             type="number"
@@ -306,7 +327,38 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
                                         <Form.Control.Feedback type="invalid">
                                             {formik.errors.cargoPedido}
                                         </Form.Control.Feedback>
+                                    </Form.Group> */}
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Nivel de Servicio (Z)</Form.Label>
+                                        <Form.Control
+                                            type="number"
+                                            name="nivelServicio"
+                                            value={formik.values.nivelServicio}
+                                            onChange={formik.handleChange}
+                                            onBlur={formik.handleBlur}
+                                            isInvalid={formik.touched.nivelServicio && !!formik.errors.nivelServicio}
+                                        />
+                                        <Form.Control.Feedback type="invalid">
+                                            {formik.errors.nivelServicio}
+                                        </Form.Control.Feedback>
                                     </Form.Group>
+
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Desviación Estándar</Form.Label>
+                                        <Form.Control
+                                            type="number"
+                                            name="desviacionEstandar"
+                                            value={formik.values.desviacionEstandar}
+                                            onChange={formik.handleChange}
+                                            onBlur={formik.handleBlur}
+                                            isInvalid={formik.touched.desviacionEstandar && !!formik.errors.desviacionEstandar}
+                                        />
+                                        <Form.Control.Feedback type="invalid">
+                                            {formik.errors.desviacionEstandar}
+                                        </Form.Control.Feedback>
+                                    </Form.Group>
+
+
                                 </Form>
                             )}
                         </Tab>
