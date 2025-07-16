@@ -2,6 +2,8 @@ import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
 import { OrdenCompraRepository } from "../repositories/orden-compra.repository";
 
+
+
 const prisma = new PrismaClient();
 const ordenCompraRepository = new OrdenCompraRepository();
 
@@ -244,9 +246,5 @@ export const OrdenCompraController = {
             });
         }
     },
-
-
- 
-
 
 }

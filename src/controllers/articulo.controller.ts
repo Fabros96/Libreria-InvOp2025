@@ -29,12 +29,13 @@ export const ArticuloController = {
     },
 
     create: async (req: Request, res: Response) => {
+        console.log("holatoyentrandingjeejej")
 
         const { descripcion, modeloInventario, stock, inventario } = req.body;
 
         try {
 
-            const { demandaArticulo, costoPedido, costoAlmacenamiento, costoCompra, demoraEntrega } = inventario;
+            const { demandaArticulo, costoPedido, costoAlmacenamiento, costoCompra, demoraEntrega, periodoRevision } = inventario;
 
             console.log(inventario)
 
@@ -48,6 +49,7 @@ export const ArticuloController = {
                         costoPedido,
                         costoAlmacenamiento,
                         costoCompra,
+                        periodoRevision,
                         loteOptimo: 0,
                         puntoPedido: 0,
                         stockSeguridad: 0
@@ -64,6 +66,8 @@ export const ArticuloController = {
             console.log(nuevoArticulo);
 
         } catch (error: any) {
+            console.log("error en create articulo")
+            console.log(error)
             res.status(500).json({ msg: 'Error al crear el artículo', detail: error.message });
             console.log(error);
         }

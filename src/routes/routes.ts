@@ -7,6 +7,7 @@ import { ArticuloController } from "../controllers/articulo.controller";
 import { VentaController } from "../controllers/venta.controller";
 import { OrdenCompraController } from "../controllers/orden-compra.controller";
 import { AjusteInventarioController } from "../controllers/ajuste-inventario.controller";
+import { CronInventarioController } from "../controllers/cron-inventario.controller";
 
 const router = express.Router();
 
@@ -64,12 +65,19 @@ router.post("/orden-compras", OrdenCompraController.create);
 router.put("/orden-compras/:id", OrdenCompraController.update);
 router.delete("/orden-compras/:id", OrdenCompraController.delete);
 
+
 // ajuste inv
 router.get("/ajuste-inventarios", AjusteInventarioController.getAll);
 router.get("/ajuste-inventarios/:id", AjusteInventarioController.getById);
 router.post("/ajuste-inventarios", AjusteInventarioController.create);
 router.put("/ajuste-inventarios/:id", AjusteInventarioController.update);
 router.delete("/ajuste-inventarios/:id", AjusteInventarioController.delete);
+
+//cron-revision-periodoFijo
+router.post('/cron/iniciar', CronInventarioController.iniciarCronDesdeFrontend);
+router.get('/cron/mensajes', CronInventarioController.verMensajesCron);
+router.post('/cron/detener', CronInventarioController.detenerCronDesdeFrontend);
+
 
 
 export default router;
