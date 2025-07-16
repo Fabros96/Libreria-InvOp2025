@@ -81,6 +81,8 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
             setCostoAlmacenamiento(articulo.inventario?.costoAlmacenamiento || 0);
             setCostoPedido(articulo.inventario?.costoPedido || 0);
             setModeloInventario(articulo.modeloInventario || "LF")
+            setPeriodoRevision(articulo.inventario?.periodoRevision || 0);
+
 
         } else if (mode === "new") {
             setIdArticulo("");
@@ -94,21 +96,9 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
     }, [articulo, mode]);
 
     const handleSave = async () => {
-
-
         try {
             let updatedArticulo: Articulo;
             const demoraEntrega = proveedorPredeterminado?.demoraEntrega || 0;
-
-            // const inventarioCalculado = calcularDatosInventario({
-            //     demanda,
-            //     costoPedido,
-            //     costoAlmacenamiento,
-            //     modeloInventario,
-            //     demoraEntrega,
-
-            // });
-
             if (mode === "edit") {
                 updatedArticulo = {
                     ...articulo,
@@ -116,7 +106,6 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                     stock,
                     modeloInventario,
                     inventario: {
-                        //...inventarioCalculado,
                         idInventario: articulo.inventario?.idInventario,
                         periodoRevision,
                         demandaArticulo: demanda,
@@ -133,11 +122,18 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                 }
 
             } else {
+                console.log("vengo al elsee eeeee")
+                console.log(periodoRevision)
                 updatedArticulo = {
                     descripcion,
                     modeloInventario,
                     stock,
-                    //inventario: inventarioCalculado,
+                    inventario: {
+                        demandaArticulo: demanda,
+                        costoAlmacenamiento,
+                        costoPedido,
+                        periodoRevision: periodoRevision,
+                    },
                     articuloProveedor: {
                         idArticuloProveedor: 0,
                         cargoPedido: proveedorPredeterminado?.cargoPedido || 0,
@@ -200,13 +196,15 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                         )}
                     </div>
                     <div className="d-flex justify-content-between gap-2 mt-3">
-                        <div style={{ width: "80%" }}>
-
-
+                        <div style={{ width: "50%" }}>
                             {modeloInventario === 'PF' && (
                                 <>
                                     <Form.Label className="mt-3">Período de Revisión (en días)</Form.Label>
-                                    <Form.Control type="number" min={1} value={periodoRevision} onChange={(e) => setPeriodoRevision(Number(e.target.value))} />
+                                    <Form.Control 
+                                    type="number" 
+                                    min={1} 
+                                    value={periodoRevision} 
+                                    onChange={(e) => setPeriodoRevision(Number(e.target.value))} />
                                 </>
                             )}
                         </div>

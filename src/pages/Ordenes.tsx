@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import axiosClient from "../api/axiosClient";
 import type { OrdenCompra, Articulo, Proveedor } from "../types/ordenCompra";
 import { Modal, Button, Form, Table, Container } from "react-bootstrap";
 import { showToasty } from "../utils/toasty";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+
 
 export default function Ordenes() {
   const [ordenes, setOrdenes] = useState<OrdenCompra[]>([]);
@@ -18,11 +19,15 @@ export default function Ordenes() {
   const [showModal, setShowModal] = useState(false);
   const [showEstadoModal, setShowEstadoModal] = useState(false);
   const [loteOptimoSugerido, setLoteOptimoSugerido] = useState<number | null>(null);
+  const [showCronModal, setShowCronModal] = useState(false)
+  const [cronMensajes, setCronMensajes] = useState<string[]>([]);
+
 
   const [paginaActual, setPaginaActual] = useState(1);
   const porPagina = 10;
 
   const esFinalizada = ordenSeleccionada?.idEstadoOrdenCompra === 4;
+  const intervalIdRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchOrdenes = async () => {
     const res = await axiosClient.get("/orden-compras?filter[include]=articulo,proveedor,estadoOrdenCompra");
@@ -50,6 +55,7 @@ export default function Ordenes() {
 
         const resLote: any = await axiosClient.get(`/inventarios/lote-optimo/${idArt}`);
         setLoteOptimoSugerido(resLote.loteOptimo ?? null);
+        setCantidad(resLote.loteOptimo ?? null);
       } catch (error) {
         console.error("Error al buscar proveedor predeterminado:", error);
       }
@@ -146,9 +152,6 @@ export default function Ordenes() {
   };
 
 
-
-
-
   const eliminarOrden = async (id: number) => {
     const confirmacion = window.confirm("¿Está seguro de que desea eliminar esta orden?");
     if (!confirmacion) return;
@@ -162,6 +165,72 @@ export default function Ordenes() {
     }
   };
 
+  const iniciarControlAutomatico = async () => {
+    try {
+      await axiosClient.post("/cron/iniciar");
+      setShowCronModal(true); // mostrar el modal
+
+      const fetchMensajes = async () => {
+        try {
+          const res: any = await axiosClient.get("/cron/mensajes");
+          console.log("mensajes recibidos: ", res.mensajes)
+          if (res.mensajes) {
+            setCronMensajes(res.mensajes);
+
+            //Si alguno de los mensajes indica que se creó una orden, actualizamos
+            const hayOrdenNueva = res.mensajes.some((msg: string) =>
+              msg.toLowerCase().includes("orden") && msg.toLowerCase().includes("generada")
+            );
+            console.log("hayOrdenNueva: ", hayOrdenNueva)
+            if (hayOrdenNueva) {
+              await fetchOrdenes(); // actualiza la tabla
+            }
+          }
+
+        } catch (err) {
+          console.error("Error al obtener mensajes del cron:", err);
+        }
+      };
+
+      await fetchMensajes(); // primera consulta
+
+      // iniciar polling
+      intervalIdRef.current = setInterval(fetchMensajes, 5000);
+    } catch (err) {
+      console.error("Error al iniciar control automático", err);
+      showToasty("Error al iniciar el control automático", "error");
+    }
+  };
+
+  const detenerControlAutomatico = async () => {
+    try {
+      await axiosClient.post("/cron/detener");
+      showToasty("Detenido correctamente.", "success");
+
+      // detener polling si está activo
+      if (intervalIdRef.current) {
+        clearInterval(intervalIdRef.current);
+        intervalIdRef.current = null;
+      }
+
+      setShowCronModal(false); // cerrar modal
+    } catch (error: any) {
+      console.error("Error al detener cron", error);
+      showToasty("Error al detener el control automático.", "error");
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      // limpieza por si el modal se cierra manualmente
+      if (intervalIdRef.current) {
+        clearInterval(intervalIdRef.current);
+        intervalIdRef.current = null;
+      }
+    };
+  }, []);
+
+
   const ordenesActivas = ordenes.filter((orden) => !orden.fechaBaja);
   const totalPaginas = Math.ceil(ordenesActivas.length / porPagina);
   const ordenesPaginadas = ordenesActivas.slice(
@@ -173,7 +242,16 @@ export default function Ordenes() {
     <Container className="mt-4">
       <h2 className="text-center mb-4">Órdenes de Compra</h2>
 
-      <div className="d-flex justify-content-end mb-3">
+      <div className="d-flex justify-content-between mb-3">
+        <Button
+          variant="dark"
+          onClick={iniciarControlAutomatico}
+        >
+          Iniciar Control Automático Periodo Fijo
+        </Button>
+
+
+
         <Button
           variant="primary"
           onClick={() => {
@@ -189,6 +267,7 @@ export default function Ordenes() {
           Nueva Orden
         </Button>
       </div>
+
 
       <Table striped bordered hover responsive className="text-center">
         <thead className="table-light">
@@ -351,7 +430,32 @@ export default function Ordenes() {
         </Modal.Footer>
       </Modal>
 
+      <Modal
+        show={showCronModal}
+        onHide={() => setShowCronModal(false)}
+        backdrop="static" //evita que se cierre clic afera
+        keyboard={false} //evita que se cierre con la tecla esc
+      >
+        <Modal.Header>
+          <Modal.Title>Resultado del Control Automático</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <ul className="mb-0">
+            {cronMensajes.map((msg, idx) => (
+              <li key={idx}>🔔 {msg}</li>
+            ))}
+          </ul>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="danger" onClick={detenerControlAutomatico}>
+            Detener control automático
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
       <ToastContainer position="top-center" autoClose={5000} hideProgressBar />
     </Container>
   );
+
 }
+

@@ -34,6 +34,7 @@ interface Inventario {
     puntoPedido: number;
     stockSeguridad: number;
     inventarioMaximo?: number; // Solo para modelo PF
+    periodoRevision?: number //solo para modelo PF
 }
 interface ArticuloProveedor {
     idArticuloProveedor: number;
@@ -227,10 +228,14 @@ const Articulos = () => {
                 showToasty("Faltan datos obligatorlo", "error");
                 return;
             }
+
             if (!nuevoArticulo.inventario) {
+                console.log(nuevoArticulo)
+                console.log("hola")
                 showToasty("if 2o", "error");
                 return;
             }
+
             if (!nuevoArticulo.articuloProveedor) {
                 showToasty("if3 lo", "error");
                 return;
@@ -246,6 +251,7 @@ const Articulos = () => {
                     costoAlmacenamiento: nuevoArticulo.inventario.costoAlmacenamiento,
                     costoCompra: nuevoArticulo.inventario.costoCompra,
                     costoPedido: nuevoArticulo.inventario.costoPedido,
+                    periodoRevision: nuevoArticulo.inventario.periodoRevision,
                     //stockSeguridad: nuevoArticulo.inventario.stockSeguridad,
                     //puntoPedido: nuevoArticulo.inventario.puntoPedido,
                     //loteOptimo: nuevoArticulo.inventario.loteOptimo,
@@ -530,7 +536,8 @@ const Articulos = () => {
                                                                             : ap.modeloInventario === 'PF' ?
                                                                                 <>
                                                                                     <strong> Stock de Seguridad: </strong>{ap.inventario?.stockSeguridad} --
-                                                                                    <strong> Inventario Máximo: </strong>{ap.inventario?.inventarioMaximo}
+                                                                                    <strong> Inventario Máximo: </strong>{ap.inventario?.inventarioMaximo} --
+                                                                                    <strong> Periodo de Revisión (días): </strong>{ap.inventario?.periodoRevision}
                                                                                 </>
                                                                                 : ''} </div>
                                                                 </div>
