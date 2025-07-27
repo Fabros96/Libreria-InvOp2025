@@ -36,8 +36,8 @@ interface Inventario {
 
 interface ArticuloProveedor {
     idArticuloProveedor: number;
-    cargoPedido: number;
     demoraEntrega: number;
+    fechaBaja:Date | null;
     esPredeterminado: boolean;
     idArticulo: number;
     idProveedor: number;
@@ -85,47 +85,6 @@ const VtaDetalle = ({ show, onHide, articulo }: VtaDetalleProps) => {
         setCantidad(0);
         setTotalPrice(0);
     }, [articulo?.idArticulo]);
-
-
-
-    // const handleVta = async (nuevaVenta: {
-    //     idArticulo: number;
-    //     cantidad: number;
-    //     fecha: Date;
-    //     articulo: Articulo;
-    // }) => {
-    //     try {
-
-    //         if (articulo.modeloInventario === "LF" && cantidad <= articulo.stock) {
-
-    //             const response = await axiosClient.post("/ventas", nuevaVenta);
-    //             console.log(response)
-
-    //             const ventaCreada = response.data;
-
-    //             setData(prevData => ({
-    //                 ...prevData,
-    //                 datos: [...prevData.datos, ventaCreada],
-    //             }));
-    //             showToasty("Venta realizada exitosamente", "success");
-    //             onHide();
-    //             generarOCAutomatica(articulo, articulo.inventario, cantidad)
-    //         }
-
-    //         if (articulo.modeloInventario !== "LF") {
-    //             // Para modelo PF, no se puede vender si hay órdenes pendientes o enviadas
-    //             showToasty("Solo se puede crear la venta para modelo LF", "error");
-    //         }
-    //         if (cantidad > articulo.stock) {
-    //             // Para modelo PF, no se puede vender si hay órdenes pendientes o enviadas
-    //             showToasty("La cantidad es mayor al stock", "error");
-    //         }
-
-    //     } catch (error) {
-    //         console.error(error);
-    //         showToasty("Error al crear la venta", "error");
-    //     }
-    // };
 
 
 
@@ -179,9 +138,7 @@ const VtaDetalle = ({ show, onHide, articulo }: VtaDetalleProps) => {
 
         } catch (error: any) {
             console.error(error);
-
             const msg = error?.response?.data?.msg || "Error al crear la venta.";
-            console.log("mostrando toasty", msg);
             showToasty(msg, "error");
         }
     };

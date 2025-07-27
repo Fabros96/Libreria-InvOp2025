@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Modal, Button, Form, Badge } from "react-bootstrap";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -6,64 +6,126 @@ import * as Yup from "yup";
 import ProvAsoc from "./provAsoc";
 import DetalleProvArt from "./detalleProvArt";
 
+import axiosClient from "../../api/axiosClient";
 import "../../App.css";
+import { showToasty } from "../../utils/toasty";
 
 interface ProvEditProps {
     show: boolean;
     onHide: () => void;
     proveedor: any | null;
-    onSave: (updatedProveedor: any) => void;
+    onSave: (updatedProveedor: any, x?: string | null, articulosProveedorList?: any[]) => void;
     mode: "edit" | "new";
 }
 
 const validationSchema = Yup.object({
     nombre: Yup.string().required("El nombre es requerido"),
-    articulos: Yup.array().min(1, "Debe seleccionar al menos un artículo").required("Debe seleccionar al menos un artículo"),
+    articulos: Yup.array()
+        .min(1, "Debe asociar al menos un artículo")
+        .required("Debe asociar al menos un artículo"),
 });
 
 const ProvEdit = ({ show, onHide, proveedor, onSave, mode }: ProvEditProps) => {
     const [showProvAsoc, setShowProvAsoc] = useState(false);
     const [showDetalleProvArt, setShowDetalleProvArt] = useState(false);
+    const [articulosProveedorList, setArticulosProveedorList] = useState<any[]>([]);
     const [articulosSeleccionados, setArticulosSeleccionados] = useState<any[]>([]);
+
+    // Cargar artículos asociados al proveedor
+    useEffect(() => {
+        if (!proveedor) {
+            setArticulosProveedorList([]);
+            return;
+        }
+
+        const fetchArticulosProveedor = async () => {
+            try {
+                const response = await axiosClient.get(
+                    `articulo-proveedores/?filter[idProveedor][eq]=${proveedor.idProveedor}&filter[include]=articulo.inventario,proveedor&filter[articulo.fechaBaja][eq]=null`
+                );
+
+                const articulosProv = response.data || [];
+
+                const activos = articulosProv.filter(
+                    (ap: any) => ap.fechaBaja === null
+                );
+                setArticulosProveedorList(activos);
+            } catch (error) {
+                console.error("Error al obtener artículos del proveedor:", error);
+                setArticulosProveedorList([]);
+            }
+        };
+        
+        fetchArticulosProveedor();
+    }, [proveedor, show]);
+    
+    const ordenarPorIdArticulo = (arr: any[]) => {
+        return [...arr].sort((a, b) => {
+            return a.articulo.idArticulo - b.articulo.idArticulo;
+        });
+    };
+
+    const sonArraysIguales = (a: any[], b: any[]) => {
+        const ordenadoA = ordenarPorIdArticulo(a);
+        const ordenadoB = ordenarPorIdArticulo(b);
+        return JSON.stringify(ordenadoA) === JSON.stringify(ordenadoB);
+    };
 
     const formik = useFormik({
         enableReinitialize: true,
         initialValues: {
             idProveedor: proveedor?.idProveedor || "",
             nombre: proveedor?.nombre || "",
-            articulos: proveedor?.articulosProveedor || [],
+            articulos: articulosProveedorList || [],
+            showData: false,
         },
         validationSchema,
         onSubmit: (values) => {
-            onSave(values);
+            if (proveedor) {
+                if (formik.values.nombre === proveedor.nombre) {
+                    if (sonArraysIguales(formik.values.articulos, articulosProveedorList)) {
+                        showToasty("No se realizaron cambios", "warning");
+                        onHide();
+                        return;
+                    } else {
+                        onSave(values, "asoc", articulosProveedorList);
+                    }
+                } else {
+                    if (sonArraysIguales(formik.values.articulos, articulosProveedorList)) {
+                        onSave(values, "nomProv");
+                    } else {
+                        onSave(values, "ambos");
+                    }
+                }
+            }else{
+                onSave(values);
+            }
             onHide();
         },
     });
 
-    // Abrir selección de artículos
     const abrirProvAsoc = () => {
         setShowProvAsoc(true);
     };
 
-    // Al seleccionar artículos en ProvAsoc
     const onArticulosSeleccionados = (seleccionados: any[]) => {
         setArticulosSeleccionados(seleccionados);
         setShowProvAsoc(false);
-        setShowDetalleProvArt(true); // Abrir detalle de cada artículo
+        setShowDetalleProvArt(true);
     };
 
-    // Al finalizar edición de detalles
     const onDetallesGuardados = (articulosProveedorConDetalles: any[]) => {
-        if (articulosProveedorConDetalles.length === 0) {
-            // Mostrar error usando setFieldError de Formik
-            formik.setFieldError("articulos", "Debe seleccionar al menos un artículo con detalles.");
+        formik.setFieldValue("showData", true);
+
+        if (articulosProveedorList.length === 0 && articulosProveedorConDetalles.length === 0) {
+            formik.setFieldError("articulos", "Debe asociar al menos un artículo.");
         } else {
-            // Guardar los artículos en el formulario
             formik.setFieldValue("articulos", articulosProveedorConDetalles);
         }
 
         setShowDetalleProvArt(false);
     };
+
 
 
 
@@ -76,12 +138,14 @@ const ProvEdit = ({ show, onHide, proveedor, onSave, mode }: ProvEditProps) => {
                     </Modal.Header>
 
                     <Modal.Body>
-                        <Form.Group controlId="formProveedor">
+                        <Form.Group>
                             {mode === "edit" && (
                                 <>
-                                    <Form.Label>Código</Form.Label>
+                                    <Form.Label htmlFor="idProveedor">Código</Form.Label>
                                     <div style={{ marginBottom: '20px' }}>
                                         <Form.Control
+                                            id="idProveedor"
+                                            name="idProveedor"
                                             type="text"
                                             value={formik.values.idProveedor}
                                             disabled
@@ -90,8 +154,9 @@ const ProvEdit = ({ show, onHide, proveedor, onSave, mode }: ProvEditProps) => {
                                 </>
                             )}
 
-                            <Form.Label>Nombre</Form.Label>
+                            <Form.Label htmlFor="nombre">Nombre</Form.Label>
                             <Form.Control
+                                id="nombre"
                                 type="text"
                                 name="nombre"
                                 value={formik.values.nombre}
@@ -108,7 +173,7 @@ const ProvEdit = ({ show, onHide, proveedor, onSave, mode }: ProvEditProps) => {
                             </div>
 
                             {/* Mostrar artículos seleccionados */}
-                            {formik.values.articulos.length > 0 && (
+                            {formik.values.articulos.length > 0 && formik.values.showData && (
                                 <div className="mt-3">
                                     <strong> Artículos seleccionados:</strong>
                                     <div className="d-flex flex-wrap gap-2 mt-2">
@@ -150,6 +215,7 @@ const ProvEdit = ({ show, onHide, proveedor, onSave, mode }: ProvEditProps) => {
                 onHide={() => setShowProvAsoc(false)}
                 proveedor={proveedor}
                 onSiguiente={onArticulosSeleccionados}
+                articulosProveedorOriginalList={articulosProveedorList}
             />
 
             {/* Modal para ingresar detalles */}

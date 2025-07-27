@@ -1,7 +1,7 @@
 import { Modal, Button, Form, Table, InputGroup } from "react-bootstrap";
 import axiosClient from "../../api/axiosClient";
 import { useState, useEffect } from "react";
-import { showToasty } from "../../utils/toasty"
+import { showToasty } from "../../utils/toasty";
 
 import "../../App.css";
 import type { AxiosResponse } from "axios";
@@ -19,50 +19,45 @@ type ProveedoresData = {
 const ProvProv = ({ proveedor, show, onHide }: ProvProvProps) => {
     const [data, setData] = useState<ProveedoresData>({ datos: [] });
     const [searchText, setSearchText] = useState("");
-    const [showAll, setShowAll] = useState(true);
     const [selectedIdProveedor, setSelectedIdProveedor] = useState<number | null>(null);
     const [selectedNombre, setSelectedNombre] = useState<string>("");
     const [selectedDescripcion, setSelectedDescripcion] = useState<string>("");
 
-
-
-
-
     useEffect(() => {
-
         const fetchData = async () => {
             try {
-                let response: AxiosResponse<any, any> | null = null;
-
-                response = await axiosClient.get(`articulo-proveedores/?filter[idProveedor][eq]=${proveedor.idProveedor}&filter[include]=proveedor,articulo&filter[articulo.fechaBaja][eq]=null`);
+                const response: AxiosResponse<any, any> = await axiosClient.get(
+                    `articulo-proveedores/?filter[idProveedor][eq]=${proveedor.idProveedor}&filter[include]=proveedor,articulo&filter[articulo.fechaBaja][eq]=null&filter[fechaBaja][eq]=null`
+                );
 
                 const allData = response?.data?.datos || response?.data || [];
-
                 setData({ datos: allData });
-
-
-                if (allData.length <= 5) setShowAll(true);
             } catch (error) {
                 console.error("Error al obtener datos:", error);
             }
         };
 
-        fetchData();
+        if (proveedor) {
+            fetchData();
+        }
     }, [proveedor]);
 
-
-
+    const normalizarTexto = (texto: string) =>
+        texto.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
     const getFilteredData = () => {
-        if (showAll) return data.datos;
+        if (searchText.trim() === "") return data.datos;
 
-        if (searchText.trim().length < 1) return data.datos;
+        const textoBusqueda = normalizarTexto(searchText);
 
-        return data.datos.filter(proveedor =>
-            proveedor.proveedor.nombre?.toLowerCase().includes(searchText.toLowerCase())
-            // proveedor.proveedor.nombre?.toLowerCase().includes(searchText.toLowerCase())
-        );
+        return data.datos.filter(item => {
+            const descripcion = normalizarTexto(item.articulo?.descripcion || "");
+            const nombre = normalizarTexto(item.articulo?.nombre || "");
+
+            return descripcion.includes(textoBusqueda) || nombre.includes(textoBusqueda);
+        });
     };
+
 
     const filteredData = getFilteredData();
 
@@ -70,7 +65,7 @@ const ProvProv = ({ proveedor, show, onHide }: ProvProvProps) => {
         <Modal show={show} onHide={onHide} centered>
             <Modal.Header closeButton>
                 <Modal.Title>
-                    Proveedores {proveedor ? "de: " + proveedor.nombre : ""}
+                    Artículos asociados {proveedor ? "a " + proveedor.nombre : ""}
                 </Modal.Title>
             </Modal.Header>
 
@@ -79,21 +74,16 @@ const ProvProv = ({ proveedor, show, onHide }: ProvProvProps) => {
                     <InputGroup className="mb-3">
                         <Form.Control
                             type="text"
-                            placeholder="Buscar Proveedor"
+                            id="srchArtProv"
+                            placeholder="Buscar artículo"
                             value={searchText}
-                            onChange={(e) => {
-                                setSearchText(e.target.value);
-                                setShowAll(false); // si se escribe, desactiva mostrar todos
-                            }}
+                            onChange={(e) => setSearchText(e.target.value)}
                         />
                         <Button
                             variant="outline-secondary"
-                            onClick={() => {
-                                setSearchText("");
-                                setShowAll(true);
-                            }}
+                            onClick={() => setSearchText("")}
                         >
-                            Mostrar todos
+                            Limpiar
                         </Button>
                     </InputGroup>
 
@@ -109,11 +99,7 @@ const ProvProv = ({ proveedor, show, onHide }: ProvProvProps) => {
                             {filteredData.length === 0 ? (
                                 <tr>
                                     <td colSpan={3} className="text-center text-muted">
-                                        <p>
-                                            {searchText.trim() === "" && !showAll
-                                                ? "Busca un proveedor para ver resultados."
-                                                : "No se encontraron resultados."}
-                                        </p>
+                                        <p>No se encontraron resultados.</p>
                                     </td>
                                 </tr>
                             ) : (
@@ -131,11 +117,12 @@ const ProvProv = ({ proveedor, show, onHide }: ProvProvProps) => {
                                                 aria-label={`radio-${index}`}
                                                 name="providerSelect"
                                                 checked={obj.esPredeterminado}
-                                                disabled={true}
+                                                disabled
                                                 onChange={() => {
-                                                    const nuevosDatos = data.datos.map((item) => ({
+                                                    const nuevosDatos = data.datos.map(item => ({
                                                         ...item,
-                                                        esPredeterminado: item.idProveedorProveedor === obj.idProveedorProveedor
+                                                        esPredeterminado:
+                                                            item.idProveedorProveedor === obj.idProveedorProveedor
                                                     }));
 
                                                     setData({ datos: nuevosDatos });
@@ -143,8 +130,6 @@ const ProvProv = ({ proveedor, show, onHide }: ProvProvProps) => {
                                                     setSelectedDescripcion(obj.descripcion);
                                                 }}
                                             />
-
-
                                         </td>
                                     </tr>
                                 ))

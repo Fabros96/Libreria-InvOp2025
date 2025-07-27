@@ -3,15 +3,13 @@ import axiosClient from "../api/axiosClient";
 import { useCallback, useEffect, useState } from "react";
 import MyPagination from "../components/Pagination/myPagination";
 import ProvEdit from "./Modales/provEdit";
-import ProvDel from "./Modales/provDel";
-
-
-
 
 import './styles/Proveedores.css';
 import '../App.css';
 import { showToasty } from "../utils/toasty";
 import ProvArtList from "./Modales/provArtList";
+import ProvDelHist from "./Modales/provDelHist";
+import { useConfirmModal } from "../utils/useConfirmModal";
 
 // Define the Proveedor type if not imported
 type Proveedor = {
@@ -35,8 +33,8 @@ type ArticuloProveedor = {
     idArticuloProveedor: number,
     idArticulo: number,
     idProveedor: number,
-    cargoPedido: number | null,
     demoraEntrega: number,
+    fechaBaja: Date | null,
     esPredeterminado: boolean,
     precioUnitario: number,
     nivelServicio: number,
@@ -59,9 +57,11 @@ const Proveedores = () => {
     const [searchText, setSearchText] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [selectedProveedor, setSelectedProveedor] = useState<Proveedor | null>(null);
-    const [modalType, setModalType] = useState<"new" | "asoc" | "artList" | "edit" | "baja" | null>(null);
+    const [modalType, setModalType] = useState<"new" | "asoc" | "artList" | "edit" | "baja" | "delHist" | null>(null);
 
     const [filteredTotalPages, setFilteredTotalPages] = useState(0);
+
+    const { requestConfirmation, modal: confirmModal } = useConfirmModal();
 
     const startIndex = (page - 1) * PAGE_SIZE;
     const endIndex = startIndex + PAGE_SIZE;
@@ -69,89 +69,246 @@ const Proveedores = () => {
 
     // Para flujo de asociación artículos
     const [showSelectModal, setShowSelectModal] = useState(false);
-    const [showTabsModal, setShowTabsModal] = useState(false);
     const [articulos, setArticulos] = useState<any[]>([]);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
-    const [articulosEdit, setArticulosEdit] = useState<any[]>([]);
-    const [activeTabKey, setActiveTabKey] = useState<string>("");
-
     const [showProvAsoc, setShowProvAsoc] = useState(false);
-    const [showDetalleModal, setShowDetalleModal] = useState(false);
-    const [articulosSeleccionados, setArticulosSeleccionados] = useState<any[]>([]);
 
 
-    const handleAsociarSiguiente = (articulos: any[]) => {
-        setArticulosSeleccionados(articulos); // Guarda los artículos seleccionados
-        setShowProvAsoc(false);               // Cierra el modal ProvAsoc
-        setShowDetalleModal(true);            // Abre el modal con Tabs (DetalleProvArtModal)
+    const handleDeleteProveedorValidation = async (prov: Proveedor) => {
+        // Confirmación inicial para eliminar proveedor
+        const confirm = await requestConfirmation( 
+            <>
+                <h4>¿Seguro que desea eliminar el proveedor<br /><strong> #{prov.idProveedor} - {prov.nombre}</strong>?<br /></h4>
+                <h5><i>(Esta acción no se puede deshacer. ⚠️)</i></h5>
+            </>
+        );
+        if (!confirm) return false;
+
+        try {
+            // Validar si proveedor es predeterminado en algún artículo activo
+            const responseEsPredeterminado = await axiosClient.get(
+                `articulo-proveedores/?filter[idProveedor][eq]=${prov.idProveedor}&filter[include]=articulo&filter[articulo.fechaBaja][eq]=null&filter[fechaBaja][eq]=null`
+            );
+            const lista = responseEsPredeterminado.data;
+
+            if (Array.isArray(lista) && lista.some(item => item.esPredeterminado === true)) {
+                showToasty('No se puede eliminar este proveedor, es predeterminado de al menos un artículo', 'error');
+                return false;
+            }
+
+            // Validar órdenes pendientes
+            const responsePendiente = await axiosClient.get(
+                `orden-compras/?filter[idProveedor][eq]=${prov.idProveedor}&filter[include]=estadoOrdenCompra&filter[estadoOrdenCompra.nombre][eq]=Pendiente`
+            );
+            // Validar órdenes enviadas
+            const responseEnviada = await axiosClient.get(
+                `orden-compras/?filter[idProveedor][eq]=${prov.idProveedor}&filter[include]=estadoOrdenCompra&filter[estadoOrdenCompra.nombre][eq]=Enviado`
+            );
+
+            const pendientes = responsePendiente.data || [];
+            const enviadas = responseEnviada.data || [];
+
+            if (pendientes.length > 0 || enviadas.length > 0) {
+                if (pendientes.length > 0 && enviadas.length > 0) {
+                    showToasty('No se puede eliminar el proveedor, tiene órdenes pendientes y enviadas', 'error');
+                } else if (pendientes.length > 0) {
+                    showToasty('No se puede eliminar el proveedor, tiene órdenes pendientes', 'error');
+                } else {
+                    showToasty('No se puede eliminar el proveedor, tiene órdenes enviadas', 'error');
+                }
+                return false;
+            }
+
+            // Si pasa todas las validaciones, eliminar proveedor
+            handleDelProveedor(prov);
+            showToasty('Proveedor eliminado exitosamente', 'success');
+            return true;
+        } catch (error) {
+            console.error("Error al verificar datos del proveedor:", error);
+            showToasty('Error al verificar datos del proveedor', 'error');
+            return false;
+        }
     };
 
 
-    const handleClick = (prov: Proveedor | null, op: typeof modalType) => {
+
+    const handleClick = async (prov: Proveedor | null, op: typeof modalType) => {
         setSelectedProveedor(prov);
         setModalType(op);
-        setShowModal(true);
 
         if (op === "asoc") {
-            setShowProvAsoc(true); // ✅ Esto es lo que faltaba
+            setShowProvAsoc(true);
+            setShowModal(true);
+            return;
         }
-    }
 
-    const handleUpdateProveedor = async (updatedProveedor: any) => {
-        try {
-
-            // Procesar artículos
-            for (const articulo of updatedProveedor.articulos) {
-                const data = {
-                    idProveedor: updatedProveedor.idProveedor,
-                    idArticulo: articulo.idArticulo,
-                    cargoPedido: articulo.cargoPedido,
-                    demoraEntrega: articulo.demoraEntrega,
-                    precioUnitario: articulo.precioUnitario,
-                    nivelServicio: articulo.nivelServicio,
-                    desviacionEstandar: articulo.desviacionEstandar,
-                };
-
-                if (articulo.idArticuloProveedor && articulo.idArticuloProveedor !== 0) {
-                    // PUT → actualizar artículo-proveedor existente
-                    await fetch(`http://localhost:3000/articulo-proveedores/${articulo.idArticuloProveedor}`, {
-                        method: "PUT",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(data),
-                    });
-                } else {
-                    //Actualizar proveedor (nombre, etc.)
-
-                    await fetch(`http://localhost:3000/proveedores/${updatedProveedor.idProveedor}`, {
-                        method: "PUT",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            nombre: updatedProveedor.nombre,
-                            // agregar otros campos si corresponde
-                        }),
-                    });
-
-                    // POST → nuevo artículo-proveedor
-                    const response = await fetch(`http://localhost:3000/articulo-proveedores`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(data),
-                    });
-                    const creado = await response.json();
-
-                }
+        if (op === "baja" && prov) {
+            const eliminado = await handleDeleteProveedorValidation(prov);
+            if (eliminado) {
+                setShowModal(false);
             }
-            showToasty("Proveedor actualizado correctamente", "success");
-            setShowModal(false);
-        } catch (error) {
-            console.error("Error actualizando proveedor y artículos:", error);
+            return;
         }
+
+        setShowModal(true);
     };
 
 
+    // Función para crear asociaciones nuevas (sin idArticuloProveedor)
+    const crearNuevasAsociaciones = async (articulos: any[], idProveedor: number) => {
+        for (const articulo of articulos) {
+            // Solo crear las que no tienen idArticuloProveedor válido
+            if (!articulo.idArticuloProveedor || articulo.idArticuloProveedor === 0) {
+                const data = {
+                    idProveedor,
+                    idArticulo: articulo.idArticulo,
+                    esPredeterminado: false,
+                    demoraEntrega: articulo.demoraEntrega ?? 0,
+                    precioUnitario: articulo.precioUnitario ?? 0,
+                    nivelServicio: articulo.nivelServicio ?? 0,
+                    desviacionEstandar: articulo.desviacionEstandar ?? 0,
+                    modeloInventario: articulo.articulo?.modeloInventario ?? "LF",
+                    // Si necesitás más campos, agregalos acá
+                };
+
+                const response = await fetch(`http://localhost:3000/articulo-proveedores`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(data),
+                });
+
+                if (!response.ok) {
+                    const errorMsg = await response.text();
+                    console.error("Error creando asociación:", errorMsg);
+                    showToasty("Error al crear asociación de artículo", "error");
+                    return false;
+                }
+            }
+        }
+        return true;
+    };
+
+    // Función para actualizar asociaciones existentes o crear las nuevas si no tienen id
+    const actualizarAsociaciones = async (updatedProveedor: any) => {
+        for (const articulo of updatedProveedor.articulos) {
+            const data = {
+                idArticulo: articulo.idArticulo,
+                demoraEntrega: articulo.demoraEntrega ?? 0,
+                precioUnitario: articulo.precioUnitario ?? 0,
+                nivelServicio: articulo.nivelServicio ?? 0,
+                desviacionEstandar: articulo.desviacionEstandar ?? 0,
+                modeloInventario: articulo.articulo?.modeloInventario ?? "LF",
+                // agregar más campos si necesario
+            };
+
+            if (articulo.idArticuloProveedor && articulo.idArticuloProveedor > 0) {
+                // PUT → actualizar asociación existente
+                const response = await fetch(`http://localhost:3000/articulo-proveedores/${articulo.idArticuloProveedor}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(data),
+                });
+
+                if (!response.ok) {
+                    const errorMsg = await response.text();
+                    console.error(`Error actualizando artículo-proveedor ${articulo.idArticuloProveedor}:`, errorMsg);
+                    showToasty(`Error al actualizar artículo ${articulo.idArticuloProveedor}`, "error");
+                    return false;
+                }
+            }
+        }
+        // Luego crear nuevas asociaciones que no tengan id
+        const crearOk = await crearNuevasAsociaciones(updatedProveedor.articulos, updatedProveedor.idProveedor);
+        if (!crearOk) return false;
+
+        showToasty("Proveedor actualizado exitosamente.", "success");
+        return true;
+    };
+
+
+    // Modificación en handleUpdateProveedor
+    const handleUpdateProveedor = async (updatedProveedor: any, x?: string | null, articulosProveedorList?: any[]) => {
+
+        //Metodo para borrar los deseleccionados
+        const actualizarAsociacionesEliminadas = async () => {
+            const nuevosIds = updatedProveedor.articulos.map((a: { idArticulo: any; }) => a.idArticulo);
+            const eliminados = (articulosProveedorList || []).filter(a => !nuevosIds.includes(a.idArticulo));
+
+            for (const articuloEliminado of eliminados) {
+                if (articuloEliminado.esPredeterminado) {
+                    const confirm = await requestConfirmation(
+                        `El artículo ${articuloEliminado.articulo.descripcion} es el predeterminado. ¿Confirmas eliminar la asociación?`
+                    );
+                    if (!confirm) {
+                        continue; // saltar a siguiente sin borrar
+                    }
+                }
+                try {
+                    const response = await fetch(`http://localhost:3000/articulo-proveedores/${articuloEliminado.idArticuloProveedor}`, {
+                        method: "DELETE",
+                    });
+                    if (!response.ok) {
+                        const errorMsg = await response.text();
+                        console.error(`Error al eliminar asociación id ${articuloEliminado.idArticuloProveedor}:`, errorMsg);
+                        return false;
+                    }
+                } catch (error) {
+                    console.error("Error en fetch eliminar asociación:", error);
+                    showToasty("Error de conexión al eliminar asociación", "error");
+                    return false;
+                }
+            }
+            return true;
+        };
+        //Metodo para actualizar solo el nombre
+        const actualizarNombreProveedor = async () => {
+            await fetch(`http://localhost:3000/proveedores/${updatedProveedor.idProveedor}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    nombre: updatedProveedor.nombre,
+                    // agregar otros campos si corresponde
+                }),
+            });
+        }
+
+
+        try {
+            let cambiosRealizados = false;
+
+            switch (x) {
+                case "asoc":
+                    await actualizarAsociacionesEliminadas(); // primero eliminar
+                    cambiosRealizados = await actualizarAsociaciones(updatedProveedor);
+                    break;
+                case "nomProv":
+                    await actualizarNombreProveedor();
+                    showToasty("Proveedor actualizado exitosamente.", "success");
+                    cambiosRealizados = true;
+                    break;
+                case "ambos":
+                    await actualizarNombreProveedor();
+                    await actualizarAsociacionesEliminadas();
+                    cambiosRealizados = await actualizarAsociaciones(updatedProveedor);
+                    break;
+                default:
+                    console.error("Error: opción desconocida");
+                    break;
+            }
+
+            if (cambiosRealizados) {
+                await fetchData();
+                setShowModal(false);
+            }
+        } catch (error) {
+            console.error("Error actualizando proveedor y artículos:", error);
+            showToasty("Error actualizando proveedor", "error");
+        }
+    };
+
+    // Modificación en handleCreateProveedor para usar crearNuevasAsociaciones
     const handleCreateProveedor = async (newProveedor: any) => {
         try {
-            // Crear proveedor
             const responseProv = await fetch(`http://localhost:3000/proveedores`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -166,36 +323,13 @@ const Proveedores = () => {
             }
 
             const proveedorCreado = await responseProv.json();
-
-            // Extraer idProveedor desde data
             const idProveedorCreado = proveedorCreado.data.idProveedor;
-
             if (!idProveedorCreado) {
                 throw new Error("No se recibió idProveedor del backend");
             }
 
-            // Crear artículos vinculados al proveedor creado
-            for (const articulo of newProveedor.articulos) {
-                const data = {
-                    idProveedor: idProveedorCreado,
-                    idArticulo: articulo.idArticulo,
-                    cargoPedido: articulo.cargoPedido,
-                    demoraEntrega: articulo.demoraEntrega,
-                    precioUnitario: articulo.precioUnitario,
-                    nivelServicio: articulo.nivelServicio,
-                    desviacionEstandar: articulo.desviacionEstandar,
-                };
-
-                const responseArt = await fetch(`http://localhost:3000/articulo-proveedores`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(data),
-                });
-
-                if (!responseArt.ok) {
-                    throw new Error("Error creando artículo-proveedor");
-                }
-            }
+            const crearOk = await crearNuevasAsociaciones(newProveedor.articulos, idProveedorCreado);
+            if (!crearOk) throw new Error("Error creando asociaciones");
 
             showToasty("Proveedor creado correctamente", "success");
             await fetchData();
@@ -206,12 +340,8 @@ const Proveedores = () => {
         }
     };
 
-
-
-
-
-
     const handleDelProveedor = (proveedorToDelete: Proveedor) => {
+
         axiosClient.delete(`/proveedores/${proveedorToDelete.idProveedor}`)
             .then(() => {
                 setData(prevData => {
@@ -231,7 +361,6 @@ const Proveedores = () => {
             });
         fetchData();
     };
-
 
     const fetchData = async () => {
         try {
@@ -259,14 +388,22 @@ const Proveedores = () => {
         fetchData();
     }, []);
 
+    const normalizarTexto = (texto: string) =>
+        texto.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 
+    const textoBusqueda = normalizarTexto(searchText);
 
+    const filteredData = data.datos.filter(prov => {
+        const nombreNormalizado = normalizarTexto(prov.nombre || "");
+        const idProveedorStr = prov.idProveedor?.toString() || "";
 
-    const filteredData = data.datos
-        .filter(prov =>
-            prov.nombre.toLowerCase().includes(searchText.toLowerCase()) || prov.idProveedor.toString().includes(searchText)
-        )
+        return (
+            nombreNormalizado.includes(textoBusqueda) ||
+            idProveedorStr.includes(searchText)
+        );
+    });
+
 
     useEffect(() => {
 
@@ -286,6 +423,8 @@ const Proveedores = () => {
     const handleChangePage = useCallback((page: number) => {
         setPage(page)
     }, [])
+
+
     const renderModal = () => {
         if (!showModal || !modalType) return null;
 
@@ -312,13 +451,11 @@ const Proveedores = () => {
                         mode={modalType}
                     />
                 );
-            case "baja":
+            case "delHist":
                 return (
-                    <ProvDel
+                    <ProvDelHist
                         show={showModal}
                         onHide={() => setShowModal(false)}
-                        proveedor={selectedProveedor}
-                        onDel={handleDelProveedor}
                     />
                 );
             case "artList":
@@ -333,69 +470,6 @@ const Proveedores = () => {
                 return null;
         }
     };
-
-    const [proveedores, setProveedores] = useState<any[]>([]);
-
-
-
-    // Cargar artículos para selección
-    useEffect(() => {
-        if (showSelectModal) {
-            axiosClient.get("articulo-proveedores/?filter[include]=articulo&filter[articulo.fechaBaja][eq]=null")
-                .then(res => setArticulos(res.data || []))
-                .catch(console.error);
-            setSelectedIds([]);
-        }
-    }, [showSelectModal]);
-
-    const toggleSelectArticulo = (id: string) => {
-        setSelectedIds(prev =>
-            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-        );
-    };
-
-    const handleOpenSelectModal = (proveedor: any) => {
-        setSelectedProveedor(proveedor);
-        setShowSelectModal(true);
-    };
-
-    const handleNextFromSelect = () => {
-        const seleccionados = articulos.filter(art => selectedIds.includes(art.uuid));
-        setArticulosEdit(seleccionados);
-        if (seleccionados.length > 0) setActiveTabKey(seleccionados[0].uuid);
-        setShowSelectModal(false);
-        setShowTabsModal(true);
-    };
-
-    // Navegación tabs
-    const currentIndex = articulosEdit.findIndex(a => a.uuid === activeTabKey);
-
-    const goPrev = () => {
-        if (currentIndex > 0) setActiveTabKey(articulosEdit[currentIndex - 1].uuid);
-    };
-
-    const goNext = () => {
-        if (currentIndex < articulosEdit.length - 1) setActiveTabKey(articulosEdit[currentIndex + 1].uuid);
-    };
-
-    const isLast = currentIndex === articulosEdit.length - 1;
-
-    const handleFieldChange = (uuid: string, field: string, value: any) => {
-        setArticulosEdit(prev =>
-            prev.map(a => (a.uuid === uuid ? { ...a, [field]: value } : a))
-        );
-    };
-
-    const handleSaveAll = () => {
-        // Aquí enviá los artículos actualizados y asociados al proveedor al backend
-        showToasty("Artículos asociados guardados", "success");
-        setShowTabsModal(false);
-    };
-
-    const handleBackToSelect = () => {
-        setShowTabsModal(false);
-        setShowSelectModal(true);
-    };
     return (
         <>
             <Stack className="proveedores-container">
@@ -404,6 +478,7 @@ const Proveedores = () => {
                     <Col sm={8}>
                         <Form.Control
                             type="text"
+                            name="barraBusqueda"
                             placeholder="Buscar"
                             className="mr-sm-2"
                             value={searchText}
@@ -472,13 +547,6 @@ const Proveedores = () => {
                                                     </Accordion>
                                                 </td>
                                                 <td className="botoneraTabla" >
-                                                    {/* <OverlayTrigger key={prov.idProveedor + 'btn1'} overlay={<Tooltip id={`top`}> Asociar Artículo/s </Tooltip>} >
-                                                        <Button variant="success" onClick={() => handleClick(prov, "asoc")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                                            fill="currentColor" className="bi bi-arrow-left-right" viewBox="0 0 16 16">
-                                                            <path d="M1 11.5a.5.5 0 0 0 .5.5h11.793l-3.147 3.146a.5.5 0 0 0 .708.708l4-4a.5.5 0 0 0 0-.708l-4-4a.5.5 0 0 0-.708.708L13.293 11H1.5a.5.5 0 0 0-.5.5m14-7a.5.5 0 0 1-.5.5H2.707l3.147 3.146a.5.5 0 1 1-.708.708l-4-4a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 4H14.5a.5.5 0 0 1 .5.5" />
-                                                        </svg>
-                                                        </Button>
-                                                    </OverlayTrigger> */}
                                                     <OverlayTrigger key={prov.idProveedor + 'btn2'} overlay={<Tooltip id={`top`}> Ver Artículos de este Proveedor </Tooltip>} >
                                                         <Button variant="primary" onClick={() => handleClick(prov, "artList")}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
                                                             fill="currentColor" className="bi bi-boxes" viewBox="0 0 16 16">
@@ -521,7 +589,14 @@ const Proveedores = () => {
                 </div>
             </Stack>
             {renderModal()}
-
+            <Button className="delArtButton" onClick={() => handleClick(null, "delHist")}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-trash" viewBox="0 0 16 16">
+                    <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z" />
+                    <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z" />
+                </svg>
+                <span>Provs. Eliminados</span>
+            </Button>
+            {confirmModal}
         </>
     )
 }

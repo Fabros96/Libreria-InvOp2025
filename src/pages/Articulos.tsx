@@ -4,13 +4,16 @@ import { useCallback, useEffect, useState } from "react";
 import MyPagination from "../components/Pagination/myPagination";
 import ArtProv from "./Modales/artProv";
 import ArtEdit from "./Modales/artEdit";
-import ArtDel from "./Modales/artDel";
+import ArtDelHist from "./Modales/artDelHist";
 
 import { calculoCGI } from "../utils/recalcular";
 
 import './styles/Articulos.css';
 import '../App.css';
 import { showToasty } from "../utils/toasty";
+import { crearAjusteInv } from "../utils/crearAjusteInv";
+import ArtHist from "./Modales/artHist";
+import { useConfirmModal } from "../utils/useConfirmModal";
 
 
 interface Articulo {
@@ -21,12 +24,11 @@ interface Articulo {
     modeloInventario: string; // 'LF'; // 'LF' o 'PF'
     stock: number;
 
-    inventario?: Inventario;
+    inventario?: Inventario | Partial<Inventario>;
     articuloProveedor?: ArticuloProveedor;
 }
 interface Inventario {
     costoAlmacenamiento: number;
-    costoCompra: number;
     costoPedido: number;
     demandaArticulo: number;
     idInventario: number;
@@ -34,16 +36,19 @@ interface Inventario {
     puntoPedido: number;
     stockSeguridad: number;
     inventarioMaximo?: number; // Solo para modelo PF
-    periodoRevision?: number //solo para modelo PF
 }
 interface ArticuloProveedor {
     idArticuloProveedor: number;
-    cargoPedido: number;
     demoraEntrega: number;
+    fechaBaja: Date | null;
     esPredeterminado: boolean;
     idArticulo: number;
     idProveedor: number;
     precioUnitario: number;
+    nivelServicio: number;
+    desviacionEstandar: number;
+    proveedor: any;
+    articulo: any;
 
 }
 
@@ -61,11 +66,13 @@ const Articulos = () => {
     const [searchText, setSearchText] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [selectedArticulo, setSelectedArticulo] = useState<Articulo | null>(null);
-    const [modalType, setModalType] = useState<"new" | "hist" | "view" | "edit" | "hdemanda" | "baja" | null>(null);
+    const [modalType, setModalType] = useState<"new" | "hist" | "view" | "edit" | "hdemanda" | "baja" | "delHist" | null>(null);
 
     const [filteredTotalPages, setFilteredTotalPages] = useState(0);
     const [filterOption, setFilterOption] = useState('');
     const [showDropdown, setShowDropdown] = useState(false);
+
+    const { requestConfirmation, modal: confirmModal } = useConfirmModal();
 
     const startIndex = (page - 1) * PAGE_SIZE;
     const endIndex = startIndex + PAGE_SIZE;
@@ -79,53 +86,166 @@ const Articulos = () => {
         }
     };
 
+    const handleDeleteArticuloValidation = async (ap: Articulo) => {
 
-    const handleClick = (ap: Articulo | null, op: typeof modalType) => {
+        // Confirmación inicial para eliminar proveedor
+        const confirm = await requestConfirmation(
+            <>
+
+                <h4>¿Seguro que desea eliminar el proveedor<br /><strong> #{ap.idArticulo} - {ap.descripcion}</strong>?<br /></h4>
+                <h5><i>(Esta acción no se puede deshacer. ⚠️)</i></h5>
+
+            </>
+        );
+        if (!confirm) return false;
+        try {
+            // Validamos stock primero
+            if (ap.stock > 0) {
+                showToasty('No se puede eliminar, todavía tiene stock disponible', 'error');
+                return;
+            }
+
+            // Validamos órdenes pendientes o enviadas
+            const responsePendiente = await axiosClient.get(
+                `orden-compras/?filter[idArticulo][eq]=${ap.idArticulo}&filter[include]=estadoOrdenCompra&filter[estadoOrdenCompra.nombre][eq]=Pendiente`
+            );
+            const responseEnviada = await axiosClient.get(
+                `orden-compras/?filter[idArticulo][eq]=${ap.idArticulo}&filter[include]=estadoOrdenCompra&filter[estadoOrdenCompra.nombre][eq]=Enviado`
+            );
+
+
+            const pendientes: any[] = responsePendiente.data || [];
+            const enviadas: any[] = responseEnviada.data || [];
+
+            const tieneOrdenes = pendientes.length > 0 || enviadas.length > 0;
+
+            if (tieneOrdenes) {
+                if (pendientes.length > 0) {
+                    showToasty('No se puede eliminar el artículo, tiene órdenes pendientes', 'error');
+                }
+                if (enviadas.length > 0) {
+                    showToasty('No se puede eliminar el artículo, tiene órdenes enviadas', 'error');
+                }
+                if (pendientes.length > 0 && enviadas.length > 0) {
+                    showToasty('No se puede eliminar el artículo, tiene órdenes pendientes y enviadas', 'error');
+                }
+            } else {
+                handleDelArticulo(ap);
+                showToasty('Articulo eliminado exitosamente', 'success');
+                return true;
+            }
+        } catch (error) {
+            console.error("El Error es: ", error);
+            showToasty('Error al verificar datos del artículo', 'error');
+        }
+    };
+
+
+    const handleClick = async (ap: Articulo | null, op: typeof modalType) => {
         setSelectedArticulo(ap);
         setModalType(op);
+
+        if (op === "baja" && ap) {
+            const eliminado = await handleDeleteArticuloValidation(ap);
+            if (eliminado) {
+                setShowModal(false);
+            }
+            return;
+        }
+
         setShowModal(true);
-    }
+    };
+
 
     //MODIFICACIÓN DE UN ARTICULO
 
 
-
-    const handleUpdateArticulo = async (updatedArticulo: Articulo, artOriginal: Articulo, updateProveedor?: ArticuloProveedor, provOriginal?: ArticuloProveedor) => {
-
+    const handleUpdateArticulo = async (artOriginal: Articulo, updatedArticulo: Articulo, provOriginal?: ArticuloProveedor, updateProveedor?: ArticuloProveedor) => {
         if (!selectedArticulo) return;
-
         const originalArticulo = selectedArticulo;
 
-        const cambios: Partial<Record<keyof Articulo, Articulo[keyof Articulo]>> = {};
+        const cambios: any = {};
+
+        const camposInventarioIgnoradosXQSeCalculan = [
+            "idInventario",
+            "loteOptimo",
+            "puntoPedido",
+            "stockSeguridad",
+            "inventarioMaximo",
+            "invMaximo"
+        ];
+        if (updatedArticulo.modeloInventario === 'LF') {
+            camposInventarioIgnoradosXQSeCalculan.push("periodoRevision");
+        } else {
+            const index = camposInventarioIgnoradosXQSeCalculan.indexOf("periodoRevision");
+            if (index !== -1) camposInventarioIgnoradosXQSeCalculan.splice(index, 1);
+        }
 
         for (const key in updatedArticulo) {
-            if (
-                Object.prototype.hasOwnProperty.call(updatedArticulo, key) &&
-                // key !== "inventario" &&
-                key !== "articuloProveedor"
-            ) {
-                if (updatedArticulo[key as keyof Articulo] !== originalArticulo[key as keyof Articulo]) {
-                    cambios[key as keyof Articulo] = updatedArticulo[key as keyof Articulo];
+            if (Object.prototype.hasOwnProperty.call(updatedArticulo, key) && key !== "articuloProveedor") {
+                if (key === "inventario") {
+                    const updatedInv = updatedArticulo.inventario;
+                    const originalInv = originalArticulo.inventario;
+                    if (updatedInv) updatedInv.idInventario = updatedArticulo.idInventario;
+
+                    if (updatedInv && originalInv && typeof updatedInv === "object" && typeof originalInv === "object") {
+                        const cambiosInventario: any = {};
+
+                        for (const invKey in updatedInv) {
+                            if (
+                                Object.prototype.hasOwnProperty.call(updatedInv, invKey) &&
+                                !camposInventarioIgnoradosXQSeCalculan.includes(invKey)
+                            ) {
+                                const updatedValue = updatedInv[invKey as keyof typeof updatedInv];
+                                const originalValue = originalInv[invKey as keyof typeof originalInv];
+
+                                if (updatedValue !== originalValue) {
+                                    cambiosInventario[invKey] = updatedValue;
+                                }
+                            }
+                        }
+                        if (Object.keys(cambiosInventario).length > 0 && updatedInv.idInventario) {
+                            cambios.inventario = {
+                                idInventario: updatedInv.idInventario,
+                                ...cambiosInventario
+                            };
+                        }
+                    }
+                } else {
+                    if (updatedArticulo[key as keyof Articulo] !== originalArticulo[key as keyof Articulo]) {
+                        cambios[key] = updatedArticulo[key as keyof Articulo];
+                    }
                 }
             }
         }
 
-        // Si no hay cambios en propiedades npm isimples, salir
+        // Incluir articuloProveedor si hay cambios
+        if (updateProveedor) {
+            cambios.articuloProveedor = {
+                idArticuloProveedor: updateProveedor.idArticuloProveedor,
+                idProveedor: updateProveedor.idProveedor,
+                idArticulo: updatedArticulo.idArticulo,
+                precioUnitario: updateProveedor.precioUnitario,
+                demoraEntrega: updateProveedor.demoraEntrega,
+                fechaBaja: updateProveedor.fechaBaja,
+                esPredeterminado: updateProveedor.esPredeterminado,
+                nivelServicio: updateProveedor.nivelServicio,
+                desviacionEstandar: updateProveedor.desviacionEstandar
+            };
+        }
+
         if (Object.keys(cambios).length === 0 && !updateProveedor) {
+            // Si no hay cambios, salir
             setShowModal(false);
+            showToasty("No se ha modificado el artículo.", "warning");
             return;
         }
-        //crearAjusteInv(updatedArticulo, artOriginal, updateProveedor, provOriginal)
-
-        // Agregamos los objetos completos
-        cambios.stock = updatedArticulo.stock;
-        cambios.descripcion = updatedArticulo.descripcion;
-        cambios.modeloInventario = updatedArticulo.modeloInventario;
-        cambios.inventario = updatedArticulo.inventario;
-        cambios.articuloProveedor = updatedArticulo.articuloProveedor;
-
 
         try {
+
+            const provAux = provOriginal?.proveedor;
+            const artAux = provOriginal?.articulo;
+
             const responseUpdArt = await fetch(`http://localhost:3000/articulos/${updatedArticulo.idArticulo}`, {
                 method: "PUT",
                 headers: {
@@ -133,68 +253,73 @@ const Articulos = () => {
                 },
                 body: JSON.stringify(cambios),
             });
-
             if (!responseUpdArt.ok) {
                 throw new Error("Error al actualizar artículo");
             }
+            if (updateProveedor?.idProveedor === provOriginal?.idProveedor) {
+                updateProveedor = undefined;
+            } else if (provOriginal) {
+                provOriginal.esPredeterminado = false;
+                provOriginal.nivelServicio
+                // delete provOriginal.articulo;
+                // delete provOriginal.proveedor;            
 
-            if (updateProveedor) {
-
-                const responseUpdProv = await fetch(`http://localhost:3000/articulo-proveedores/${updateProveedor.idArticuloProveedor}`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(updateProveedor),
-                });
-
-                if (!responseUpdProv.ok) {
+                const responseProvOld = await fetch(
+                    `http://localhost:3000/articulo-proveedores/${provOriginal?.idArticuloProveedor}`,
+                    {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(provOriginal),
+                    }
+                );
+                if (!responseProvOld.ok) {
+                    // console.error("Error al actualizar proveedor original");
+                    const errMsg = await responseProvOld.text();
+                    console.error("Error al hacer PUT:", responseProvOld.status, responseProvOld.statusText, errMsg);
                     throw new Error(`Error al actualizar proveedor`);
                 }
+            }
 
+
+            try {
+                delete cambios.articuloProveedor;
                 if (provOriginal) {
-
-
-                    const responseProvOld = await fetch(
-                        `http://localhost:3000/articulo-proveedores/${provOriginal?.idArticuloProveedor}`,
-                        {
-                            method: "PUT",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify(provOriginal),
-                        }
-                    );
-
-                    if (!responseProvOld.ok) {
-                        console.error("Error al actualizar proveedor original");
-                        throw new Error(`Error al actualizar proveedor`);
-                    }
+                    provOriginal.articulo = artAux;
+                    provOriginal.proveedor = provAux;
                 }
 
+                if (updateProveedor?.idProveedor === provOriginal?.idProveedor) {
+                    updateProveedor = undefined;
+                    provOriginal = undefined;
+                }
+
+                if (Object.keys(cambios).length === 0) {
+                    //Si hay cambios en el proveedor pero no en el articulo
+                    crearAjusteInv(null, null, provOriginal, updateProveedor)
+                } else {
+                    //Si hay cambios en el proveedor y en el articulo
+                    crearAjusteInv(artOriginal, cambios, provOriginal, updateProveedor)
+                }
+            } catch (error) {
+                console.error("Error al crear el ajuste de inventario:", error);
             }
+
             const result = await responseUpdArt.json();
 
             setData(artData => {
                 const nuevosDatos = artData.datos.map(art =>
-                    art.idArticulo === result.data.idArticulo
-                        ? result.data
-                        : art
+                    art.idArticulo === result.data.idArticulo ? result.data : art
                 );
-
-                return {
-                    ...artData,
-                    datos: nuevosDatos
-                };
+                return { ...artData, datos: nuevosDatos };
             });
             setShowModal(false);
+            showToasty("Artículo actualizado exitosamente", "success");
         } catch (error) {
             console.error("Error al actualizar artículo:", error);
         }
-        // recalcular(updatedArticulo.inventario!);
-        showToasty("Artículo actualizado exitosamente", "success");
+
         await fetchData(); // refresca toda la tabla desde el servidor
     };
-
-
-
-
 
 
     const handleDelArticulo = (articuloToDelete: Articulo) => {
@@ -209,7 +334,7 @@ const Articulos = () => {
                         datos: nuevosDatos
                     };
                 });
-
+                crearAjusteInv(articuloToDelete, null, null, null)
                 setShowModal(false);
                 showToasty("Artículo Eliminado exitosamente", "success");
             })
@@ -219,48 +344,26 @@ const Articulos = () => {
             });
     };
 
-    //agrego para que se de alta un nuevo articulo
     const handleCreateArticulo = async (nuevoArticulo: Articulo) => {
-
         try {
-            // Validación básica
-            if (!nuevoArticulo.descripcion) {
-                showToasty("Faltan datos obligatorlo", "error");
+            if (!nuevoArticulo.descripcion || !nuevoArticulo.inventario || !nuevoArticulo.articuloProveedor) {
                 return;
             }
 
-            if (!nuevoArticulo.inventario) {
-                console.log(nuevoArticulo)
-                console.log("hola")
-                showToasty("if 2o", "error");
-                return;
-            }
-
-            if (!nuevoArticulo.articuloProveedor) {
-                showToasty("if3 lo", "error");
-                return;
-            }
-
-            // Armado del objeto con modeloInventario fijo 'LF'
             const articuloPayload = {
                 descripcion: nuevoArticulo.descripcion,
-                modeloInventario: nuevoArticulo.modeloInventario, // ← valor fijo
+                modeloInventario: nuevoArticulo.modeloInventario,
                 stock: nuevoArticulo.stock,
                 inventario: {
                     demandaArticulo: nuevoArticulo.inventario.demandaArticulo,
                     costoAlmacenamiento: nuevoArticulo.inventario.costoAlmacenamiento,
-                    costoCompra: nuevoArticulo.inventario.costoCompra,
                     costoPedido: nuevoArticulo.inventario.costoPedido,
-                    periodoRevision: nuevoArticulo.inventario.periodoRevision,
-                    //stockSeguridad: nuevoArticulo.inventario.stockSeguridad,
-                    //puntoPedido: nuevoArticulo.inventario.puntoPedido,
-                    //loteOptimo: nuevoArticulo.inventario.loteOptimo,
                 },
                 articuloProveedor: {
                     idProveedor: nuevoArticulo.articuloProveedor.idProveedor,
                     precioUnitario: nuevoArticulo.articuloProveedor.precioUnitario,
                     demoraEntrega: nuevoArticulo.articuloProveedor.demoraEntrega,
-                    cargoPedido: nuevoArticulo.articuloProveedor.cargoPedido,
+                    fechaBaja: nuevoArticulo.articuloProveedor.fechaBaja,
                     esPredeterminado: nuevoArticulo.articuloProveedor.esPredeterminado,
                 }
             };
@@ -269,13 +372,13 @@ const Articulos = () => {
 
             const articuloCreado = response.data;
 
-            setData(prevData => ({
-                ...prevData,
-                datos: [...prevData.datos, articuloCreado],
-            }));
+            crearAjusteInv(null, articuloCreado, null, null);
 
             showToasty("Artículo creado exitosamente", "success");
             setShowModal(false);
+
+            await fetchData(); // 🔁 Recarga los datos completos desde el backend
+
         } catch (error) {
             console.error("Error al crear el artículo:", error);
             showToasty("Error al crear el artículo", "error");
@@ -311,10 +414,22 @@ const Articulos = () => {
         fetchData();
     }, []);
 
+    const normalizarTexto = (texto: string) =>
+        texto.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+    const textoBusqueda = normalizarTexto(searchText);
+
     const filteredData = data.datos
-        .filter(ap => ap && typeof ap.descripcion === 'string')
+        .filter(ap => ap && (typeof ap.descripcion === 'string' || typeof ap.idArticulo !== 'undefined'))
         .filter(ap => {
-            if (!ap.descripcion.toLowerCase().includes(searchText.toLowerCase())) {
+            const descripcionNormalizada = normalizarTexto(ap.descripcion || "");
+            const idArticuloNormalizado = normalizarTexto(ap.idArticulo?.toString() || "");
+
+            // Buscar por descripcion o idArticulo
+            if (
+                !descripcionNormalizada.includes(textoBusqueda) &&
+                !idArticuloNormalizado.includes(textoBusqueda)
+            ) {
                 return false;
             }
 
@@ -329,8 +444,9 @@ const Articulos = () => {
                 return stock > inv.stockSeguridad && stock <= inv.puntoPedido;
             }
 
-            return true;
+            return true; // 'todos' u otra opción
         });
+
 
     useEffect(() => {
 
@@ -360,7 +476,7 @@ const Articulos = () => {
     const handleChangePage = useCallback((page: number) => {
         setPage(page)
     }, [])
-    
+
     return (
         <>
             {showModal && (modalType === "edit") && (
@@ -390,16 +506,19 @@ const Articulos = () => {
                     mode={modalType}
                 />
             )}
-            {showModal && modalType === "baja" && (
-                <ArtDel
+            {showModal && (modalType === "delHist") && (
+                <ArtDelHist
+                    show={showModal}
+                    onHide={() => setShowModal(false)}
+                />
+            )}
+            {(modalType === "hist") && (
+                <ArtHist
                     show={showModal}
                     onHide={() => setShowModal(false)}
                     articulo={selectedArticulo}
-                    onDel={handleDelArticulo}
                 />
-
             )}
-
 
             <Stack className="articulos-container">
                 <div className="p-2"><h3>Artículos</h3></div>
@@ -407,6 +526,7 @@ const Articulos = () => {
                     <Col sm={8}>
                         <Form.Control
                             type="text"
+                            name="barraBusqueda"
                             placeholder="Buscar"
                             className="mr-sm-2"
                             value={searchText}
@@ -520,14 +640,14 @@ const Articulos = () => {
                                                                                 {ap.inventario
                                                                                     ? calculoCGI(
                                                                                         {
-                                                                                            demandaAnual: ap.inventario.demandaArticulo,
-                                                                                            costoPedido: ap.inventario.costoPedido,
-                                                                                            costoAlmacenamiento: ap.inventario.costoAlmacenamiento,
-                                                                                            stockSeguridad: ap.inventario.stockSeguridad,
-                                                                                            modeloInventario: ap.modeloInventario,
+                                                                                            demandaAnual: ap.inventario.demandaArticulo || 0,
+                                                                                            costoPedido: ap.inventario.costoPedido || 0,
+                                                                                            costoAlmacenamiento: ap.inventario.costoAlmacenamiento || 0,
+                                                                                            stockSeguridad: ap.inventario.stockSeguridad || 0,
+                                                                                            modeloInventario: ap.modeloInventario || 0,
                                                                                             invMaximo: ap.inventario.inventarioMaximo ?? 0,
-                                                                                            loteOptimo: ap.inventario.loteOptimo,
-                                                                                            puntoPedido: ap.inventario.puntoPedido
+                                                                                            loteOptimo: ap.inventario.loteOptimo || 0,
+                                                                                            puntoPedido: ap.inventario.puntoPedido || 0
                                                                                         },
                                                                                         ap.stock
                                                                                     )
@@ -536,8 +656,7 @@ const Articulos = () => {
                                                                             : ap.modeloInventario === 'PF' ?
                                                                                 <>
                                                                                     <strong> Stock de Seguridad: </strong>{ap.inventario?.stockSeguridad} --
-                                                                                    <strong> Inventario Máximo: </strong>{ap.inventario?.inventarioMaximo} --
-                                                                                    <strong> Periodo de Revisión (días): </strong>{ap.inventario?.periodoRevision}
+                                                                                    <strong> Inventario Máximo: </strong>{ap.inventario?.inventarioMaximo}
                                                                                 </>
                                                                                 : ''} </div>
                                                                 </div>
@@ -603,6 +722,14 @@ const Articulos = () => {
                 </svg>
                 <span>Nuevo Artículo</span>
             </Button>
+            <Button className="delArtButton" onClick={() => handleClick(null, "delHist")}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" className="bi bi-trash" viewBox="0 0 16 16">
+                    <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z" />
+                    <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z" />
+                </svg>
+                <span>Arts. Eliminados</span>
+            </Button>
+            {confirmModal}
         </>
     )
 }

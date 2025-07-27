@@ -2,6 +2,8 @@ import { Modal, Tab, Tabs, Button, Stack, Form } from "react-bootstrap";
 import { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
+import { ExclamationCircleFill } from "react-bootstrap-icons";
+import { showToasty } from "../../utils/toasty";
 
 type Proveedor = {
     idProveedor: number;
@@ -9,8 +11,6 @@ type Proveedor = {
 };
 
 type Articulo = {
-    //cargoPedido: number;
-    demoraEntrega: number;
     precioUnitario: number;
     articulo: number;
     idArticulo: number;
@@ -19,17 +19,17 @@ type Articulo = {
 };
 
 type ArticuloProveedor = {
-    idArticuloProveedor: number,
-    idArticulo: number,
-    idProveedor: number,
-    //cargoPedido: number | null,
-    demoraEntrega: number,
-    esPredeterminado: boolean,
-    precioUnitario: number,
-    nivelServicio: number,
-    desviacionEstandar: number,
-    proveedor: Proveedor,
-    articulo: Articulo,
+    idArticuloProveedor: number;
+    idArticulo: number;
+    idProveedor: number;
+    demoraEntrega: number;
+    fechaBaja:Date | null;
+    esPredeterminado: boolean;
+    precioUnitario: number;
+    nivelServicio: number;
+    desviacionEstandar: number;
+    proveedor: Proveedor;
+    articulo: Articulo;
 };
 
 type ProvTabsModalProps = {
@@ -40,224 +40,189 @@ type ProvTabsModalProps = {
     onVolver?: (articulosEditados: ArticuloProveedor[]) => void;
 };
 
-interface DetalleProvArtProps {
-    show: boolean;
-    onHide: () => void;
-    articulos: any[]; // artículos seleccionados desde ProvAsoc
-    proveedor: any;   // proveedor actual
-    onVolver: (tabsArticulosProveedor: any[]) => void;
-}
-
-
 const validationSchema = Yup.object({
-    precioUnitario: Yup.number().required("El precio unitario es requerido").min(1, "El precio unitario debe ser mayor a 0"),
-    demoraEntrega: Yup.number().required("La demora de entrega es requerida").min(1, "La demora de entrega debe ser mayor a 0"),
-    //cargoPedido: Yup.number().required("El cargo por pedido es requerido").min(1, "El cargo por pedido debe ser mayor a 0"),
-    nivelServicio: Yup.number().required("El nivel de servicio es requerido").min(1, "El nivel de servicio debe ser mayor a 0"),
-    desviacionEstandar: Yup.number().required("La desviación estándar es requerida").min(1, "La desviación estándar debe ser mayor a 0"),
-
+    precioUnitario: Yup.number()
+        .required("El precio unitario es requerido")
+        .min(1, "El precio unitario debe ser mayor a 0"),
+    demoraEntrega: Yup.number()
+        .required("La demora de entrega es requerida")
+        .min(1, "La demora de entrega debe ser mayor a 0"),
+    nivelServicio: Yup.number()
+        .required("El nivel de servicio es requerido")
+        .min(1, "El nivel de servicio debe ser mayor a 0"),
+    desviacionEstandar: Yup.number()
+        .required("La desviación estándar es requerida")
+        .min(1, "La desviación estándar debe ser mayor a 0"),
 });
 
 const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTabsModalProps) => {
-    const [activeKey, setActiveKey] = useState<string>(articulos.length > 0 ? articulos[0].idArticulo.toString() : '');
+    const [activeKey, setActiveKey] = useState<string>("");
     const [articulosEditados, setArticulosEditados] = useState<ArticuloProveedor[]>([]);
+    const [formikStates, setFormikStates] = useState<Record<string, any>>({});
+    const [tabsWithErrors, setTabsWithErrors] = useState<Set<string>>(new Set());
 
-    const [detalles, setDetalles] = useState(() =>
-        articulos.map((art: Articulo) => ({
-            idArticuloProveedor: (art as any).idArticuloProveedor ?? 0,
-            idArticulo: typeof art.idArticulo === "object" ? (art.idArticulo as any).idArticulo : art.idArticulo, // usa el id correctamente
-            idProveedor: proveedor?.idProveedor ?? 0,
-            //cargoPedido: art.cargoPedido || 0,
-            demoraEntrega: art.demoraEntrega || 0,
-            precioUnitario: art.precioUnitario || 0,
-            articulo: (art as any).idArticulo || (art as any).articulo,  // asegurate de tenerlo
-            proveedor: proveedor
-        }))
-    );
-
-
-    // Estado que guarda los valores de cada formulario por idArticulo
-    const [formikStates, setFormikStates] = useState<Record<string, {
-        precioUnitario: number;
-        demoraEntrega: number;
-        //cargoPedido: number;
-        nivelServicio: number;
-        desviacionEstandar: number;
-    }>>({});
-
+    const formik = useFormik({
+        initialValues: {
+            precioUnitario: 0,
+            demoraEntrega: 0,
+            nivelServicio: 1.65,
+            desviacionEstandar: 0,
+        },
+        validationSchema,
+        onSubmit: () => { },
+        enableReinitialize: false,
+    });
 
     useEffect(() => {
         if (articulos.length > 0) {
-            setActiveKey(articulos[0].idArticulo.toString());
-
-            const inicializados = articulos.map(item => {
-                // Si tiene idArticuloProveedor, asumimos que es ArticuloProveedor
-                if ('idArticuloProveedor' in item) {
-                    return {
-                        ...item,
-                        idArticuloProveedor: Number((item as any).idArticuloProveedor) || 0,
-                        idProveedor: (item as any).idProveedor ?? (proveedor?.idProveedor ?? 0),
-                        esPredeterminado: (item as any).esPredeterminado ?? false,
-                        proveedor: proveedor ?? { idProveedor: 0, nombre: "" }, // aseguramos proveedor
-                        articulo: (item as any).articulo && typeof (item as any).articulo === "object"
-                            ? (item as any).articulo
-                            : articulos.find((a: Articulo) => a.idArticulo === (item as any).idArticulo) ?? item,
-                        nivelServicio: (item as any).nivelServicio ?? 1.65,
-                        desviacionEstandar: (item as any).desviacionEstandar ?? 0.0,
-                    } as ArticuloProveedor;
-                } else {
-                    // Sino es Articulo simple, transformamos a ArticuloProveedor "vacío"
-                    return {
-                        idArticuloProveedor: 0,
-                        idArticulo: item.idArticulo,
-                        idProveedor: proveedor?.idProveedor ?? 0,
-                        //cargoPedido: null,
-                        demoraEntrega: 0,
-                        esPredeterminado: false,
-                        precioUnitario: 0,
-                        proveedor: proveedor ?? { idProveedor: 0, nombre: "" },
-                        articulo: item,
-                        nivelServicio: 1.65,
-                        desviacionEstandar: 0.0,
-                    } as ArticuloProveedor;
-                }
-            });
-
-            const sinDuplicados = inicializados.filter(
+            const initialized = articulos.map((item) => ({
+                idArticuloProveedor: "idArticuloProveedor" in item ? Number(item.idArticuloProveedor) || 0 : 0,
+                idArticulo: item.idArticulo,
+                idProveedor: proveedor?.idProveedor ?? 0,
+                demoraEntrega: (item as any).demoraEntrega ?? 0,
+                fechaBaja: (item as any).fechaBaja ?? null,
+                esPredeterminado: (item as any).esPredeterminado ?? false,
+                precioUnitario: (item as any).precioUnitario ?? 0,
+                proveedor,
+                articulo: typeof (item as any).articulo === "object" ? (item as any).articulo : item,
+                nivelServicio: (item as any).nivelServicio ?? 1.65,
+                desviacionEstandar: (item as any).desviacionEstandar ?? 0.0,
+            }));
+            const noDuplicados = initialized.filter(
                 (item, index, self) =>
                     index === self.findIndex((t) => t.idArticulo === item.idArticulo)
             );
 
-            setArticulosEditados(sinDuplicados);
+            setArticulosEditados(noDuplicados);
+            setActiveKey(noDuplicados[0]?.idArticulo.toString() ?? "");
 
-            //setArticulosEditados(inicializados);
-
-            // Inicializo formikStates con valores iniciales para cada artículo
-            const estadosIniciales: Record<string, { 
-                precioUnitario: number; 
-                demoraEntrega: number; 
-                //cargoPedido: number; 
-                nivelServicio: number; 
-                desviacionEstandar: number; }> = {};
-            inicializados.forEach(item => {
-                estadosIniciales[item.idArticulo.toString()] = {
-                    precioUnitario: item.precioUnitario ?? 0,
-                    demoraEntrega: item.demoraEntrega ?? 0,
-                    //cargoPedido: item.cargoPedido ?? 0,
-                    nivelServicio: item.nivelServicio ?? 1.65,
-                    desviacionEstandar: item.desviacionEstandar ?? 0.0,
+            const initialStates: Record<string, any> = {};
+            noDuplicados.forEach((item) => {
+                initialStates[item.idArticulo.toString()] = {
+                    precioUnitario: item.precioUnitario,
+                    demoraEntrega: item.demoraEntrega,
+                    nivelServicio: item.nivelServicio,
+                    desviacionEstandar: item.desviacionEstandar,
                 };
             });
-            setFormikStates(estadosIniciales);
+            setFormikStates(initialStates);
         }
     }, [articulos, proveedor]);
 
+    useEffect(() => {
+        if (activeKey && formikStates[activeKey]) {
+            formik.setValues(formikStates[activeKey]);
+            formik.setTouched({});
+        }
+    }, [activeKey]);
 
+    const currentIndex = articulosEditados.findIndex(
+        (p) => p.idArticulo.toString() === activeKey
+    );
 
-    // Formik para el artículo activo:
-    const formik = useFormik({
-        enableReinitialize: true,
-        initialValues: formikStates[activeKey] || {
-            precioUnitario: 0,
-            demoraEntrega: 0,
-            //cargoPedido: 0,
-            nivelServicio: 1.65,
-            desviacionEstandar: 0.0,
-        },
-        validationSchema,
-        onSubmit: (values) => {
-            console.log("holaaa")
-            console.log("valores enviados: ", values)
-            // Actualizo el estado global formikStates con los valores actuales
-            setFormikStates(prev => ({ ...prev, [activeKey]: values }));
-
-            // Actualizo articulosEditados también para que mantenga la data actual
-            setArticulosEditados(prev => {
-                const index = prev.findIndex(a => a.idArticulo.toString() === activeKey);
-                if (index >= 0) {
-                    const actualizado = { ...prev[index], ...values };
-                    const copy = [...prev];
-                    copy[index] = actualizado;
-                    return copy;
-                }
-                return prev;
-            });
-        },
-    });
-
-    const currentIndex = articulosEditados.findIndex(p => p.idArticulo.toString() === activeKey);
-
-    // Al cambiar de tab, guardo los datos actuales y cambio activeKey
     const handleSelectTab = (k: string | null) => {
         if (!k) return;
-
-        // Antes de cambiar, guardo los datos actuales (forzando submit de formik)
-        formik.submitForm().then(() => {
-            setActiveKey(k);
-        });
+        setFormikStates((prev) => ({
+            ...prev,
+            [activeKey]: formik.values,
+        }));
+        setActiveKey(k);
     };
 
-    const handlePrev = () => {
-        if (currentIndex > 0) {
-            handleSelectTab(articulosEditados[currentIndex - 1].idArticulo.toString());
-        }
-    };
+    const validarPestaniaActiva = async (): Promise<boolean> => {
+        const errores = await formik.validateForm();
+        const tieneErrores = Object.keys(errores).length > 0;
 
-    const handleNext = async () => {
-        // Validar formulario actual
-        console.log("hola")
-        const errors = await formik.validateForm();
-        const hasErrors = Object.keys(errors).length > 0;
-
-        if (hasErrors) {
+        if (tieneErrores) {
             formik.setTouched({
                 precioUnitario: true,
                 demoraEntrega: true,
-                //cargoPedido: true,
                 nivelServicio: true,
                 desviacionEstandar: true,
             });
-            return;
-        }
-
-        // Guardar los datos actuales en articulosEditados
-        const actualizados = [...articulosEditados];
-        actualizados[currentIndex] = {
-            ...actualizados[currentIndex],
-            precioUnitario: formik.values.precioUnitario,
-            demoraEntrega: formik.values.demoraEntrega,
-            //cargoPedido: formik.values.cargoPedido,
-            nivelServicio: formik.values.nivelServicio,
-            desviacionEstandar: formik.values.desviacionEstandar,
-        };
-
-        if (currentIndex < articulosEditados.length - 1) {
-            // Siguiente tab
-            const siguiente = actualizados[currentIndex + 1];
-            setArticulosEditados(actualizados);
-            setActiveKey(siguiente.idArticulo.toString());
-            formik.resetForm({
-                values: {
-                    precioUnitario: siguiente.precioUnitario,
-                    demoraEntrega: siguiente.demoraEntrega,
-                    //cargoPedido: siguiente.cargoPedido ?? 0,
-                    nivelServicio: siguiente.nivelServicio ?? 1.65,
-                    desviacionEstandar: siguiente.desviacionEstandar ?? 0.0,
-                }
-            });
-        console.log(formik.values)
+            setTabsWithErrors((prev) => new Set(prev).add(activeKey));
         } else {
-
-            if (onVolver) onVolver(actualizados);
-            handleVolver(); // limpia y cierra
+            setTabsWithErrors((prev) => {
+                const updated = new Set(prev);
+                updated.delete(activeKey);
+                return updated;
+            });
         }
+
+        return tieneErrores;
     };
 
+    const validarTodasLasTabs = async (): Promise<boolean> => {
+        let hayErrores = false;
+        const nuevasErrores = new Set<string>();
+
+        for (const [key, values] of Object.entries(formikStates)) {
+            try {
+                await validationSchema.validate(values);
+            } catch {
+                hayErrores = true;
+                nuevasErrores.add(key);
+            }
+        }
+
+        setTabsWithErrors(nuevasErrores);
+        return hayErrores;
+    };
+
+    const handleNav = async (offset: number) => {
+        const hasErrors = await validarPestaniaActiva();
+        if (hasErrors) return;
+
+        // Guardar los datos actualizados del tab actual
+        setFormikStates((prev) => ({ ...prev, [activeKey]: formik.values }));
+
+        const updated = [...articulosEditados];
+        updated[currentIndex] = {
+            ...updated[currentIndex],
+            ...formik.values,
+        };
+        setArticulosEditados(updated);
+
+        const nextIndex = currentIndex + offset;
+
+        if (nextIndex >= 0 && nextIndex < updated.length) {
+            setActiveKey(updated[nextIndex].idArticulo.toString());
+        } else if (offset > 0) {
+            // Guardar todos los tabs antes de validar
+            const nuevosEstados: Record<string, any> = { ...formikStates, [activeKey]: formik.values };
+            setFormikStates(nuevosEstados);
+
+            // Validar todas las pestañas
+            const nuevasTabsConErrores = new Set<string>();
+            let hayErrores = false;
+
+            for (const key of Object.keys(nuevosEstados)) {
+                try {
+                    await validationSchema.validate(nuevosEstados[key], { abortEarly: false });
+                } catch {
+                    nuevasTabsConErrores.add(key);
+                    hayErrores = true;
+                }
+            }
+
+            setTabsWithErrors(nuevasTabsConErrores);
+
+            if (hayErrores) {
+                showToasty("Hay error/es en al menos un formulario, por favor revise.", "error");
+                return;
+            }
+            if (onVolver) {
+                onVolver(updated);
+            }
+            handleVolver();
+        }
+    };
 
 
     const handleVolver = () => {
         setArticulosEditados([]);
         setFormikStates({});
+        setTabsWithErrors(new Set());
         formik.resetForm();
         onHide();
     };
@@ -265,32 +230,34 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
     return (
         <Modal show={show} onHide={onHide} size="lg" backdrop="static" keyboard={false}>
             <Modal.Header>
-                <Button variant="secondary" onClick={handleVolver}>Volver</Button>
-                <Modal.Title className="ms-3">
-                    Detalles Artículo/s - Proveedor
-                </Modal.Title>
+                <Button variant="secondary" onClick={handleVolver}>
+                    Volver
+                </Button>
+                <Modal.Title className="ms-3">Detalles Artículo/s - Proveedor</Modal.Title>
             </Modal.Header>
 
             <Modal.Body>
-                <Tabs
-                    activeKey={activeKey}
-                    onSelect={handleSelectTab}
-                    id="prov-tabs"
-                    className="mb-3"
-                >
-                    {articulosEditados.map((art, index) => (
+                <Tabs activeKey={activeKey} onSelect={handleSelectTab} className="mb-3">
+                    {articulosEditados.map((art) => (
                         <Tab
                             eventKey={art.idArticulo.toString()}
-                            title={(art.articulo as Articulo)?.descripcion || "Sin nombre"}
                             key={art.idArticulo}
+                            title={
+                                <>
+                                    {(art.articulo as Articulo)?.descripcion || "Sin nombre"}
+                                    {tabsWithErrors.has(art.idArticulo.toString()) && (
+                                        <ExclamationCircleFill color="red" className="ms-2" />
+                                    )}
+                                </>
+                            }
                         >
                             {activeKey === art.idArticulo.toString() && (
                                 <Form noValidate onSubmit={formik.handleSubmit}>
                                     <Form.Group className="mb-3">
-                                        <Form.Label>Precio Unitario</Form.Label>
+                                        <Form.Label htmlFor="precioUnitario">Precio Unitario</Form.Label>
                                         <Form.Control
                                             type="number"
-                                            name="precioUnitario"
+                                            id="precioUnitario"
                                             value={formik.values.precioUnitario}
                                             onChange={formik.handleChange}
                                             onBlur={formik.handleBlur}
@@ -300,11 +267,12 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
                                             {formik.errors.precioUnitario}
                                         </Form.Control.Feedback>
                                     </Form.Group>
+
                                     <Form.Group className="mb-3">
-                                        <Form.Label>Demora de Entrega</Form.Label>
+                                        <Form.Label htmlFor="demoraEntrega">Demora de Entrega</Form.Label>
                                         <Form.Control
                                             type="number"
-                                            name="demoraEntrega"
+                                            id="demoraEntrega"
                                             value={formik.values.demoraEntrega}
                                             onChange={formik.handleChange}
                                             onBlur={formik.handleBlur}
@@ -314,25 +282,12 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
                                             {formik.errors.demoraEntrega}
                                         </Form.Control.Feedback>
                                     </Form.Group>
-                                    {/* <Form.Group className="mb-3">
-                                        <Form.Label>Cargos Pedido</Form.Label>
-                                        <Form.Control
-                                            type="number"
-                                            name="cargoPedido"
-                                            value={formik.values.cargoPedido}
-                                            onChange={formik.handleChange}
-                                            onBlur={formik.handleBlur}
-                                            isInvalid={formik.touched.cargoPedido && !!formik.errors.cargoPedido}
-                                        />
-                                        <Form.Control.Feedback type="invalid">
-                                            {formik.errors.cargoPedido}
-                                        </Form.Control.Feedback>
-                                    </Form.Group> */}
+
                                     <Form.Group className="mb-3">
-                                        <Form.Label>Nivel de Servicio (Z)</Form.Label>
+                                        <Form.Label htmlFor="nivelServicio">Nivel de Servicio (Z)</Form.Label>
                                         <Form.Control
                                             type="number"
-                                            name="nivelServicio"
+                                            id="nivelServicio"
                                             value={formik.values.nivelServicio}
                                             onChange={formik.handleChange}
                                             onBlur={formik.handleBlur}
@@ -344,10 +299,10 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
                                     </Form.Group>
 
                                     <Form.Group className="mb-3">
-                                        <Form.Label>Desviación Estándar</Form.Label>
+                                        <Form.Label htmlFor="desviacionEstandar">Desviación Estándar</Form.Label>
                                         <Form.Control
                                             type="number"
-                                            name="desviacionEstandar"
+                                            id="desviacionEstandar"
                                             value={formik.values.desviacionEstandar}
                                             onChange={formik.handleChange}
                                             onBlur={formik.handleBlur}
@@ -357,8 +312,6 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
                                             {formik.errors.desviacionEstandar}
                                         </Form.Control.Feedback>
                                     </Form.Group>
-
-
                                 </Form>
                             )}
                         </Tab>
@@ -368,14 +321,10 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
 
             <Modal.Footer>
                 <Stack direction="horizontal" gap={2} className="w-100 justify-content-between">
-                    <Button
-                        variant="primary"
-                        disabled={currentIndex === 0}
-                        onClick={handlePrev}
-                    >
+                    <Button variant="primary" disabled={currentIndex === 0} onClick={() => handleNav(-1)}>
                         Anterior
                     </Button>
-                    <Button variant="success" onClick={handleNext}>
+                    <Button variant="success" onClick={() => handleNav(1)}>
                         {currentIndex === articulosEditados.length - 1 ? "Finalizar" : "Siguiente"}
                     </Button>
                 </Stack>

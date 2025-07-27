@@ -1,9 +1,10 @@
-import { Table, Col, Form, Row, Stack, Button, Accordion, Dropdown, OverlayTrigger, Tooltip, Modal } from "react-bootstrap"
+import { Table, Col, Form, Row, Stack, Button } from "react-bootstrap"
 import axiosClient from "../api/axiosClient";
-import { useCallback, useEffect, useState, type SetStateAction } from "react";
+import { useCallback, useEffect, useState } from "react";
 import MyPagination from "../components/Pagination/myPagination";
 import dayjs from "dayjs";
 import "dayjs/locale/es";
+import customParseFormat from "dayjs/plugin/customParseFormat";
 
 
 import { useRef } from "react";
@@ -21,6 +22,9 @@ import '../App.css';
 import { showToasty } from "../utils/toasty";
 import VtaNew from "./Modales/vtaNew";
 import VtaDetalle from "./Modales/VtaDetalles";
+
+dayjs.locale("es");
+dayjs.extend(customParseFormat);
 
 
 interface Articulo {
@@ -88,74 +92,12 @@ const Ventas = () => {
         setShowModal(true);
     }
 
-    const handleUpdateVenta = async (updatedVenta: Venta) => {
-        if (!selectedVenta) return;
-
-        const originalVenta = selectedVenta;
-
-        const cambios: Partial<Record<keyof Venta, Venta[keyof Venta]>> = {};
-
-        for (const key in updatedVenta) {
-            if (
-                Object.prototype.hasOwnProperty.call(updatedVenta, key) &&
-                key !== "inventario" &&
-                key !== "ventaProveedor"
-            ) {
-                if (updatedVenta[key as keyof Venta] !== originalVenta[key as keyof Venta]) {
-                    cambios[key as keyof Venta] = updatedVenta[key as keyof Venta];
-                }
-            }
-        }
-
-        // Si no hay cambios en propiedades simples, salir
-        if (Object.keys(cambios).length === 0) {
-            setShowModal(false);
-            return;
-        }
-
-
-        try {
-            const response = await fetch(`http://localhost:3000/ventas/${updatedVenta.idVenta}`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(cambios),
-            });
-
-            if (!response.ok) {
-                throw new Error("Error al actualizar venta");
-            }
-
-            const result = await response.json();
-
-            setData(artData => {
-                const nuevosDatos = artData.datos.map(art =>
-                    art.idVenta === result.data.idVenta
-                        ? result.data
-                        : art
-                );
-
-                return {
-                    ...artData,
-                    datos: nuevosDatos
-                };
-            });
-            showToasty("Venta actualizado exitosamente", "success");
-            await fetchData(); // refresca toda la tabla desde el servidor
-            setShowModal(false);
-        } catch (error) {
-            console.error("Error al actualizar venta:", error);
-        }
-    };
-
     //agrego para que se de alta un nuevo venta
-    const handleCreateVenta = async (nuevoVenta: Venta) => {
+    const handleCreateVenta = async (nuevaVenta: Venta) => {
         try {
 
             // VER ESTO A LA HORA DE CREAR UN ARTICULO NUEVO TIRA ERROR SERA POR Inventario? 
-            console.log("handleCreateVenta")
-            const response = await axiosClient.post("/ventas", nuevoVenta);
+            const response = await axiosClient.post("/ventas", nuevaVenta);
 
             const ventaCreado = response.data;
 
@@ -168,6 +110,36 @@ const Ventas = () => {
             setShowModal(false);
         } catch (error) {
             showToasty("Error al crear el venta", "error");
+        }
+    };
+
+    const aplicarFiltro = (
+        valor: string,
+        setFechaSeleccionada: React.Dispatch<React.SetStateAction<Date | null>>,
+        setInputFecha: React.Dispatch<React.SetStateAction<string>>,
+        setMostrarCalendario: React.Dispatch<React.SetStateAction<boolean>>,
+        setPage: React.Dispatch<React.SetStateAction<number>>
+    ) => {
+        // Limpiar caracteres no numéricos
+        let limpio = valor.replace(/\D/g, '');
+
+        if (limpio.length > 2) limpio = limpio.slice(0, 2) + "/" + limpio.slice(2);
+        if (limpio.length > 5) limpio = limpio.slice(0, 5) + "/" + limpio.slice(5);
+
+        setInputFecha(limpio);
+
+        if (limpio.length === 10) {
+            const fecha = dayjs(limpio, "DD/MM/YYYY", true);
+            if (fecha.isValid()) {
+                setFechaSeleccionada(fecha.toDate());
+                setMostrarCalendario(false);
+                setPage(1);
+            } else {
+                setFechaSeleccionada(null);
+                showToasty("Fecha inválida. Intenta de nuevo.", "error");
+            }
+        } else {
+            setFechaSeleccionada(null);
         }
     };
 
@@ -213,8 +185,14 @@ const Ventas = () => {
         }
     }, [fechaSeleccionada]);
 
+    const normalizarTexto = (texto: string) =>
+        texto.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+    const textoDescripcion = normalizarTexto(searchDescripcion);
+
     const filteredData = data.datos.filter(ap => {
-        const cumpleDescripcion = ap.articulo.descripcion.toLowerCase().includes(searchDescripcion.toLowerCase());
+        const descripcionNormalizada = normalizarTexto(ap.articulo.descripcion || "");
+        const cumpleDescripcion = descripcionNormalizada.includes(textoDescripcion);
         const cumpleIdVenta = ap.idVenta.toString().includes(searchIdVenta);
         const cumpleIdArticulo = ap.idArticulo.toString().includes(searchIdArticulo);
         const cumpleFecha = fechaSeleccionada
@@ -222,9 +200,9 @@ const Ventas = () => {
             || dayjs(ap.fechaCreacion).startOf('day').isAfter(dayjs(fechaSeleccionada).startOf('day'))
             : true;
 
-
         return cumpleDescripcion && cumpleIdVenta && cumpleIdArticulo && cumpleFecha;
     });
+
 
 
 
@@ -254,6 +232,7 @@ const Ventas = () => {
                     <Col sm={1}>
                         <Form.Control
                             type="text"
+                            name="srchIDVenta"
                             placeholder="ID Venta"
                             value={searchIdVenta}
                             onChange={(e) => setSearchIdVenta(e.target.value)}
@@ -262,6 +241,7 @@ const Ventas = () => {
                     <Col sm={1}>
                         <Form.Control
                             type="text"
+                            name="srchIDArticulo"
                             placeholder="ID Artículo"
                             className="mr-sm-2"
                             value={searchIdArticulo}
@@ -271,6 +251,7 @@ const Ventas = () => {
                     <Col sm={6}>
                         <Form.Control
                             type="text"
+                            name="srchDescripcion"
                             placeholder="Descripción"
                             className="mr-sm-2"
                             value={searchDescripcion}
@@ -280,59 +261,35 @@ const Ventas = () => {
                     </Col>
                     <Col sm={2}>
                         <Stack direction="horizontal" gap={2}>
-                            {/* <Form.Control
-                                type="text"
-                                placeholder="Fecha"
-                                value={fechaSeleccionada ? fechaSeleccionada.toLocaleDateString("es-AR") : ""}
-                                readOnly
-                                onClick={() => setMostrarCalendario(!mostrarCalendario)}
-                                /> */}
                             <div style={{ position: "relative" }}>
                                 <input
                                     type="text"
                                     className="form-control"
+                                    name="srchFDesde"
                                     value={inputFecha}
                                     placeholder="Fecha Desde"
                                     onFocus={() => setMostrarCalendario(true)}
                                     maxLength={10}
-                                    onChange={(e) => {
-                                        let valor = e.target.value;
 
-                                        // Eliminar todo excepto números
-                                        valor = valor.replace(/\D/g, "");
-
-                                        // Insertar '/' en posición 2 y 4
-                                        if (valor.length > 2) {
-                                            valor = valor.slice(0, 2) + "/" + valor.slice(2);
-                                        }
-                                        if (valor.length > 5) {
-                                            valor = valor.slice(0, 5) + "/" + valor.slice(5);
-                                        }
-
-                                        setInputFecha(valor);
-
-                                        // Si la longitud es 10, intentar parsear y actualizar fechaSeleccionada
-                                        if (valor.length === 10) {
-                                            const fecha = dayjs(valor, "DD/MM/YYYY", true);
-                                            if (fecha.isValid()) {
-                                                setFechaSeleccionada(fecha.toDate());
-                                                setMostrarCalendario(false); // Cerramos calendario al ingresar fecha completa
-                                                setPage(1); // Reiniciar página si usas paginación
-                                            } else {
-                                                setFechaSeleccionada(null);
-                                            }
-                                        } else {
-                                            setFechaSeleccionada(null);
-                                        }
-                                    }}
+                                    onChange={(e) =>
+                                        aplicarFiltro(
+                                            e.target.value,
+                                            setFechaSeleccionada,
+                                            setInputFecha,
+                                            setMostrarCalendario,
+                                            setPage
+                                        )
+                                    }
                                     onBlur={() => {
-                                        // Si al perder foco hay fecha seleccionada, sincronizamos el input con el formato correcto
                                         if (fechaSeleccionada) {
                                             setInputFecha(dayjs(fechaSeleccionada).format("DD/MM/YYYY"));
                                         } else {
                                             setInputFecha('');
                                         }
                                     }}
+
+
+
                                 />
 
 
@@ -358,8 +315,8 @@ const Ventas = () => {
                                     >
                                         <MyDatePicker
                                             selectedDate={fechaSeleccionada || new Date()}
-                                            minDate={new Date(2020, 0, 1)}
-                                            maxDate={new Date(2030, 11, 31)}
+                                            minDate={new Date(1900, 0, 1)}
+                                            maxDate={new Date(3000, 11, 31)}
                                             onChange={(fecha: Date | false) => {
                                                 if (fecha && typeof fecha !== "boolean") {
                                                     setFechaSeleccionada(fecha);
@@ -430,7 +387,7 @@ const Ventas = () => {
                                                 <td style={{ width: '40%' }} >
                                                     <Form.Control
                                                         type="text"
-                                                        placeholder="Buscar por descripción"
+                                                        name="tblDescripcion"
                                                         className="mr-sm-2"
                                                         value={vta.articulo.descripcion}
                                                         readOnly
@@ -440,7 +397,7 @@ const Ventas = () => {
                                                 <td style={{ width: '10%' }} >
                                                     <Form.Control
                                                         type="text"
-                                                        placeholder="Buscar por descripción"
+                                                        name="tblFecha"
                                                         className="mr-sm-2"
                                                         value={vta.fechaCreacion
                                                             ? dayjs(vta.fechaCreacion).format("DD/MM/YYYY")

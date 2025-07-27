@@ -1,58 +1,174 @@
 import axiosClient from "../api/axiosClient";
 
-export async function crearAjusteInv(
-  updatedArticulo: any,
-  artOriginal: any,
-  updateProveedor: any | undefined,
-  provOriginal: any | undefined
-) {
-  const cambios: { campo: string; valorOriginal: any; valorNuevo: any }[] = [];
+export const crearAjusteInv = async (
+  articuloOriginal: any,
+  cambios: any,
+  proveedorOriginal: any,
+  proveedorModificado: any
+) => {
 
-  // Comparar campos del artículo
-  for (const campo in updatedArticulo) {
-    if (
-      Object.prototype.hasOwnProperty.call(artOriginal, campo) &&
-      updatedArticulo[campo] !== artOriginal[campo]
-    ) {
-      cambios.push({
-        campo,
-        valorOriginal: artOriginal[campo],
-        valorNuevo: updatedArticulo[campo],
-      });
+  let ajustesTotales: any[] = [];
+
+
+  if (cambios && (!articuloOriginal && !proveedorModificado && !proveedorOriginal)) {
+    ajustesTotales.push(...ajusteDeCreacion(cambios));
+  } else if (articuloOriginal && !cambios) {
+    ajustesTotales.push(...ajusteDeEliminacion(articuloOriginal));
+  } else {
+
+    if (cambios && articuloOriginal) {
+      ajustesTotales.push(...extraerCambiosArtOriginal(articuloOriginal, cambios));
+    }
+    if (proveedorModificado) {
+      ajustesTotales.push(...extraerCambiosProveedor(proveedorOriginal, proveedorModificado));
     }
   }
+  try {
+    await axiosClient.post("/ajuste-Inventarios", ajustesTotales);
+  } catch (error) {
+    console.error("Error al crear el ajuste de inventario desde el back:", error);
+  }
+}
 
-  console.log(cambios);
-  
 
-  // Comparar campos del proveedor (si existen)
-  if (updateProveedor && provOriginal) {
-    for (const campo in updateProveedor) {
-      if (
-        Object.prototype.hasOwnProperty.call(provOriginal, campo) &&
-        updateProveedor[campo] !== provOriginal[campo]
-      ) {
-        cambios.push({
-          campo: `proveedor.${campo}`,
-          valorOriginal: provOriginal[campo],
-          valorNuevo: updateProveedor[campo],
+type Formato = {
+  idArticulo: number;
+  fecha: string;
+  atributo: string;
+  userName: string;
+  valorNuevo: any;
+  valorOriginal: any;
+}
+
+function extraerCambiosArtOriginal(articulo: any, cambios: any): Formato[] {
+  const resultadoArt: Formato[] = [];
+
+  const idArticulo = articulo.idArticulo;
+  const fechaActual = obtenerFechaActual();
+  const userName = "Usuario"; // Fijo por ahora
+
+  for (const key in cambios) {
+    if (typeof cambios[key] === "object" && cambios[key] !== null) {
+      for (const subKey in cambios[key]) {
+        const valorArticulo = articulo[key]?.[subKey];
+        const valorCambio = cambios[key][subKey];
+
+        if (valorArticulo !== valorCambio) {
+          resultadoArt.push({
+            atributo: `${key}.${subKey}`,
+            fecha: fechaActual,
+            idArticulo,
+            userName,
+            valorNuevo: valorCambio,
+            valorOriginal: valorArticulo,
+          });
+        }
+      }
+    } else {
+      const valorArticulo = articulo[key];
+      const valorCambio = cambios[key];
+
+      if (valorArticulo !== valorCambio) {
+        resultadoArt.push({
+          atributo: key,
+          fecha: fechaActual,
+          idArticulo,
+          userName,
+          valorNuevo: valorCambio,
+          valorOriginal: valorArticulo,
         });
       }
     }
   }
 
-  // Podés enviar el arreglo a tu backend, guardarlo en base de datos, etc.
-  if (cambios.length > 0) {
-      console.log("Cambios detectados:", cambios);
+  return resultadoArt;
+}
+function extraerCambiosProveedor(proveedorOriginal: any, proveedorModificado: any): Formato[] {
+  const provModificado = proveedorModificado.proveedor;
 
-    // Ejemplo de cómo enviar los cambios si necesitás:
-    // await axiosClient.post("/ajustes", { cambios });
-  } else {
-    console.log("No hay cambios");
+  const idArticulo = proveedorModificado.idArticulo;
+  const fechaActual = obtenerFechaActual();
+  const userName = "Usuario"; // Fijo por ahora
+
+  const resultadoProv: Formato[] = [];
+
+  if (proveedorOriginal) {
+    const provOriginal = proveedorOriginal.proveedor;
+
+    resultadoProv.push({
+      atributo: "proveedor",
+      fecha: fechaActual,
+      idArticulo,
+      userName,
+      valorNuevo: "#" + provModificado.idProveedor + "-" + provModificado.nombre,
+      valorOriginal: "#" + provOriginal.idProveedor + "-" + provOriginal.nombre,
+    });
+
+    return resultadoProv;
+
+  } else if (!proveedorOriginal) {
+
+    resultadoProv.push({
+      atributo: "proveedor",
+      fecha: fechaActual,
+      idArticulo,
+      userName,
+      valorNuevo: "#" + provModificado.idProveedor + "-" + provModificado.nombre,
+      valorOriginal: "S/Prov-Creacion",
+    });
+
+    return resultadoProv;
   }
 
-  console.log(cambios);
-  
+  return resultadoProv;
+}
 
-  return cambios;
+function obtenerFechaActual(): string {
+  const ahora = new Date();
+  return ahora.toISOString();
+}
+
+
+function ajusteDeEliminacion(articulo: any): Formato[] {
+  const resultadoArt: Formato[] = [];
+
+  const idArticulo = articulo.idArticulo;
+  const fechaActual = obtenerFechaActual();
+  const userName = "Usuario"; // Fijo por ahora
+
+
+  resultadoArt.push({
+    atributo: "Eliminación",
+    fecha: fechaActual,
+    idArticulo,
+    userName,
+    valorNuevo: "Eliminado",
+    valorOriginal: "-",
+  });
+
+  return resultadoArt;
+}
+
+
+
+
+function ajusteDeCreacion(articulo: any): Formato[] {
+  const resultadoArt: Formato[] = [];
+
+  const idArticulo = articulo.idArticulo;
+  const fechaActual = obtenerFechaActual();
+  const userName = "Usuario"; // Fijo por ahora
+
+
+  resultadoArt.push({
+    atributo: "Creación",
+    fecha: fechaActual,
+    idArticulo,
+    userName,
+    valorNuevo: "Creado",
+    valorOriginal: "-",
+  });
+
+  return resultadoArt;
+
 }

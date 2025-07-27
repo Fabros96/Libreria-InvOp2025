@@ -1,5 +1,5 @@
-import { Modal, Button, Form, InputGroup, Table } from "react-bootstrap";
 import { useEffect, useState } from "react";
+import { Modal, Button, Form, InputGroup, Table } from "react-bootstrap";
 import axiosClient from "../../api/axiosClient";
 
 import "../styles/Articulos.css";
@@ -12,39 +12,26 @@ interface ProvAsocProps {
     proveedor: any | null;
     onHide: () => void;
     onSiguiente: (articulosSeleccionados: any[]) => void;
+    articulosProveedorOriginalList: any[]; // <- nuevo prop
 }
 
-type Proveedor = {
-    idProveedor: number;
-    nombre: string;
-    fechaBaja: Date | null;
-};
-
-type Articulo = {
-    idArticulo: number;  // Asegurarse que sea idArticulo, no idInventario
-    descripcion: string;
-    // otros campos
-};
-
-type ArticuloProveedor = {
-    idArticuloProveedor: number;
-    idArticulo: number;
-    idProveedor: number;
-    // otros campos
-};
-
-const ProvAsoc = ({ show, onHide, proveedor, onSiguiente }: ProvAsocProps) => {
-    const [selectedIdsArticulos, setSelectedIdsArticulos] = useState<string[]>([]);
+const ProvAsoc = ({
+    show,
+    proveedor,
+    onHide,
+    onSiguiente,
+    articulosProveedorOriginalList,
+}: ProvAsocProps) => {
     const [data, setData] = useState<ArticulosData>({ datos: [] });
-    const [articulosProveedorList, setArticulosProveedorList] = useState<ArticuloProveedor[]>([]);
+    const [selectedIdsArticulos, setSelectedIdsArticulos] = useState<string[]>([]);
+    const [articulosProveedorSeleccionadosList, setArticulosProveedorSeleccionadosList] = useState<any[]>([]);
     const [searchText, setSearchText] = useState("");
     const [showAll, setShowAll] = useState(true);
 
-    // Cargar artículos generales
     useEffect(() => {
         const fetchArticulos = async () => {
             try {
-                const response = await axiosClient.get("articulos");
+                const response = await axiosClient.get("articulos/?filter[fechaBaja][eq]=null");
                 setData({ datos: response.data || [] });
             } catch (error) {
                 console.error("Error al obtener artículos:", error);
@@ -53,29 +40,16 @@ const ProvAsoc = ({ show, onHide, proveedor, onSiguiente }: ProvAsocProps) => {
         fetchArticulos();
     }, []);
 
-    // Cargar artículos asociados al proveedor cuando cambia el proveedor o modal se abre
     useEffect(() => {
-        if (!proveedor) return;
+        const ids = articulosProveedorOriginalList.map((ap) => ap.idArticulo.toString());
+        setSelectedIdsArticulos(ids);
+        setArticulosProveedorSeleccionadosList([]);
+    }, [articulosProveedorOriginalList]);
 
-        const fetchArticulosProveedor = async () => {
-            try {
-                const response = await axiosClient.get(
-                    `articulo-proveedores/?filter[idProveedor][eq]=${proveedor.idProveedor}&filter[include]=articulo,proveedor&filter[articulo.fechaBaja][eq]=null`
-                );
-
-                const articulosProv: ArticuloProveedor[] = response.data || [];
-                setArticulosProveedorList(articulosProv);
-
-                // Inicializar checkboxes marcados con los idArticulo que ya están asociados
-                const idsSeleccionados = articulosProv.map((ap) => ap.idArticulo.toString());
-                setSelectedIdsArticulos(idsSeleccionados);
-            } catch (error) {
-                console.error("Error al obtener artículos del proveedor:", error);
-            }
-        };
-
-        fetchArticulosProveedor();
-    }, [proveedor, show]);
+    const articulosProveedorList =
+        articulosProveedorSeleccionadosList.length > 0
+            ? articulosProveedorSeleccionadosList
+            : articulosProveedorOriginalList;
 
     const handleCheckboxChange = (idArticulo: string) => {
         setSelectedIdsArticulos((prev) =>
@@ -85,34 +59,33 @@ const ProvAsoc = ({ show, onHide, proveedor, onSiguiente }: ProvAsocProps) => {
         );
     };
 
+    const normalizarTexto = (texto: string) =>
+        texto.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+    const textoBusqueda = normalizarTexto(searchText.trim());
+
     const filteredData = showAll
         ? data.datos
-        : searchText.trim() === ""
-            ? []
-            : data.datos.filter((articulo) =>
-                articulo.descripcion?.toLowerCase().includes(searchText.toLowerCase())
-            );
+        : textoBusqueda === ""
+            ? data.datos
+            : data.datos.filter((articulo) => {
+                const descripcion = normalizarTexto(articulo.descripcion || "");
+                const idArticulo = normalizarTexto(articulo.idArticulo?.toString() || "");
+                return descripcion.includes(textoBusqueda) || idArticulo.includes(textoBusqueda);
+            });
 
     const handleSiguiente = () => {
-        
-        const seleccionados = selectedIdsArticulos.map((idStr) => {
-            const id = Number(idStr);
-            
-            // Buscar en articulosProveedorList primero (artículos ya asociados)
-            const articuloProvExistente = articulosProveedorList.find(
-                (ap) => ap.idArticulo === id
-            );
-            
-            if (articuloProvExistente) {
-                // Retorna el objeto completo del artículo-proveedor con sus datos
-                return articuloProvExistente;
-            }
-            
-            // Si no está en articulosProveedorList, buscar en data.datos (artículo básico)
-            const articuloNuevo = data.datos.find((art) => art.idArticulo === id);
-            
-            return articuloNuevo || null;
-        }).filter(Boolean); // filtrar posibles nulls
+        const seleccionados = selectedIdsArticulos
+            .map((idStr) => {
+                const id = Number(idStr);
+
+                const existente = articulosProveedorList.find((ap) => ap.idArticulo === id);
+                if (existente) return existente;
+
+                const nuevo = data.datos.find((art) => art.idArticulo === id);
+                return nuevo || null;
+            })
+            .filter(Boolean);
 
         onSiguiente(seleccionados);
     };
@@ -141,6 +114,7 @@ const ProvAsoc = ({ show, onHide, proveedor, onSiguiente }: ProvAsocProps) => {
                     <InputGroup className="mb-3">
                         <Form.Control
                             type="text"
+                            name="srchArticulos"
                             placeholder="Buscar Artículo/s"
                             value={searchText}
                             onChange={(e) => {
@@ -172,19 +146,22 @@ const ProvAsoc = ({ show, onHide, proveedor, onSiguiente }: ProvAsocProps) => {
                                 {filteredData.length === 0 ? (
                                     <tr>
                                         <td colSpan={3} className="text-center text-muted">
-                                            {searchText.trim() === "" && !showAll
-                                                ? "Busca un artículo para ver resultados."
-                                                : "No se encontraron resultados."}
+                                            <p>
+                                                {searchText.trim() === "" && !showAll
+                                                    ? "Busca un artículo para ver resultados."
+                                                    : "No se encontraron resultados."}
+                                            </p>
                                         </td>
                                     </tr>
                                 ) : (
                                     filteredData.map((art) => (
                                         <tr key={art.idArticulo}>
-                                            <td>{art.idArticulo}</td>
-                                            <td>{art.descripcion}</td>
+                                            <td><p>{art.idArticulo}</p></td>
+                                            <td><p>{art.descripcion}</p></td>
                                             <td>
                                                 <Form.Check
                                                     type="checkbox"
+                                                    name="chbxArt"
                                                     checked={selectedIdsArticulos.includes(
                                                         art.idArticulo.toString()
                                                     )}
