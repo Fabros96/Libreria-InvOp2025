@@ -26,48 +26,58 @@ export const AjusteInventarioController = {
         }
     },
 
+
     create: async (req: Request, res: Response) => {
-        let { idArticulo, cantOrig, cantNew, fecha, userName } = req.body;
         try {
+            if (Array.isArray(req.body)) {
+                // Inserción múltiple
+                const datos = req.body.map(item => ({
+                    atributo: String(item.atributo),
+                    fecha: new Date(item.fecha),
+                    idArticulo: parseInt(item.idArticulo),
+                    userName: String(item.userName),
+                    valorNuevo: String(item.valorNuevo),
+                    valorOriginal: String(item.valorOriginal),
+                }));
 
-            const nuevoAjusteInventario = await prisma.ajusteInventario.create({
-                data: { idArticulo, cantOrig, cantNew, fecha, userName }
-            });
+                const resultado = await prisma.ajusteInventario.createMany({
+                    data: datos,
+                });
 
-            res.status(201).json({ msg: 'Ajuste inv creado correctamente.', data: nuevoAjusteInventario });
+                return res.status(201).json({
+                    msg: 'Ajustes de inventario creados correctamente.',
+                    data: resultado,
+                });
 
+            } else {
+                // Inserción individual
+                const {atributo,fecha,idArticulo,userName,valorNuevo,valorOriginal} = req.body;
+
+                const data = {
+                    atributo: String(atributo),
+                    fecha: new Date(fecha),
+                    idArticulo: parseInt(idArticulo),
+                    userName: String(userName),
+                    valorNuevo: String(valorNuevo),
+                    valorOriginal: String(valorOriginal),
+                };
+
+                const nuevoAjusteInventario = await prisma.ajusteInventario.create({
+                    data,
+                });
+
+                return res.status(201).json({
+                    msg: 'Ajuste de inventario creado correctamente.',
+                    data: nuevoAjusteInventario,
+                });
+            }
         } catch (error: any) {
-            res.status(500).json({ msg: 'Error al crear la ajuste-inventario', detail: error.message });
-        }
-    },
-
-    // Actualizar un ajuste-inventario (update)
-    update: async (req: Request, res: Response) => {
-        const { id } = req.params;
-        let { idArticulo, cantOrig, cantNew, fecha, userName } = req.body;
-        let payload: any = { idArticulo, cantOrig, cantNew, fecha, userName };
-        try {
-            const ajusteInventarioActualizado = await prisma.ajusteInventario.update({
-                where: { idAjusteInventario: parseInt(id) },
-                data: payload,
+            return res.status(500).json({
+                msg: 'Error al crear el ajuste de inventario.',
+                detail: error.message,
             });
-            res.status(200).json({ msg: 'Se ha actualizado el ajuste-inventario.', data: ajusteInventarioActualizado });
-        } catch (error: any) {
-            res.status(500).json({ msg: 'Error al actualizar el ajuste-inventario', detail: error.message });
         }
-    },
+    }
 
-    // Eliminar un ajuste-inventario (delete)
-    delete: async (req: Request, res: Response) => {
-        const { id } = req.params;
-        try {
-            await prisma.ajusteInventario.delete({
-                where: { idAjusteInventario: parseInt(id) },
-            });
-            res.status(200).json({ msg: 'Se ha eliminado el ajuste-inventario.' });
-        } catch (error: any) {
-            res.status(500).json({ msg: 'Error al eliminar el ajuste-inventario', detail: error.message });
-        }
-    },
 
 }

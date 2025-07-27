@@ -14,6 +14,7 @@ async function main() {
         loteOptimo: 30,
         puntoPedido: 20,
         stockSeguridad: 10,
+        periodoRevision:0,
       },
     }),
     prisma.inventario.create({
@@ -25,6 +26,7 @@ async function main() {
         loteOptimo: 25,
         puntoPedido: 18,
         stockSeguridad: 8,
+        periodoRevision:0,
       },
     }),
      prisma.inventario.create({
@@ -36,6 +38,7 @@ async function main() {
         loteOptimo: 35,
         puntoPedido: 22,
         stockSeguridad: 12,
+        periodoRevision:0,
       },
     }),
   ]);
@@ -74,6 +77,8 @@ async function main() {
         idArticulo: articulos[0].idArticulo,
         idProveedor: proveedores[0].idProveedor,
         precioUnitario: 100,
+        nivelServicio:8,
+        desviacionEstandar:10,
         demoraEntrega: 5,
         esPredeterminado: true,
       },
@@ -83,6 +88,8 @@ async function main() {
         idArticulo: articulos[1].idArticulo,
         idProveedor: proveedores[1].idProveedor,
         precioUnitario: 110,
+        nivelServicio:10,
+        desviacionEstandar:15,
         demoraEntrega: 4,
         esPredeterminado: true,
       },
@@ -92,6 +99,8 @@ async function main() {
         idArticulo: articulos[2].idArticulo,
         idProveedor: proveedores[2].idProveedor,
         precioUnitario: 120,
+        nivelServicio:15,
+        desviacionEstandar:10,
         demoraEntrega: 3,
         esPredeterminado: false,
       },
@@ -106,17 +115,17 @@ async function main() {
     }),
     prisma.estadoOrdenCompra.create({
       data: {
-        nombre: 'Enviado',
+        nombre: 'Enviada',
       },
     }),
     prisma.estadoOrdenCompra.create({
       data: {
-        nombre: 'Cancelado',
+        nombre: 'Cancelada',
       },
     }),
     prisma.estadoOrdenCompra.create({
       data: {
-        nombre: 'Finalizado',
+        nombre: 'Finalizada',
       },
     }),
   ]);
@@ -177,7 +186,7 @@ async function main() {
     }),
   ]);
 
-  const TOTAL_VENTAS = 5;           // Cantidad de registros que quieres crear
+  const TOTAL_VENTAS = 15;           // Cantidad de registros que quieres crear
   const MAX_CANTIDAD = 20;             // Cantidad máxima por venta
   const FECHA_INICIO = new Date(2023, 0, 1);
   const FECHA_FIN = new Date(2023, 11, 31);
@@ -201,23 +210,27 @@ async function main() {
   }
   await prisma.venta.createMany({ data: ventas });
   console.log(`${TOTAL_VENTAS} ventas creadas exitosamente!`);
+  console.log('\x1b[32m👍 TODO LISTO CAPO/A!! Dale para adelante con el FRONT.\x1b[0m');
+
 
   const ajuste1 = await prisma.ajusteInventario.create({
     data: {
-      cantOrig: 150,
       idArticulo: 1, // Asegúrate de que el artículo con id 1 exista
-      cantNew: 145,
       fecha: new Date(),
+      atributo: "stock",
+      valorOriginal: "150",
+      valorNuevo: "145",
       userName: 'admin',
     },
   });
 
   const ajuste2 = await prisma.ajusteInventario.create({
     data: {
-      cantOrig: 75,
       idArticulo: 2, // Asegúrate de que el artículo con id 2 exista
-      cantNew: 80,
       fecha: new Date(),
+      atributo: "stock",
+      valorOriginal: "75",
+      valorNuevo: "80",
       userName: 'operario_ajustes',
     },
   });

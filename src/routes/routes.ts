@@ -54,8 +54,6 @@ router.delete("/articulos/:id", ArticuloController.delete);
 router.get("/ventas", VentaController.getAll);
 router.get("/ventas/:id", VentaController.getById);
 router.post("/ventas", VentaController.create);
-router.put("/ventas/:id", VentaController.update);
-router.delete("/ventas/:id", VentaController.delete);
 
 // orden compra
 router.get("/orden-compras", OrdenCompraController.getAll);
@@ -69,8 +67,6 @@ router.delete("/orden-compras/:id", OrdenCompraController.delete);
 router.get("/ajuste-inventarios", AjusteInventarioController.getAll);
 router.get("/ajuste-inventarios/:id", AjusteInventarioController.getById);
 router.post("/ajuste-inventarios", AjusteInventarioController.create);
-router.put("/ajuste-inventarios/:id", AjusteInventarioController.update);
-router.delete("/ajuste-inventarios/:id", AjusteInventarioController.delete);
 
 //cron-revision-periodoFijo
 router.post('/cron/iniciar', CronInventarioController.iniciarCronDesdeFrontend);

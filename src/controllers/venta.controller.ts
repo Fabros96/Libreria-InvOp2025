@@ -135,36 +135,4 @@ export const VentaController = {
         }
     },
 
-
-
-
-    // Actualizar un venta (update)
-    update: async (req: Request, res: Response) => {
-        const { id } = req.params;
-        let { idArticulo, cantidad, fechaCreacion, articulo } = req.body;
-        let payload: any = { idArticulo, cantidad, fechaCreacion, articulo };
-        try {
-            const ventaActualizado = await prisma.venta.update({
-                where: { idVenta: parseInt(id) },
-                data: payload,
-            });
-            res.status(200).json({ msg: 'Se ha actualizado el venta.', data: ventaActualizado });
-        } catch (error: any) {
-            res.status(500).json({ msg: 'Error al actualizar el venta', detail: error.message });
-        }
-    },
-
-    // Eliminar un venta (delete)
-    delete: async (req: Request, res: Response) => {
-        const { id } = req.params;
-        try {
-            await prisma.venta.delete({
-                where: { idVenta: parseInt(id) },
-            });
-            res.status(200).json({ msg: 'Se ha eliminado el venta.' });
-        } catch (error: any) {
-            res.status(500).json({ msg: 'Error al eliminar el venta', detail: error.message });
-        }
-    },
-
 }
