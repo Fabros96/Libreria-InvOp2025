@@ -14,34 +14,16 @@ interface ArtProvProps {
     onReload?: () => void;
 }
 
-
-type Proveedor = {
-    idProveedor: number;
-    nombre: string;
-    fechaBaja: Date | null;
-};
-
-type Articulo = {
-    idProveedor: number;
-    idInventario: number;
-    fechaBaja: Date | null;
-    descripcion: string;
-    modeloInventario: number;
-    stock: number;
-}
-
 type ArticuloProveedor = {
     idArticuloProveedor: number,
     idArticulo: number,
     idProveedor: number,
-    cargoPedido: number | null,
     demoraEntrega: number,
+    fechaBaja: Date | null,
     esPredeterminado: boolean,
     precioUnitario: number,
-    nivelServicio: number,
-    desviacionEstandar: number,
-    proveedor: Proveedor,
-    articulo: Articulo,
+    proveedor: any,
+    articulo: any,
 };
 
 type ArticulosData = {
@@ -83,8 +65,6 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
                 }
 
                 const allData = response?.data?.datos || response?.data || [];
-
-                // ⚠️ CORRECTO FILTRADO DE DUPLICADOS
                 const mapa = new Map<number, ArticuloProveedor>();
 
                 for (const item of allData) {
@@ -145,7 +125,6 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
     // Función para cerrar el modal y resetear estados
     const handleClose = () => {
         setSelectedPredeterminado(proveedorDeterminadoOriginal);
-
         if (proveedorDeterminadoOriginal) {
             const nuevosDatos = data.datos.map((item) => ({
                 ...item,
@@ -154,7 +133,6 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
             }));
             setData({ datos: nuevosDatos });
         }
-
         onHide();
     };
 
@@ -172,33 +150,33 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
             return prov.esPredeterminado !== original.esPredeterminado;
         });
 
-        // Le pasás al padre: proveedor predeterminado y lista de cambios
         if (onSave) {
             if (!proveedorSeleccionado) return;
-
             onSave({
                 proveedorPredeterminado: proveedorSeleccionado,
                 cambios,
+                proveedorOriginal: proveedorDeterminadoOriginal,
+                proveedorNuevo: proveedorSeleccionado,
             });
         }
-
         onHide();
     };
 
-
-
-
+    const normalizarTexto = (texto: string) =>
+        texto.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
     const getFilteredData = () => {
         if (showAll) return data.datos;
         if (searchText.trim().length < 1) return data.datos;
-        console.log(data);
-        console.log(data.datos);
 
-        return data.datos.filter(articulo =>
-            articulo.proveedor.nombre?.toLowerCase().includes(searchText.toLowerCase())
-        );
+        const textoBusqueda = normalizarTexto(searchText);
+
+        return data.datos.filter(articulo => {
+            const nombreProveedor = normalizarTexto(articulo.proveedor?.nombre || "");
+            return nombreProveedor.includes(textoBusqueda);
+        });
     };
+
 
     const filteredData = getFilteredData();
 
@@ -215,6 +193,7 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
                     <InputGroup className="mb-3">
                         <Form.Control
                             type="text"
+                            name="srchProveedor"
                             placeholder="Buscar Proveedor"
                             value={searchText}
                             onChange={(e) => {
@@ -322,11 +301,7 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
                     <Button variant="outline-danger" onClick={onHide}>
                         Cancelar
                     </Button>
-                    <Button
-                        variant={selectedPredeterminado ? "success" : "outline-success"}
-                        onClick={handleSave}
-
-                    >
+                    <Button variant={selectedPredeterminado ? "success" : "outline-success"} onClick={handleSave}>
                         Guardar
                     </Button>
                 </Modal.Footer>

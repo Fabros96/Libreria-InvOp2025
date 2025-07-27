@@ -10,7 +10,7 @@
   --primario: #3b484e;
   --secundario: #acd2c7;
   --terciario: #4e7e7b;
-  --detalles: #0000007c;
+  --detalles: #000000d2;
   --texto: #e4f3ea;
 }
 
@@ -27,6 +27,13 @@ button {
   border-radius: 5px;
 }
 
+.auto-width-modal .modal-dialog .modal-content {
+  display: inline-block;
+  width: auto !important;
+  max-width: 90vw;
+  /* evita que explote en pantallas pequeñas */
+}
+
 .modal-header,
 .modal-body,
 .modal-footer {
@@ -38,12 +45,17 @@ button {
 .modal-content {
   border: 5px solid var(--primario);
   border-radius: 15px;
+  display: inline-block;
+  width: auto !important;
+  min-width: 50vw;
+  max-width: 90vw;
+  margin: auto;
 }
 
 /* INICIO DATEPICKER */
 
 .dp-wrapper {
-  
+
   background-color: var(--primario) !important;
   display: inline-block;
   padding: 12px;
@@ -192,27 +204,36 @@ button {
 /* FIN DATEPICKER */
 
 
-.modal{
-  --bs-modal-width:60% !important;
+.modal {
+  --bs-modal-width: 60% !important;
 }
 
 .item-stock-faltante {
-  Button{
-    background-color: #ff6262; /* rojo claro */
+  Button {
+    background-color: #ff6262;
+    /* rojo claro */
   }
-    background-color: #ff6262; /* rojo claro */
+
+  background-color: #ff6262;
+  /* rojo claro */
 }
 
 .item-stock-reponer {
-  Button{
-    background-color: #ffd549; /* amarillo claro */
+  Button {
+    background-color: #ffd549;
+    /* amarillo claro */
   }
-    background-color: #ffd549; /* amarillo claro */
+
+  background-color: #ffd549;
+  /* amarillo claro */
 }
 
 .item-stock-normal {
-  Button{
-    background-color: #96ffaf; /* verde claro */
+  Button {
+    background-color: #96ffaf;
+    /* verde claro */
   }
-    background-color: #96ffaf; /* verde claro */
+
+  background-color: #96ffaf;
+  /* verde claro */
 }

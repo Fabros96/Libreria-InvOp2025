@@ -1,4 +1,3 @@
-
 .articulos-container {
     div {
         text-align: center;
@@ -66,18 +65,25 @@
     }
 }
 
-.tableArticulos  {
+.tableArticulos {
+    thead th {
+        position: sticky;
+        top: 0;
+        background-color: var(--detalles);
+        z-index: 1;
+    }
 
-    th{
+    th {
         background-color: var(--primario);
         /* border: 1px 1px 0 1px solid var(--texto); */
         color: var(--texto);
     }
-    td{
+
+    td {
         width: auto;
     }
 
-    p{
+    p {
         color: var(--texto);
     }
 
@@ -116,14 +122,14 @@
     white-space: nowrap;
     cursor: pointer;
     transition: all 0.7s;
-    
+
     position: fixed;
     bottom: 10px;
     right: 40px;
-    z-index: 10;   
+    z-index: 10;
 }
 
-.newArtButton span{
+.newArtButton span {
     display: inline-block;
     transform: translateX(250px);
     opacity: 0;
@@ -131,57 +137,98 @@
     margin-left: 10px;
 }
 
-.newArtButton:hover{
+.newArtButton:hover {
     width: 175px;
     padding: 15px;
 }
 
-.newArtButton:hover span{
+.newArtButton:hover span {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+
+.delArtButton {
+    
+    background-color: red !important;
+    font-weight: bold;
+    text-align: start;
+    width: 60px;
+    padding: 15px 15px 15px 18px;
+    border-radius: 15px;
+    overflow: hidden;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.7s;
+
+    position: fixed;
+    bottom: 10px;
+    left: 75px;
+    z-index: 10;
+}
+
+.delArtButton span {
+    display: inline-block;
+    transform: translateX(250px);
+    opacity: 0;
+    transition: opacity 0.1s, transform 0.2s 0.3s;
+    margin-left: 10px;
+}
+
+.delArtButton:hover {
+    width: 175px;
+    padding: 15px;
+}
+
+.delArtButton:hover span {
     transform: translateX(0);
     opacity: 1;
 }
 
 .tabla-scroll-articulos {
-  max-height: 300px;
-  overflow-y: auto;
-  width: 100%;
+    max-height: 300px;
+    overflow-y: auto;
+    width: 100%;
 }
 
 .tabla-scroll-articulos table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-  min-height: 280px;
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    min-height: 280px;
 }
 
 .tabla-scroll-articulos thead,
 .tabla-scroll-articulos tbody {
-  display: block;
-  width: 100%;
+    display: block;
+    width: 100%;
 }
 
 .tabla-scroll-articulos tbody {
-  max-height: 240px;
-  overflow-y: auto;
+    max-height: 240px;
+    overflow-y: auto;
 }
 
 .tabla-scroll-articulos th,
 .tabla-scroll-articulos td {
-  width: 33.33%; /* Tres columnas iguales */
-  min-width: 0;
-  padding: 8px;
-  box-sizing: border-box;
+    width: 33.33%;
+    /* Tres columnas iguales */
+    min-width: 0;
+    padding: 8px;
+    box-sizing: border-box;
 }
 
 .tabla-scroll-articulos th:nth-child(1),
 .tabla-scroll-articulos td:nth-child(1) {
-  width: 15%;
+    width: 15%;
 }
+
 .tabla-scroll-articulos th:nth-child(2),
 .tabla-scroll-articulos td:nth-child(2) {
-  width: 55%;
+    width: 55%;
 }
+
 .tabla-scroll-articulos th:nth-child(3),
 .tabla-scroll-articulos td:nth-child(3) {
-  width: 5%;
+    width: 5%;
 }

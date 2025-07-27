@@ -50,16 +50,24 @@ const VtaNew = ({ show, onHide, onSelect }: VtaNewProps) => {
         // onSelect(item); <-- lo agregamos luego si querés
     };
 
+    const normalizarTexto = (texto: string) =>
+        texto.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
     const getFilteredData = () => {
         if (showAll) return data.datos;
 
-        if (searchText.trim().length < 1) return data.datos;
+        if (searchText.trim() === "") return data.datos;
+        const textoBusqueda = normalizarTexto(searchText);
 
-        return data.datos.filter(art =>
-            art.articulo.descripcion?.toLowerCase().includes(searchText.toLowerCase())
-            // proveedor.proveedor.nombre?.toLowerCase().includes(searchText.toLowerCase())
-        );
+        return data.datos.filter(art => {
+            const descripcion = normalizarTexto(art.descripcion || "");
+            const idArticulo = normalizarTexto(art.idArticulo || "");
+
+            return (
+                descripcion.includes(textoBusqueda) ||
+                idArticulo.includes(textoBusqueda)
+            );
+        });
     };
 
     const filteredData = getFilteredData();
@@ -77,6 +85,7 @@ const VtaNew = ({ show, onHide, onSelect }: VtaNewProps) => {
                     <InputGroup className="mb-3">
                         <Form.Control
                             type="text"
+                            id="srchArt"
                             placeholder="Buscar Artículo"
                             value={searchText}
                             onChange={(e) => {
@@ -125,7 +134,7 @@ const VtaNew = ({ show, onHide, onSelect }: VtaNewProps) => {
                                         </td>
                                         <td className="botoneraTabla">
                                             <Button
-                                            style={{ width: '80%' }}
+                                                style={{ width: '80%' }}
                                                 size="sm"
                                                 variant="success"
                                                 onClick={() => handleSeleccionar(obj)}

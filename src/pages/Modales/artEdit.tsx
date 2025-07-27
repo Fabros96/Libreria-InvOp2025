@@ -6,6 +6,8 @@ import ArtProv from "./artProv";
 import "../../App.css";
 import { calcularDatosInventario } from "../../utils/recalcular";
 
+import { useFormik } from "formik";
+import * as Yup from "yup";
 
 interface Articulo {
     descripcion: string;
@@ -26,14 +28,14 @@ interface Inventario {
     loteOptimo?: number;
     puntoPedido?: number;
     stockSeguridad?: number;
-    periodoRevision?: number;
     invMaximo?: number;
+    periodoRevision?: number;
 }
 
 interface ArticuloProveedor {
     idArticuloProveedor: number;
-    cargoPedido: number;
     demoraEntrega: number;
+    fechaBaja?: Date | null;
     esPredeterminado: boolean;
     idArticulo: number;
     idProveedor: number;
@@ -44,8 +46,8 @@ type ProveedorCambiado = {
     idArticuloProveedor: number;
     idArticulo: number;
     idProveedor: number;
-    cargoPedido: number;
     demoraEntrega: number;
+    fechaBaja: Date | null;
     esPredeterminado: boolean;
     precioUnitario: number;
 };
@@ -58,86 +60,116 @@ interface ArtEditProps {
     mode: "edit" | "new";
 }
 
-const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
-    const [idArticulo, setIdArticulo] = useState("");
-    const [descripcion, setDescripcion] = useState("");
-    const [stock, setStock] = useState(0);
-    const [demanda, setDemanda] = useState(0);
-    const [costoAlmacenamiento, setCostoAlmacenamiento] = useState(0);
-    const [costoPedido, setCostoPedido] = useState(0);
-    const [modeloInventario, setModeloInventario] = useState("LF"); // Lote Fijo por defecto
+const validationSchema = Yup.object({
+    descripcion: Yup.string().required("La descripción es requerida"),
+    stock: Yup.number().min(0, "El stock no puede ser negativo").required("El stock no puede ser negativo"),
+    demandaArticulo: Yup.number().min(1, "Debe ingresar un valor mayor a cero").required("Debe ingresar un valor mayor a cero"),
+    costoAlmacenamiento: Yup.number().min(1, "Debe ingresar un valor mayor a cero").required("Debe ingresar un valor mayor a cero"),
+    costoPedido: Yup.number().min(1, "Debe ingresar un valor mayor a cero").required("Debe ingresar un valor mayor a cero"),
+    modeloInventario: Yup.string().required("Modelo requerido"),
+    periodoRevision: Yup.number()
+        .when("modeloInventario", {
+            is: "PF",
+            then: (schema) => schema
+                .min(1, "Debe ingresar un valor mayor a cero")
+                .required("Debe ingresar un valor mayor a cero"),
+            otherwise: (schema) => schema.notRequired(),
+        }),
+});
 
+const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
     const [showProveedorModal, setShowProveedorModal] = useState(false);
     const [proveedorPredeterminado, setProveedorPredeterminado] = useState<any | null>(null);
     const [proveedoresCambiados, setProveedoresCambiados] = useState<ProveedorCambiado[]>([]);
-    const [periodoRevision, setPeriodoRevision] = useState(0);
+    const [provOriginalRecibido, setProvOriginalRecibido] = useState<any | null>(null);
+    const [provNuevoRecibido, setProvNuevoRecibido] = useState<any | null>(null);
+
 
     useEffect(() => {
         if (mode === "edit" && articulo) {
-            setIdArticulo(articulo.idArticulo || "");
-            setDescripcion(articulo.descripcion || "");
-            setStock(articulo.stock || 0);
-            setDemanda(articulo.inventario?.demandaArticulo || 0);
-            setCostoAlmacenamiento(articulo.inventario?.costoAlmacenamiento || 0);
-            setCostoPedido(articulo.inventario?.costoPedido || 0);
-            setModeloInventario(articulo.modeloInventario || "LF")
-            setPeriodoRevision(articulo.inventario?.periodoRevision || 0);
-
-
+            setProveedorPredeterminado(articulo.articuloProveedor || null);
         } else if (mode === "new") {
-            setIdArticulo("");
-            setDescripcion("");
-            setStock(0);
-            setDemanda(0);
-            setCostoAlmacenamiento(0);
-            setCostoPedido(0);
-
+            setProveedorPredeterminado(null);
         }
     }, [articulo, mode]);
 
+
+    const formik = useFormik({
+        enableReinitialize: true,
+        initialValues: {
+            descripcion: articulo?.descripcion || "",
+            stock: articulo?.stock || 0,
+            demandaArticulo: articulo?.inventario?.demandaArticulo || 0,
+            costoAlmacenamiento: articulo?.inventario?.costoAlmacenamiento || 0,
+            costoPedido: articulo?.inventario?.costoPedido || 0,
+            periodoRevision: articulo?.inventario?.periodoRevision || 0,
+            modeloInventario: articulo?.modeloInventario || "LF", // <-- agregar esto
+        },
+        validationSchema,
+        onSubmit: (values) => {
+            onSave(values);
+            onHide();
+        },
+    });
+
     const handleSave = async () => {
+
+        // Ejecuta validación de Formik
+        const errors = await formik.validateForm();
+        formik.setTouched({
+            descripcion: true,
+            stock: true,
+            demandaArticulo: true,
+            costoAlmacenamiento: true,
+            costoPedido: true,
+            modeloInventario: true,
+            periodoRevision: true,
+        });
+
+        // Si hay errores, no continuar
+        if (Object.keys(errors).length > 0) {
+            return;
+        }
         try {
             let updatedArticulo: Articulo;
             const demoraEntrega = proveedorPredeterminado?.demoraEntrega || 0;
+            const fechaBaja = proveedorPredeterminado?.fechaBaja || null;
+
+
             if (mode === "edit") {
                 updatedArticulo = {
                     ...articulo,
-                    descripcion,
-                    stock,
-                    modeloInventario,
+                    descripcion: formik.values.descripcion,
+                    stock: formik.values.stock,
+                    modeloInventario: formik.values.modeloInventario,
                     inventario: {
-                        idInventario: articulo.inventario?.idInventario,
-                        periodoRevision,
-                        demandaArticulo: demanda,
-                        costoAlmacenamiento,
-                        costoPedido,
+                        demandaArticulo: formik.values.demandaArticulo,
+                        costoAlmacenamiento: formik.values.costoAlmacenamiento,
+                        costoPedido: formik.values.costoPedido,
+                        periodoRevision: formik.values.periodoRevision,
                     },
                     articuloProveedor: proveedorPredeterminado,
                 };
-
                 if (proveedoresCambiados.length > 0) {
-                    onSave(updatedArticulo, articulo, proveedoresCambiados[0], proveedoresCambiados[1]);
+                    onSave(articulo, updatedArticulo, provOriginalRecibido, provNuevoRecibido);
                 } else {
-                    onSave(updatedArticulo, articulo);
+                    onSave(articulo, updatedArticulo);
                 }
-
             } else {
-                console.log("vengo al elsee eeeee")
-                console.log(periodoRevision)
                 updatedArticulo = {
-                    descripcion,
-                    modeloInventario,
-                    stock,
+                    descripcion: formik.values.descripcion,
+                    modeloInventario: formik.values.modeloInventario,
+                    stock: formik.values.stock,
                     inventario: {
-                        demandaArticulo: demanda,
-                        costoAlmacenamiento,
-                        costoPedido,
-                        periodoRevision: periodoRevision,
+                        demandaArticulo: formik.values.demandaArticulo,
+                        costoAlmacenamiento: formik.values.costoAlmacenamiento,
+                        costoPedido: formik.values.costoPedido,
+                        periodoRevision: formik.values.periodoRevision,
                     },
                     articuloProveedor: {
                         idArticuloProveedor: 0,
-                        cargoPedido: proveedorPredeterminado?.cargoPedido || 0,
                         demoraEntrega,
+                        fechaBaja,
                         esPredeterminado: true,
                         idArticulo: 0,
                         idProveedor: proveedorPredeterminado?.idProveedor || 0,
@@ -162,70 +194,145 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                 <Form.Group>
                     {mode === "edit" && (
                         <>
-                            <Form.Label>Código</Form.Label>
-                            <Form.Control type="text" value={idArticulo} disabled />
+                            <Form.Label htmlFor="idArticulo">Código</Form.Label>
+                            <Form.Control id="idArticulo" type="text" value={articulo?.idArticulo ?? ""} disabled />
                         </>
                     )}
-                    <Form.Label>Descripción</Form.Label>
-                    <Form.Control type="text" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} />
 
-                    <Form.Label className="mt-3">Stock</Form.Label>
-                    <Form.Control type="number" min={0} value={stock} onChange={(e) => setStock(Number(e.target.value))} />
+                    {/* Descripción */}
+                    <Form.Label htmlFor="descripcion">Descripción</Form.Label>
+                    <Form.Control
+                        type="text"
+                        id="descripcion"
+                        value={formik.values.descripcion}
+                        onChange={formik.handleChange}
+                        onBlur={formik.handleBlur}
+                        isInvalid={formik.touched.descripcion && !!formik.errors.descripcion}
+                    />
+                    <Form.Control.Feedback type="invalid">
+                        {formik.errors.descripcion as string}
+                    </Form.Control.Feedback>
 
+                    {/* Stock */}
+                    <Form.Label htmlFor="stock" className="mt-3">Stock</Form.Label>
+                    <Form.Control
+                        type="number"
+                        id="stock"
+                        min={0}
+                        value={formik.values.stock}
+                        onChange={formik.handleChange}
+                        onBlur={formik.handleBlur}
+                        isInvalid={formik.touched.stock && !!formik.errors.stock}
+                    />
+                    <Form.Control.Feedback type="invalid">
+                        {formik.errors.stock as string}
+                    </Form.Control.Feedback>
+
+                    {/* Modelo de Inventario y Proveedor */}
                     <div className="d-flex justify-content-between gap-2 mt-3">
-
                         <div style={{ width: "50%" }}>
-                            <Form.Label className="mt-3">Modelo de Inventario</Form.Label>
+                            <Form.Label htmlFor="modeloInventario" className="mt-3">Modelo de Inventario</Form.Label>
                             <Form.Select
                                 aria-label="Modelo de Inventario"
-                                value={modeloInventario}
-                                onChange={(e) => setModeloInventario(e.target.value)}
+                                id="modeloInventario"
+                                value={formik.values.modeloInventario}
+                                onChange={formik.handleChange}
+                                onBlur={formik.handleBlur}
+                                isInvalid={formik.touched.modeloInventario && !!formik.errors.modeloInventario}
                             >
                                 <option value="LF">Lote Fijo</option>
                                 <option value="PF">Periodo Fijo</option>
                             </Form.Select>
+                            <Form.Control.Feedback type="invalid">
+                                {formik.errors.modeloInventario as string}
+                            </Form.Control.Feedback>
                         </div>
 
                         {mode !== "new" && (
                             <div style={{ width: "50%", display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-                                <Form.Label className="mt-3">Proveedor predeterminado</Form.Label>
-                                <Button onClick={() => setShowProveedorModal(true)} style={{ minWidth: "200px" }}>
-                                    {proveedorPredeterminado?.nombre?.toString() || proveedorPredeterminado?.proveedor?.nombre || "Seleccionar..."}
+                                <Form.Label htmlFor="btnProveedor" className="mt-3">Proveedor predeterminado</Form.Label>
+                                <Button id="btnProveedor" onClick={() => setShowProveedorModal(true)} style={{ minWidth: "200px" }}>
+                                    {proveedorPredeterminado?.nombre?.toString() ||
+                                        proveedorPredeterminado?.proveedor?.nombre ||
+                                        "Seleccionar..."}
                                 </Button>
                             </div>
                         )}
                     </div>
-                    <div className="d-flex justify-content-between gap-2 mt-3">
-                        <div style={{ width: "50%" }}>
-                            {modeloInventario === 'PF' && (
-                                <>
-                                    <Form.Label className="mt-3">Período de Revisión (en días)</Form.Label>
-                                    <Form.Control 
-                                    type="number" 
-                                    min={1} 
-                                    value={periodoRevision} 
-                                    onChange={(e) => setPeriodoRevision(Number(e.target.value))} />
-                                </>
-                            )}
+
+                    {/* Período de Revisión (si aplica) */}
+                    {formik.values.modeloInventario === "PF" && (
+                        <div className="mt-3">
+                            <Form.Label htmlFor="periodoRevision">Período de Revisión (en días)</Form.Label>
+                            <Form.Control
+                                type="number"
+                                id="periodoRevision"
+                                min={1}
+                                value={formik.values.periodoRevision}
+                                onChange={formik.handleChange}
+                                onBlur={formik.handleBlur}
+                                isInvalid={formik.touched.periodoRevision && !!formik.errors.periodoRevision}
+                            />
+                            <Form.Control.Feedback type="invalid">
+                                {formik.errors.periodoRevision as string}
+                            </Form.Control.Feedback>
                         </div>
-                    </div>
+                    )}
+
+                    {/* Demanda, Costos */}
                     <div className="d-flex justify-content-between gap-2 mt-3">
+                        <div style={{ width: "33%" }}>
+                            <Form.Label htmlFor="demandaArticulo">Demanda Anual</Form.Label>
+                            <Form.Control
+                                type="number"
+                                id="demandaArticulo"
+                                min={0}
+                                value={formik.values.demandaArticulo}
+                                onChange={formik.handleChange}
+                                onBlur={formik.handleBlur}
+                                isInvalid={formik.touched.demandaArticulo && !!formik.errors.demandaArticulo}
+                            />
+                            <Form.Control.Feedback type="invalid">
+                                {formik.errors.demandaArticulo as string}
+                            </Form.Control.Feedback>
+                        </div>
 
                         <div style={{ width: "33%" }}>
-                            <Form.Label>Demanda Diaria</Form.Label>
-                            <Form.Control type="number" min={0} value={demanda} onChange={(e) => setDemanda(Number(e.target.value))} />
-                        </div>
-                        <div style={{ width: "33%" }}>
-                            <Form.Label>Costo Almacenamiento</Form.Label>
-                            <Form.Control type="number" min={0} step={0.01} value={costoAlmacenamiento} onChange={(e) => setCostoAlmacenamiento(Number(e.target.value))} />
+                            <Form.Label htmlFor="costoAlmacenamiento">Costo Almacenamiento</Form.Label>
+                            <Form.Control
+                                type="number"
+                                step={0.01}
+                                id="costoAlmacenamiento"
+                                min={0}
+                                value={formik.values.costoAlmacenamiento}
+                                onChange={formik.handleChange}
+                                onBlur={formik.handleBlur}
+                                isInvalid={formik.touched.costoAlmacenamiento && !!formik.errors.costoAlmacenamiento}
+                            />
+                            <Form.Control.Feedback type="invalid">
+                                {formik.errors.costoAlmacenamiento as string}
+                            </Form.Control.Feedback>
                         </div>
 
                         <div style={{ width: "33%" }}>
-                            <Form.Label>Costo Pedido</Form.Label>
-                            <Form.Control type="number" min={0} step={0.01} value={costoPedido} onChange={(e) => setCostoPedido(Number(e.target.value))} />
+                            <Form.Label htmlFor="costoPedido">Costo Pedido</Form.Label>
+                            <Form.Control
+                                type="number"
+                                id="costoPedido"
+                                step={0.01}
+                                min={0}
+                                value={formik.values.costoPedido}
+                                onChange={formik.handleChange}
+                                onBlur={formik.handleBlur}
+                                isInvalid={formik.touched.costoPedido && !!formik.errors.costoPedido}
+                            />
+                            <Form.Control.Feedback type="invalid">
+                                {formik.errors.costoPedido as string}
+                            </Form.Control.Feedback>
                         </div>
                     </div>
                 </Form.Group>
+
             </Modal.Body>
             <Modal.Footer>
                 <Button variant="outline-danger" onClick={onHide}>
@@ -239,9 +346,11 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                 show={showProveedorModal}
                 articulo={mode === "edit" ? articulo : null}
                 onHide={() => setShowProveedorModal(false)}
-                onSave={({ proveedorPredeterminado, cambios }) => {
+                onSave={({ proveedorPredeterminado, cambios, proveedorOriginal, proveedorNuevo }) => {
                     setProveedorPredeterminado(proveedorPredeterminado);
                     setProveedoresCambiados(cambios);
+                    setProvOriginalRecibido(proveedorOriginal);
+                    setProvNuevoRecibido(proveedorNuevo);
                 }}
                 mode={mode}
                 onProveedorPredeterminadoChange={(prov) => setProveedorPredeterminado(prov)}
