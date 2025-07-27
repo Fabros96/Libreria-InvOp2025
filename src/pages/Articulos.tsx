@@ -504,7 +504,7 @@ const Articulos = () => {
                                                                         <strong> ID Inventario:</strong> {ap.idInventario} --
                                                                         <strong> Modelo:</strong> {ap.modeloInventario === 'LF' ? 'Lote Fijo' : ap.modeloInventario === 'PF' ? 'Periodo Fijo' : 'SinModelo x.x'} --
                                                                         <strong> Stock:</strong> {ap.stock} --
-                                                                        <strong> Demanda Anual:</strong> {ap.inventario?.demandaArticulo}
+                                                                        <strong> Demanda Diaria:</strong> {ap.inventario?.demandaArticulo}
                                                                     </div>
                                                                     <div>
                                                                         <strong> Costo de Almacenamiento:</strong> {ap.inventario?.costoAlmacenamiento} --

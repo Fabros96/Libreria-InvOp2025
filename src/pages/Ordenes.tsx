@@ -41,6 +41,8 @@ export default function Ordenes() {
       const resArt = await axiosClient.get("/articulos?filter[fechaBaja][eq]=null");
       setArticulos(resArt.data);
       const resProv = await axiosClient.get("/proveedores");
+      console.log("entro al useEffect del resProv")
+      console.log(resProv)
       setProveedores(resProv.data);
     };
     fetchDatos();
@@ -49,13 +51,15 @@ export default function Ordenes() {
   useEffect(() => {
     const buscarProveedorPredeterminado = async (idArt: number) => {
       try {
-        const res = await axiosClient.get(`/articulo-proveedores/predeterminado/${idArt}`);
+        const res: any = await axiosClient.get(`/articulo-proveedores/predeterminado/${idArt}`);
         const proveedor = res.data?.proveedor;
-        if (proveedor?.idProveedor) setIdProveedor(proveedor.idProveedor);
+        if (proveedor?.idProveedor) 
+          console.log(proveedor?.idProveedor)
+          setIdProveedor(proveedor.idProveedor);
 
         const resLote: any = await axiosClient.get(`/inventarios/lote-optimo/${idArt}`);
         setLoteOptimoSugerido(resLote.loteOptimo ?? null);
-        setCantidad(resLote.loteOptimo ?? null);
+        //setCantidad(resLote.loteOptimo ?? null);
       } catch (error) {
         console.error("Error al buscar proveedor predeterminado:", error);
       }
@@ -380,7 +384,9 @@ export default function Ordenes() {
               <option value="">Seleccionar...</option>
               {proveedores.map((p) => (
                 <option key={p.idProveedor} value={p.idProveedor}>{p.nombre}</option>
-              ))}
+                
+              ))
+              }
             </Form.Select>
           </Form.Group>
 
