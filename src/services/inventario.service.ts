@@ -24,14 +24,14 @@ export const calcularInventario = ({
     demoraEntrega == null ||
     nivelServicio == null ||
     desviacionEstandar == null ||
-    periodoRevision == null
+    (modeloInventario === 'PF' && periodoRevision == null) // solo se valida si se usa
   ) {
     throw new Error("Parámetros inválidos para el cálculo de inventario");
   }
 
   console.log("el modelo inventario que llega a services es:", modeloInventario);
 
-  
+
   if (modeloInventario === 'LF') {
     console.log("Recalcularé con lote fijo");
 
@@ -39,7 +39,7 @@ export const calcularInventario = ({
 
     const EOQ = Math.round(Math.sqrt((2 * demandaAnual * costoPedido) / costoAlmacenamiento));
 
-    const stockSeguridad = Math.round( nivelServicio * desviacionEstandar * Math.sqrt(demoraEntrega))
+    const stockSeguridad = Math.round(nivelServicio * desviacionEstandar * Math.sqrt(demoraEntrega))
 
     const puntoPedido = Math.round((demandaArticulo * demoraEntrega) + stockSeguridad);
 
@@ -56,9 +56,9 @@ export const calcularInventario = ({
   if (modeloInventario === 'PF') {
 
     console.log("Recalcularé con Periodo Fijo");
-    
-    const stockSeguridad = Math.round( nivelServicio * desviacionEstandar * Math.sqrt(demoraEntrega))
-    const inventarioMaximo = Math.round(demandaArticulo *(periodoRevision+demoraEntrega)+stockSeguridad)
+
+    const stockSeguridad = Math.round(nivelServicio * desviacionEstandar * Math.sqrt(demoraEntrega))
+    const inventarioMaximo = Math.round(demandaArticulo * (periodoRevision! + demoraEntrega) + stockSeguridad)
 
     return {
       loteOptimo: null,

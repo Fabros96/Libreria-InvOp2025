@@ -17,7 +17,7 @@
   "license": "ISC",
   "description": "Este es el archivo README para el proyecto. Aquí encontrarás las instrucciones necesarias para ejecutar el proyecto correctamente.",
   "dependencies": {
-    "@prisma/client": "^6.10.1",
+    "@prisma/client": "^6.12.0",
     "archiver": "^7.0.1",
     "bullmq": "^5.25.3",
     "cors": "^2.8.5",
@@ -50,7 +50,7 @@
     "@typescript-eslint/parser": "^5.62.0",
     "eslint": "^8.43.0",
     "nodemon": "^3.1.4",
-    "prisma": "^6.10.1",
+    "prisma": "^6.12.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   }

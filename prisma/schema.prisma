@@ -52,10 +52,11 @@ model Articulo {
 
 model AjusteInventario {
   idAjusteInventario               Int    @id @default(autoincrement())
-  cantOrig                Int
   idArticulo              Int
-  cantNew                 Int
   fecha                   DateTime
+  atributo                String
+  valorOriginal           String
+  valorNuevo              String
   userName                String
   articulo                Articulo @relation(fields: [idArticulo], references: [idArticulo])
 }
@@ -64,10 +65,10 @@ model ArticuloProveedor {
   idArticuloProveedor     Int     @id @default(autoincrement())
   idArticulo              Int
   idProveedor             Int
-  cargoPedido             Int?
   demoraEntrega           Int?
-  esPredeterminado        Boolean?
-  precioUnitario          Int?
+  fechaBaja               DateTime?
+  esPredeterminado        Boolean?    @default(false)
+  precioUnitario          Float?
   nivelServicio           Float?
   desviacionEstandar      Float?
   articulo                Articulo @relation(fields: [idArticulo], references: [idArticulo])

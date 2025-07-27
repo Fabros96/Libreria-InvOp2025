@@ -57,22 +57,6 @@ export const ProveedorController = {
             res.status(500).json({ msg: 'Error al actualizar el proveedor', detail: error.message });
         }
     },
-    
-    // Eliminar un proveedor (delete)
-    //delete: async (req: Request, res: Response) => {
-      //  const { id } = req.params;
-        //console.log("entra al delete")
-        //console.log(id)
-        //try {
-          //  await prisma.proveedor.delete({
-            //    where: { idProveedor: parseInt(id) },
-            //});
-         //   res.status(200).json({ msg: 'Se ha eliminado el proveedor.' });
-        //} catch (error: any) {
-          //  res.status(500).json({ msg: 'Error al eliminar el proveedor', detail: error.message });
-            //console.log(error.message)
-       // }
-    //},
 
     // Eliminar proveedor (Baja lógica)
     delete: async (req: Request, res: Response) => {

@@ -120,7 +120,6 @@ export const ArticuloController = {
                         idArticulo: parseInt(id),
                         precioUnitario: articuloProveedor.precioUnitario,
                         demoraEntrega: articuloProveedor.demoraEntrega,
-                        cargoPedido: articuloProveedor.cargoPedido,
                         esPredeterminado: articuloProveedor.esPredeterminado,
                         nivelServicio: articuloProveedor.nivelServicio,
                         desviacionEstandar: articuloProveedor.desviacionEstandar,

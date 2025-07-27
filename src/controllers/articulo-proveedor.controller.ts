@@ -14,7 +14,7 @@ export const ArticuloProveedorController = {
             const articuloProveedor = await articuloProveedorRepository.findMany(decodeURIComponent(req.url));
             console.log(req.url)
             console.log(articuloProveedor)
-            res.status(200).json({ msg: `${articuloProveedor.length > 0 ? 'Se han encontrado registros' : 'No se han encontrado registros'}`, data: articuloProveedor});
+            res.status(200).json({ msg: `${articuloProveedor.length > 0 ? 'Se han encontrado registros' : 'No se han encontrado registros'}`, data: articuloProveedor });
         } catch (error: any) {
             res.status(500).json({ msg: 'Error al obtener las registros', detail: error.message });
         }
@@ -24,91 +24,102 @@ export const ArticuloProveedorController = {
     getById: async (req: Request, res: Response) => {
         const { id } = req.params;
         try {
-            res.json({ msg: 'Se ha encontrado el registro', data: await articuloProveedorRepository.findById(Number(id), decodeURIComponent(req.url))});
+            res.json({ msg: 'Se ha encontrado el registro', data: await articuloProveedorRepository.findById(Number(id), decodeURIComponent(req.url)) });
         } catch (error: any) {
             res.status(500).json({ msg: 'Error al obtener el registro', detail: error.message });
         }
     },
-    
+
     // Crear un nuevo articuloProveedor (create)
     create: async (req: Request, res: Response) => {
-        let { idArticulo, idProveedor, cargoPedido, demoraEntrega, esPredeterminado, precioUnitario, nivelServicio, desviacionEstandar } = req.body;
+        let { idArticulo, idProveedor, demoraEntrega, esPredeterminado, precioUnitario, nivelServicio, desviacionEstandar } = req.body;
         try {
             const nuevoArticuloProveedor = await prisma.articuloProveedor.create({
-                data: { idArticulo, idProveedor, cargoPedido, demoraEntrega, esPredeterminado, precioUnitario, nivelServicio, desviacionEstandar },
+                data: { idArticulo, idProveedor, demoraEntrega, esPredeterminado, precioUnitario, nivelServicio, desviacionEstandar },
             });
             res.status(200).json({ msg: 'Se ha creado el articuloProveedor.', data: nuevoArticuloProveedor });
         } catch (error: any) {
             res.status(500).json({ msg: 'Error al crear el articuloProveedor', detail: error.message });
         }
     },
-    
+
     // Actualizar un articuloProveedor (update)
- update: async (req: Request, res: Response) => { 
-    const { id } = req.params;
-    let { idArticulo, idProveedor, cargoPedido, demoraEntrega, esPredeterminado, precioUnitario, nivelServicio, desviacionEstandar } = req.body;
-    let payload: any = { idArticulo, idProveedor, cargoPedido, demoraEntrega, esPredeterminado, precioUnitario, nivelServicio, desviacionEstandar };
+    update: async (req: Request, res: Response) => {
+        const { id } = req.params;
 
-    try {
-        // 1. Actualizar artículoProveedor
-        const articuloProveedorActualizado = await prisma.articuloProveedor.update({
-            where: { idArticuloProveedor: parseInt(id) },
-            data: payload,
-        });
+         const {
+            idArticulo,
+            idProveedor,
+            demoraEntrega, 
+            fechaBaja,
+            esPredeterminado, 
+            precioUnitario, 
+            nivelServicio, 
+            desviacionEstandar
+        } = req.body;
 
-        // 2. Buscar inventario del artículo
-        const articulo = await prisma.articulo.findUnique({
-            where: { idArticulo },
-            include: {
-                inventario: true
+        const payload: any = { idArticulo, idProveedor, demoraEntrega, esPredeterminado, precioUnitario, nivelServicio, desviacionEstandar };
+        if (fechaBaja) payload.fechaBaja = fechaBaja;
+        try {
+            // 1. Actualizar artículoProveedor
+            const articuloProveedorActualizado = await prisma.articuloProveedor.update({
+                where: { idArticuloProveedor: parseInt(id) },
+                data: payload,
+            });
+
+            // 2. Buscar inventario del artículo
+            const articulo = await prisma.articulo.findUnique({
+                where: { idArticulo },
+                include: {
+                    inventario: true
+                }
+            });
+
+            const articuloActual = await prisma.articulo.findUnique({
+                where: { idArticulo },
+                select: { modeloInventario: true }
+            });
+
+            if (articulo?.inventario) {
+                const { demandaArticulo, costoPedido, costoAlmacenamiento, periodoRevision, idInventario } = articulo.inventario;
+
+                const nuevosValores = calcularInventario({
+                    demandaArticulo,
+                    costoPedido,
+                    costoAlmacenamiento,
+                    demoraEntrega,
+                    modeloInventario: articuloActual?.modeloInventario,
+                    nivelServicio,
+                    desviacionEstandar,
+                    periodoRevision: periodoRevision ?? undefined,
+                });
+
+                await prisma.inventario.update({
+                    where: { idInventario },
+                    data: nuevosValores
+                });
+
+                console.log("losCalculos")
+                console.log(nuevosValores)
+                console.log(periodoRevision)
+                console.log("losCalculos")
             }
-        });
 
-        const articuloActual = await prisma.articulo.findUnique({
-            where: { idArticulo },
-            select: { modeloInventario: true }
-        });
-
-        if (articulo?.inventario) {
-            const { demandaArticulo, costoPedido, costoAlmacenamiento, periodoRevision, idInventario } = articulo.inventario;
-
-            const nuevosValores = calcularInventario({
-                demandaArticulo,
-                costoPedido,
-                costoAlmacenamiento,
-                demoraEntrega,
-                modeloInventario: articuloActual?.modeloInventario,
-                nivelServicio,
-                desviacionEstandar,
-                periodoRevision: periodoRevision ?? undefined,
+            return res.status(200).json({
+                msg: 'Se ha actualizado el articuloProveedor y recalculado el inventario.',
+                data: {
+                    articuloProveedor: articuloProveedorActualizado,
+                    articulo: articulo,
+                }
             });
 
-            await prisma.inventario.update({
-                where: { idInventario },
-                data: nuevosValores
+        } catch (error: any) {
+            return res.status(500).json({
+                msg: 'Error al actualizar el articuloProveedor',
+                detail: error.message
             });
-
-            console.log("losCalculos")
-            console.log(nuevosValores)
-            console.log(periodoRevision)
-            console.log("losCalculos")
         }
-
-        return res.status(200).json({
-            msg: 'Se ha actualizado el articuloProveedor y recalculado el inventario.',
-            data: {
-                articuloProveedor: articuloProveedorActualizado,
-                articulo: articulo,
-            }
-        });
-
-    } catch (error: any) {
-        return res.status(500).json({
-            msg: 'Error al actualizar el articuloProveedor',
-            detail: error.message
-        });
-    }
-},
+    },
 
 
 
@@ -134,13 +145,14 @@ export const ArticuloProveedorController = {
 
 
 
-    
-    // Eliminar un articuloProveedor (delete)
+
+    // Eliminar un articuloProveedor (Baja lógica)
     delete: async (req: Request, res: Response) => {
         const { id } = req.params;
         try {
-            await prisma.articuloProveedor.delete({
+            const articuloProveedorBaja = await prisma.articuloProveedor.update({
                 where: { idArticuloProveedor: parseInt(id) },
+                data: { fechaBaja: new Date() }
             });
             res.status(200).json({ msg: 'Se ha eliminado el articuloProveedor.' });
         } catch (error: any) {
