@@ -53,8 +53,10 @@ export class BaseRepository {
     if (!query.includes('?')) query = `${query}?`;
     try {
       const urlPayload = query.split('?')[1] || '';
+      console.log("urlPayload:",urlPayload)
       const className = this.getClassName();
       const result = await (this.prisma as any)[className].findMany(this.filter.createQueryPayload(urlPayload));
+      console.log("result desde base.repository",result.length)
       return result;
     } catch (error: any) {
       console.log(error);

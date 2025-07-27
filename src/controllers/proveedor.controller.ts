@@ -10,6 +10,8 @@ export const ProveedorController = {
     getAll: async (req: Request, res: Response) => {
         try {
             const proveedores = await proveedorRepository.findMany(decodeURIComponent(req.url));
+            console.log("eldecode: ",req.url)
+            console.log("osssssssss")
             res.status(200).json({ msg: `${proveedores.length > 0 ? 'Se han encontrado registros' : 'No se han encontrado registros'}`, data: proveedores});
         } catch (error: any) {
             res.status(500).json({ msg: 'Error al obtener las registros', detail: error.message });

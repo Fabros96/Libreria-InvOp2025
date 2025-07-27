@@ -10,7 +10,7 @@ export const InventarioController = {
     getAll: async (req: Request, res: Response) => {
         try {
             const inventarios = await inventarioRepository.findMany(decodeURIComponent(req.url));
-            res.status(200).json({ msg: `${inventarios.length > 0 ? 'Se han encontrado registros' : 'No se han encontrado registros'}`, data: inventarios});
+            res.status(200).json({ msg: `${inventarios.length > 0 ? 'Se han encontrado registros' : 'No se han encontrado registros'}`, data: inventarios });
         } catch (error: any) {
             res.status(500).json({ msg: 'Error al obtener las registros', detail: error.message });
         }
@@ -20,12 +20,12 @@ export const InventarioController = {
     getById: async (req: Request, res: Response) => {
         const { id } = req.params;
         try {
-            res.json({ msg: 'Se ha encontrado el registro', data: await inventarioRepository.findById(Number(id), decodeURIComponent(req.url))});
+            res.json({ msg: 'Se ha encontrado el registro', data: await inventarioRepository.findById(Number(id), decodeURIComponent(req.url)) });
         } catch (error: any) {
             res.status(500).json({ msg: 'Error al obtener el registro', detail: error.message });
         }
     },
-    
+
     // Crear un nuevo inventario (create)
     create: async (req: Request, res: Response) => {
         let { costoAlmacenamiento, costoCompra, costoPedido, demandaArticulo, loteOptimo, puntoPedido, stockSeguridad, articulo, periodoRevision } = req.body;
@@ -39,7 +39,7 @@ export const InventarioController = {
             res.status(500).json({ msg: 'Error al crear el inventario', detail: error.message });
         }
     },
-    
+
     // Actualizar un inventario (update)
     update: async (req: Request, res: Response) => {
         const { id } = req.params;
@@ -55,7 +55,7 @@ export const InventarioController = {
             res.status(500).json({ msg: 'Error al actualizar el inventario', detail: error.message });
         }
     },
-    
+
     // Eliminar un inventario (delete)
     delete: async (req: Request, res: Response) => {
         const { id } = req.params;
@@ -69,35 +69,28 @@ export const InventarioController = {
         }
     },
 
-    //Recalculo para un inventario
-    recalculo: async (req: Request, res: Response) => {
-        try {
-            const inventarios = "aca iria el llamado de servicio"
-            res.status(200).json({ msg: `${inventarios.length > 0 ? 'Se han encontrado registros' : 'No se han encontrado registros'}`, data: inventarios});
-        } catch (error: any) {
-            res.status(500).json({ msg: 'Error al obtener las registros', detail: error.message });
-        }
-    },
 
     getLoteOptimoPorArticulo: async (req: Request, res: Response) => {
         const { idArticulo } = req.params;
 
         try {
             const articulo = await prisma.articulo.findFirst({
-            where: {
-                idArticulo: Number(idArticulo)
-            },
-            include: {
-                inventario: {
-                    select: {
-                        loteOptimo: true
+                where: {
+                    idArticulo: Number(idArticulo)
+                },
+                include: {
+                    inventario: {
+                        select: {
+                            loteOptimo: true
+                        }
                     }
                 }
-            }
             });
 
+            //FALTA QUE CUANDO PARA UN ARTICULO DE PERIODO FIJO SE LE PASA EL PROVEEDOR X DEFECTO Y UNA CANTIDAD X DEFECTO.
+
             if (!articulo || !articulo.inventario) {
-            return res.status(404).json({ msg: 'No se encontró Inventario no encontrado para el artículo' });
+                return res.status(404).json({ msg: 'No se encontró Inventario no encontrado para el artículo' });
             }
             console.log(articulo.inventario.loteOptimo)
 
@@ -105,8 +98,8 @@ export const InventarioController = {
         } catch (error: any) {
             res.status(500).json({ msg: 'Error al obtener lote óptimo', detail: error.message });
         }
-        },
+    },
 
 
-   
+
 }

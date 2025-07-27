@@ -16,7 +16,7 @@ export class Filter {
     if(!query){
       return {
         skip: 0,
-        take: 10
+        take: 80
       };
     }
     this.queryPayload = { where: {}};

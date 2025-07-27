@@ -110,31 +110,6 @@ export const ArticuloProveedorController = {
     }
 },
 
-
-
-    // En el controller
-    getPredeterminadoPorArticulo: async (req: Request, res: Response) => {
-        const { idArticulo } = req.params;
-        try {
-            const resultado = await prisma.articuloProveedor.findFirst({
-                where: {
-                    idArticulo: Number(idArticulo),
-                    esPredeterminado: true
-                },
-                include: {
-                    proveedor: true,
-                    articulo: true
-                }
-            });
-            res.status(200).json({ msg: 'Proveedor predeterminado encontrado', data: resultado });
-        } catch (error: any) {
-            res.status(500).json({ msg: 'Error al obtener proveedor predeterminado', detail: error.message });
-        }
-    },
-
-
-
-    
     // Eliminar un articuloProveedor (delete)
     delete: async (req: Request, res: Response) => {
         const { id } = req.params;
@@ -147,4 +122,33 @@ export const ArticuloProveedorController = {
             res.status(500).json({ msg: 'Error al eliminar el articuloProveedor', detail: error.message });
         }
     },
+
+
+
+    // En el controller
+    getPredeterminadoPorArticulo: async (req: Request, res: Response) => {
+        const { idArticulo } = req.params;
+        try {
+            const resultado = await prisma.articuloProveedor.findFirst({
+                where: {
+                    idArticulo: Number(idArticulo),
+                    esPredeterminado: true
+                },
+                orderBy: {
+                    idProveedor: 'desc'
+                },
+                include: {
+                    proveedor: true,
+                    articulo: true
+                }
+            });
+            console.log("Asi trae un articulo que tiene proveedores")
+            console.log(resultado)
+            res.status(200).json({ msg: 'Proveedor predeterminado encontrado', data: resultado });
+        } catch (error: any) {
+            res.status(500).json({ msg: 'Error al obtener proveedor predeterminado', detail: error.message });
+        }
+    },
+
+
 }
