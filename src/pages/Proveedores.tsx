@@ -8,8 +8,8 @@ import './styles/Proveedores.css';
 import '../App.css';
 import { showToasty } from "../utils/toasty";
 import ProvArtList from "./Modales/provArtList";
-import ProvDelHist from "./Modales/provDelHist";
 import { useConfirmModal } from "../utils/useConfirmModal";
+import TablaEliminadosGenerica from "../utils/TablaEliminadosGenerica";
 
 // Define the Proveedor type if not imported
 type Proveedor = {
@@ -76,7 +76,7 @@ const Proveedores = () => {
 
     const handleDeleteProveedorValidation = async (prov: Proveedor) => {
         // Confirmación inicial para eliminar proveedor
-        const confirm = await requestConfirmation( 
+        const confirm = await requestConfirmation(
             <>
                 <h4>¿Seguro que desea eliminar el proveedor<br /><strong> #{prov.idProveedor} - {prov.nombre}</strong>?<br /></h4>
                 <h5><i>(Esta acción no se puede deshacer. ⚠️)</i></h5>
@@ -453,9 +453,14 @@ const Proveedores = () => {
                 );
             case "delHist":
                 return (
-                    <ProvDelHist
+                    <TablaEliminadosGenerica
                         show={showModal}
                         onHide={() => setShowModal(false)}
+                        title="Proveedores Eliminados"
+                        axiosUrl="proveedores/"
+                        secondThText="Proveedor"
+                        firstTdKey="idProveedor"
+                        secondTdKey="nombre"
                     />
                 );
             case "artList":

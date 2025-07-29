@@ -10,6 +10,7 @@ interface VtaNewProps {
     show: boolean;
     onHide: () => void;
     onSelect: (articulo: any) => void; // nuevo prop
+    onSave: (venta: any) => void; // nuevo prop para manejar la venta creada
 }
 
 
@@ -17,7 +18,7 @@ type VentasData = {
     datos: any[];
 };
 
-const VtaNew = ({ show, onHide, onSelect }: VtaNewProps) => {
+const VtaNew = ({ show, onHide, onSelect , onSave}: VtaNewProps) => {
     const [data, setData] = useState<VentasData>({ datos: [] });
     const [searchText, setSearchText] = useState("");
     const [showAll, setShowAll] = useState(true);

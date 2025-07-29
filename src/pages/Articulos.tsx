@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import MyPagination from "../components/Pagination/myPagination";
 import ArtProv from "./Modales/artProv";
 import ArtEdit from "./Modales/artEdit";
-import ArtDelHist from "./Modales/artDelHist";
 
 import { calculoCGI } from "../utils/recalcular";
 
@@ -14,6 +13,8 @@ import { showToasty } from "../utils/toasty";
 import { crearAjusteInv } from "../utils/crearAjusteInv";
 import ArtHist from "./Modales/artHist";
 import { useConfirmModal } from "../utils/useConfirmModal";
+import TablaEliminadosGenerica from "../utils/TablaEliminadosGenerica";
+
 
 
 interface Articulo {
@@ -35,6 +36,7 @@ interface Inventario {
     loteOptimo: number;
     puntoPedido: number;
     stockSeguridad: number;
+    periodoRevision: number;
     inventarioMaximo?: number; // Solo para modelo PF
 }
 interface ArticuloProveedor {
@@ -237,7 +239,7 @@ const Articulos = () => {
         if (Object.keys(cambios).length === 0 && !updateProveedor) {
             // Si no hay cambios, salir
             setShowModal(false);
-            showToasty("No se ha modificado el artículo.", "warning");
+            showToasty("No se realizaron cambios", "warning");
             return;
         }
 
@@ -344,7 +346,7 @@ const Articulos = () => {
             });
     };
 
-    const handleCreateArticulo = async (nuevoArticulo: Articulo) => {
+    const handleCreateArticulo = async (nuevoArticulo: Articulo, nuevoAP?: ArticuloProveedor) => {
         try {
             if (!nuevoArticulo.descripcion || !nuevoArticulo.inventario || !nuevoArticulo.articuloProveedor) {
                 return;
@@ -358,6 +360,7 @@ const Articulos = () => {
                     demandaArticulo: nuevoArticulo.inventario.demandaArticulo,
                     costoAlmacenamiento: nuevoArticulo.inventario.costoAlmacenamiento,
                     costoPedido: nuevoArticulo.inventario.costoPedido,
+                    periodoRevision: nuevoArticulo.inventario.periodoRevision
                 },
                 articuloProveedor: {
                     idProveedor: nuevoArticulo.articuloProveedor.idProveedor,
@@ -367,12 +370,22 @@ const Articulos = () => {
                     esPredeterminado: nuevoArticulo.articuloProveedor.esPredeterminado,
                 }
             };
-
             const response = await axiosClient.post("/articulos", articuloPayload);
-
             const articuloCreado = response.data;
 
+            if (nuevoAP) {
+                try {
+                    await axiosClient.post("/articulo-proveedores", {
+                        ...nuevoAP,
+                        idArticulo: articuloCreado.idArticulo, // ← Usás el ID recién creado
+                    });
+                } catch (error) {
+                    console.error("⚠️ Error al crear ArticuloProveedor:", error);
+                    showToasty("Artículo creado, pero falló la creación del proveedor", "warning");
+                }
+            }
             crearAjusteInv(null, articuloCreado, null, null);
+            //ACA CREO EL AP
 
             showToasty("Artículo creado exitosamente", "success");
             setShowModal(false);
@@ -507,9 +520,14 @@ const Articulos = () => {
                 />
             )}
             {showModal && (modalType === "delHist") && (
-                <ArtDelHist
+                <TablaEliminadosGenerica
                     show={showModal}
                     onHide={() => setShowModal(false)}
+                    title="Artículos Eliminados"
+                    axiosUrl="articulos"
+                    secondThText="Artículo"
+                    firstTdKey="idArticulo"
+                    secondTdKey="descripcion"
                 />
             )}
             {(modalType === "hist") && (

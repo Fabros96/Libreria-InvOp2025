@@ -56,7 +56,7 @@ interface ArtEditProps {
     show: boolean;
     onHide: () => void;
     articulo: any | null;
-    onSave: (updatedArticulo: any, articulo?: any, updateProveedor?: any, proidProvOriginal?: any) => void | Promise<void>;
+    onSave: (updatedArticulo: any, articulo?: any, updateProveedor?: any, proidProvOriginal?: any, nuevaAP?: any) => void | Promise<void>;
     mode: "edit" | "new";
 }
 
@@ -83,6 +83,7 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
     const [proveedoresCambiados, setProveedoresCambiados] = useState<ProveedorCambiado[]>([]);
     const [provOriginalRecibido, setProvOriginalRecibido] = useState<any | null>(null);
     const [provNuevoRecibido, setProvNuevoRecibido] = useState<any | null>(null);
+    const [nuevoAP, setNuevoAP] = useState<any | null>(null);
 
 
     useEffect(() => {
@@ -176,7 +177,7 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                         precioUnitario: proveedorPredeterminado?.precioUnitario || 0,
                     },
                 };
-                onSave(updatedArticulo);
+                onSave(updatedArticulo, nuevoAP); //ACA DEBO MANDAR LA NUEVA AP
             }
         } catch (error) {
             console.error("Error al guardar artículo:", error);
@@ -248,7 +249,7 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                             </Form.Control.Feedback>
                         </div>
 
-                        {mode !== "new" && (
+                        {/* {mode !== "new" && (
                             <div style={{ width: "50%", display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
                                 <Form.Label htmlFor="btnProveedor" className="mt-3">Proveedor predeterminado</Form.Label>
                                 <Button id="btnProveedor" onClick={() => setShowProveedorModal(true)} style={{ minWidth: "200px" }}>
@@ -257,7 +258,17 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                                         "Seleccionar..."}
                                 </Button>
                             </div>
-                        )}
+                        )} */}
+
+                        <div style={{ width: "50%", display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                            <Form.Label htmlFor="btnProveedor" className="mt-3">Proveedor predeterminado</Form.Label>
+                            <Button id="btnProveedor" onClick={() => setShowProveedorModal(true)} style={{ minWidth: "200px" }}>
+                                {proveedorPredeterminado?.nombre?.toString() ||
+                                    proveedorPredeterminado?.proveedor?.nombre ||
+                                    "Seleccionar..."}
+                            </Button>
+                        </div>
+
                     </div>
 
                     {/* Período de Revisión (si aplica) */}
@@ -342,7 +353,7 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                     Guardar
                 </Button>
             </Modal.Footer>
-            <ArtProv
+            {/* <ArtProv
                 show={showProveedorModal}
                 articulo={mode === "edit" ? articulo : null}
                 onHide={() => setShowProveedorModal(false)}
@@ -354,7 +365,33 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                 }}
                 mode={mode}
                 onProveedorPredeterminadoChange={(prov) => setProveedorPredeterminado(prov)}
+            /> */}
+            <ArtProv
+                show={showProveedorModal}
+                articulo={mode === "edit" ? articulo : null}
+                onHide={() => setShowProveedorModal(false)}
+                onSave={({ proveedorPredeterminado, cambios, proveedorOriginal, proveedorNuevo, nuevoAP }) => {
+                    // Guardar inmediatamente cuando está en modo editar
+                    setProveedorPredeterminado(proveedorPredeterminado);
+                    setProveedoresCambiados(cambios);
+                    setProvOriginalRecibido(proveedorOriginal);
+                    setProvNuevoRecibido(proveedorNuevo);
+                    setShowProveedorModal(false);
+
+                    if (mode === "edit") {
+                        setProveedorPredeterminado(proveedorPredeterminado);
+                    } else if (mode === "new") {
+                        // En modo new, proveedorPredeterminado viene undefined, pero tenemos nuevoAP
+                        setNuevoAP(nuevoAP);
+                        setProveedorPredeterminado(nuevoAP); // <-- actualizar proveedorPredeterminado también
+                    }
+                    
+
+                }}
+                mode={mode}
+                onProveedorPredeterminadoChange={(prov) => setProveedorPredeterminado(prov)}
             />
+
         </Modal>
     );
 };

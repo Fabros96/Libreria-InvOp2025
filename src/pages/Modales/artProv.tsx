@@ -3,6 +3,8 @@ import axiosClient from "../../api/axiosClient";
 import { useState, useEffect } from "react";
 import "../../App.css";
 import type { AxiosResponse } from "axios";
+import DetalleProvArt from "./detalleProvArt";
+import { showToasty } from "../../utils/toasty";
 
 interface ArtProvProps {
     articulo: any | null;
@@ -41,8 +43,9 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
     const [originales, setOriginales] = useState<ArticuloProveedor[]>([]);
     const [proveedorDeterminadoOriginal, setProveedorDeterminadoOriginal] = useState<any | null>(null);
 
-
-
+    const [showDetalleProvArt, setShowDetalleProvArt] = useState(false);
+    const [articulosSeleccionados, setArticulosSeleccionados] = useState<any[]>([]);
+    const [datosASalvar, setDatosASalvar] = useState<any | null>(null);
 
     useEffect(() => {
         if (articulo && articulo.proveedor) {
@@ -58,10 +61,12 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
 
                 if (mode === "edit" || mode === "view") {
                     response = await axiosClient.get(
-                        `articulo-proveedores/?filter[idArticulo][eq]=${articulo.idArticulo}&filter[include]=proveedor,articulo&filter[proveedor.fechaBaja][eq]=null`
+                        `articulo-proveedores/?filter[idArticulo][eq]=${articulo.idArticulo}&filter[include]=proveedor,articulo&filter[proveedor.fechaBaja][eq]=null&filter[fechaBaja][eq]=null`
+                        
                     );
                 } else if (mode === "new") {
-                    response = await axiosClient.get(`proveedores/`);
+                    setSelectedPredeterminado(null); // 🔧 Reiniciar también aquí
+                    response = await axiosClient.get(`proveedores/?filter[fechaBaja][eq]=null`);
                 }
 
                 const allData = response?.data?.datos || response?.data || [];
@@ -119,7 +124,32 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
                 setData({ datos: nuevosDatos });
             }
         }
-    }, [show]);
+        if (datosASalvar) {
+            const proveedor = datosASalvar.proveedorPredeterminado;
+            const articuloProveedorOriginal = datosASalvar.articulosProveedor?.[0];
+
+            const datosAPasar = {
+                idArticuloProveedor: articuloProveedorOriginal.idArticuloProveedor,
+                idArticulo: articuloProveedorOriginal.idArticulo,
+                idProveedor: proveedor.idProveedor, // ← se reemplaza el id del proveedor
+                demoraEntrega: articuloProveedorOriginal.demoraEntrega,
+                fechaBaja: articuloProveedorOriginal.fechaBaja,
+                esPredeterminado: articuloProveedorOriginal.esPredeterminado,
+                precioUnitario: articuloProveedorOriginal.precioUnitario,
+                nivelServicio: articuloProveedorOriginal.nivelServicio,
+                desviacionEstandar: articuloProveedorOriginal.desviacionEstandar,
+                articulo: {
+                    ...articuloProveedorOriginal.articulo,
+                },
+                proveedor: {
+                    ...proveedor,
+                },
+            };
+            onSave({ nuevoAP: datosAPasar });
+            onHide();
+        }
+
+    }, [show, datosASalvar]);
 
 
     // Función para cerrar el modal y resetear estados
@@ -161,6 +191,38 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
         }
         onHide();
     };
+    const handleNewAP = async () => {
+        if (!selectedPredeterminado) return;
+
+        // Este es el nuevo artículo que estás creando
+        const nuevoArticulo = {
+            idArticulo: 0, // 0 o un ID temporal ficticio, ya que es nuevo
+            descripcion: "Nuevo Artículo",
+            observaciones: "",
+            precioUnitario: 0,
+        };
+
+        // El proveedor predeterminado seleccionado
+        const proveedor = selectedPredeterminado.proveedor || selectedPredeterminado;
+
+        // Armás el objeto con la forma que espera DetalleProvArt
+        const nuevoArticuloProveedor = {
+            idArticuloProveedor: 0,
+            idArticulo: nuevoArticulo.idArticulo,
+            idProveedor: proveedor.idProveedor,
+            demoraEntrega: 0,
+            fechaBaja: null,
+            esPredeterminado: true,
+            precioUnitario: 0,
+            nivelServicio: 1.65,
+            desviacionEstandar: 0,
+            proveedor,
+            articulo: nuevoArticulo,
+        };
+
+        setArticulosSeleccionados([nuevoArticuloProveedor]);
+        setShowDetalleProvArt(true);
+    };
 
     const normalizarTexto = (texto: string) =>
         texto.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -171,9 +233,14 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
 
         const textoBusqueda = normalizarTexto(searchText);
 
-        return data.datos.filter(articulo => {
-            const nombreProveedor = normalizarTexto(articulo.proveedor?.nombre || "");
-            return nombreProveedor.includes(textoBusqueda);
+        return data.datos.filter(proveedor => {
+
+            const nombreProveedor = normalizarTexto(proveedor.nombre || "");
+            const idProveedorStr = proveedor.idProveedor?.toString() || "";
+            return (
+                nombreProveedor.includes(textoBusqueda) ||
+                idProveedorStr.includes(searchText)
+            );
         });
     };
 
@@ -216,8 +283,10 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
                         <thead>
                             <tr>
                                 <th>#</th>
-                                <th>Descripción</th>
-                                <th>Proveedor por defecto</th>
+                                <th>Nombre</th>
+                                <th>
+                                    {mode === "new" ? "Seleccionar" : "Predeterminado"}
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
@@ -245,17 +314,13 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
                                                 <Form.Check
                                                     type="radio"
                                                     name="providerSelect"
-                                                    checked={selectedPredeterminado?.idProveedor === obj.idProveedor}
                                                     onChange={() => {
                                                         const nuevosDatos = data.datos.map((item) => ({
                                                             ...item,
-                                                            esPredeterminado: item.proveedor.idProveedor === obj.idProveedor
+                                                            esPredeterminado: item.idProveedor === obj.idProveedor
                                                         }));
                                                         setData({ datos: nuevosDatos });
                                                         setSelectedPredeterminado(obj);
-                                                        if (onProveedorPredeterminadoChange) {
-                                                            onProveedorPredeterminadoChange(obj);
-                                                        }
                                                     }}
                                                 />
                                             </td>
@@ -292,22 +357,43 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
                                 ))
                             )}
                         </tbody>
+
                     </Table>
                 </Form.Group>
             </Modal.Body>
 
             {mode !== "view" && (
                 <Modal.Footer>
-                    <Button variant="outline-danger" onClick={onHide}>
+                    <Button variant="outline-danger" onClick={handleClose}>
                         Cancelar
                     </Button>
-                    <Button variant={selectedPredeterminado ? "success" : "outline-success"} onClick={handleSave}>
-                        Guardar
+                    <Button variant={selectedPredeterminado ? "success" : "outline-success"} onClick={mode === "new" ? handleNewAP : handleSave} disabled={!selectedPredeterminado} >
+
+                        {mode === "new" ? "Siguiente" : "Guardar"}
                     </Button>
                 </Modal.Footer>
-            )}
-        </Modal>
-    );
+            )
+            }
+            <DetalleProvArt
+                show={showDetalleProvArt}
+                onHide={() => setShowDetalleProvArt(false)}
+                articulos={articulosSeleccionados}
+                proveedor={selectedPredeterminado?.proveedor}
+                onVolver={(articulosEditados) => {
+                    setShowDetalleProvArt(false);
+                    setDatosASalvar({
+                        proveedorPredeterminado: selectedPredeterminado,
+                        articulosProveedor: articulosEditados,
+                    });
+                    if (onProveedorPredeterminadoChange && selectedPredeterminado) {
+                        onProveedorPredeterminadoChange(selectedPredeterminado);
+                    }
+                }}
+            />
+        </Modal >
+    )
+        ;
+
 };
 
 export default ArtProv;

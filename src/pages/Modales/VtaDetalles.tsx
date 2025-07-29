@@ -2,12 +2,15 @@ import { useState, useEffect } from "react";
 import { Modal, Button, Form } from "react-bootstrap";
 import { showToasty } from "../../utils/toasty";
 import axiosClient from "../../api/axiosClient";
-import { generarOCAutomatica } from "../../utils/ocAutomatica";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 
 interface VtaDetalleProps {
     show: boolean;
     onHide: () => void;
-    articulo: any;
+    onSave: (venta: any) => void;
+    venta: any | null;
+    modo: String | null;
 }
 
 
@@ -16,237 +19,224 @@ interface Articulo {
     fechaBaja: Date | null;
     idArticulo: number;
     idInventario: number;
-    modeloInventario: string; // 'LF' o 'PF'
+    modeloInventario: string;
     stock: number;
-
-    inventario?: Inventario;
-    articuloProveedor?: ArticuloProveedor;
-}
-interface Inventario {
-    costoAlmacenamiento: number;
-    costoCompra: number;
-    costoPedido: number;
-    demandaArticulo: number;
-    idInventario: number;
-    loteOptimo: number;
-    puntoPedido: number;
-    stockSeguridad: number;
-    invMaximo?: number; // Solo para modelo PF
+    inventario?: any;
+    articuloProveedorList: ArticuloProveedor[];
 }
 
 interface ArticuloProveedor {
     idArticuloProveedor: number;
     demoraEntrega: number;
-    fechaBaja:Date | null;
+    fechaBaja: Date | null;
     esPredeterminado: boolean;
     idArticulo: number;
     idProveedor: number;
     precioUnitario: number;
-
+    proveedor: {
+        nombre: string;
+    };
 }
 
-interface Venta {
-    idVenta: number;
-    idArticulo: number;
-    fecha: Date;
-    cantidad: number;
-    articulo: Articulo;
-}
+const getValidationSchema = (stock: number) =>
+    Yup.object({
+        cantidad: Yup.number()
+            .min(1, "La cantidad debe ser mayor que cero.")
+            .required("La cantidad es requerida")
+            .max(stock, `No puede superar el stock disponible (${stock})`)
+            .positive("La cantidad debe ser mayor que cero."),
+    });
 
-type VentasData = {
-    datos: any[];
-    totalPages: number;
-};
 
-const VtaDetalle = ({ show, onHide, articulo }: VtaDetalleProps) => {
-    const [cantidad, setCantidad] = useState(0);
+const VtaDetalle = ({ show, onHide, onSave, venta, modo }: VtaDetalleProps) => {
+
+    // Buscamos el proveedor predeterminado
+    const proveedorPredeterminado = venta?.articuloProveedorList?.find((p: any) => p.esPredeterminado) || null;
+
+    // Si no hay predeterminado, proveedorPredeterminado es null
+    // estado para el proveedor seleccionado (puede ser null)
+    const [proveedorSeleccionado, setProveedorSeleccionado] = useState(proveedorPredeterminado);
+    const articuloActual = (modo === 'new') ? venta : venta?.articulo ?? null;
+    const [cantidadOriginal, setCantidadOriginal] = useState(0);
     const [totalPrice, setTotalPrice] = useState(0);
-    const [proveedorSeleccionado, setProveedorSeleccionado] = useState<any | null>(null);
-    const [data, setData] = useState<VentasData>({ datos: [], totalPages: 0 });
 
+    const formik = useFormik({
+        enableReinitialize: true,
+        initialValues: {
+            cantidad: (modo !== 'new' && venta?.cantidad) || 0,
+        },
+        validationSchema: getValidationSchema(articuloActual?.stock ?? 0),
+        onSubmit: async (values) => {
+            const nuevaVenta = {
+                idArticulo: articuloActual.idArticulo,
+                cantidad: values.cantidad,
+                total: totalPrice,
+                fecha: new Date(Date.now()),
+                venta,
+            };
 
-    // Al cambiar la cantidad o el proveedor, calculamos el total
+            if (!proveedorSeleccionado) {
+                showToasty("No hay proveedor predeterminado para este artículo.", "error");
+                return;
+            }
+
+            await handleVta(nuevaVenta);
+        },
+    });
+
     useEffect(() => {
-        if (proveedorSeleccionado && cantidad > 0) {
-            setTotalPrice(proveedorSeleccionado.precioUnitario * cantidad);
-        } else {
-            setTotalPrice(0);
+        if (show) {
+            const proveedor =
+                articuloActual?.articuloProveedorList?.find(
+                    (p: any) => p.idProveedor === venta?.idProveedor
+                ) ||
+                articuloActual?.articuloProveedorList?.find((p: any) => p.esPredeterminado) ||
+                null;
+
+            setProveedorSeleccionado(proveedor);
+
+            const cantidadInicial = (modo !== 'new' && venta?.cantidad) || 0;
+
+            setTotalPrice(proveedor ? proveedor.precioUnitario * cantidadInicial : 0);
+
+            formik.resetForm({
+                values: {
+                    cantidad: cantidadInicial,
+                },
+                errors: {},
+                touched: {},
+            });
         }
-    }, [cantidad, proveedorSeleccionado]);
+    }, [show, venta, modo]);
 
 
     useEffect(() => {
-        if (articulo && articulo.articuloProveedorList && articulo.articuloProveedorList.length > 0) {
-            const predeterminado = articulo.articuloProveedorList.find((p: any) => p.esPredeterminado);
-            setProveedorSeleccionado(predeterminado);
-        } else {
-            setProveedorSeleccionado(null);
+        if (modo === 'new') {
+            if (proveedorSeleccionado && formik.values.cantidad > 0) {
+                setTotalPrice(proveedorSeleccionado.precioUnitario * formik.values.cantidad);
+            } else {
+                setTotalPrice(0);
+            }
+        } else if (modo === 'edit' || modo === 'view') {
+
+            setCantidadOriginal(venta?.cantidad || 0);
+            setTotalPrice(venta?.total || 0);
         }
-        setCantidad(0);
-        setTotalPrice(0);
-    }, [articulo?.idArticulo]);
-
-
+    }, [formik.values.cantidad, proveedorSeleccionado]);
 
     const handleVta = async (nuevaVenta: {
         idArticulo: number;
         cantidad: number;
         fecha: Date;
-        articulo: Articulo;
+        venta: Articulo;
     }) => {
+
+
+
         try {
-            // Intento inicial de crear la venta
-            const response: any = await axiosClient.post("/ventas", nuevaVenta);
-
-            if (cantidad > articulo.stock) {
-                showToasty("La cantidad es mayor al stock", "error");
-            }
-
-            // Si el backend devuelve advertencia, consultamos al usuario
-            if (response.advertencia) {
-                const confirmar = window.confirm(response.msg);
-                if (!confirmar) {
-                    showToasty("Venta cancelada por el usuario.", "info");
-                    return; // Salimos sin crear la venta
-                }
-
-                // Usuario confirmó continuar → reenviamos con forzarVenta: true
-                const confirmResponse = await axiosClient.post("/ventas", {
-                    ...nuevaVenta,
-                    forzarVenta: true
-                });
-
-                setData(prevData => ({
-                    ...prevData,
-                    datos: [...prevData.datos, confirmResponse.data],
-                }));
-
-                showToasty("Venta realizada exitosamente", "success");
-                onHide();
-                return;
-            }
-
-            // Si no hubo advertencia, guardamos la venta directamente
-            setData(prevData => ({
-                ...prevData,
-                datos: [...prevData.datos, response.data],
-            }));
-            
-
-            showToasty("Venta realizada exitosamente", "success");
-            onHide();
-
+            onSave(nuevaVenta);
         } catch (error: any) {
-            console.error(error);
             const msg = error?.response?.data?.msg || "Error al crear la venta.";
             showToasty(msg, "error");
         }
     };
-
     return (
         <Modal show={show} onHide={onHide} centered>
             <Modal.Header closeButton>
-                <Modal.Title>Nueva Venta</Modal.Title>
+                <Modal.Title>{modo === 'new' ? 'Nueva Venta' : 'Editar Venta'}.</Modal.Title>
             </Modal.Header>
             <Modal.Body>
-                <Form.Group>
-                    <div>
-                        <Form.Label>
-                            Artículo: #{articulo?.idArticulo ?? "---"} - {articulo?.descripcion ?? "---"}
-                        </Form.Label>
-
-                    </div>
-                    <Form.Label>
-                        <strong>Proveedor: </strong>
-
-                    </Form.Label>
-                    <Form.Select
-                        value={proveedorSeleccionado?.idProveedor ?? ''}
-                        onChange={(e) => {
-                            const seleccionado = articulo.articuloProveedorList.find(
-                                (p: any) => p.idProveedor === parseInt(e.target.value)
-                            );
-                            setProveedorSeleccionado(seleccionado || null);
-                        }}
-                    >
-                        {articulo?.articuloProveedorList?.length > 0 ? (
-                            articulo.articuloProveedorList.map((p: any) => (
-                                <option key={p.idProveedor} value={p.idProveedor}>
-                                    {p.proveedor.nombre} - ${p.precioUnitario}
-                                </option>
-                            ))
-                        ) : (
-                            <option>No hay proveedores</option>
-                        )}
-                    </Form.Select>
-
-
-
+                <Form.Group style={{ fontSize: "1.15rem" }}>
+                    <Form.Text>
+                        <div id="articulo-info">
+                            <strong>Artículo:</strong> #{articuloActual?.idArticulo ?? "---"} - {articuloActual?.descripcion ?? "---"}
+                        </div>
+                    </Form.Text>
 
                     <div className="mt-3">
-                        <Form.Label>
+                        <Form.Text>
                             <strong>Precio Unitario: </strong>
-                            {proveedorSeleccionado ? `$${proveedorSeleccionado.precioUnitario}` : "---"}
-                        </Form.Label>
+                            {modo === 'view' || modo === 'edit' ? (venta?.total ? venta.total.toFixed(2) / cantidadOriginal : "N/D")
+                                : proveedorSeleccionado
+                                    ? `$${proveedorSeleccionado.precioUnitario.toFixed(2)}`
+                                    : "Necesita seleccionar primero un proveedor para realizar la venta."}
+                        </Form.Text>
                     </div>
 
-                    <div className="mt-3">
-                        <Form.Label>
-                            <strong>Stock: </strong>
-                            {articulo?.stock ?? "---"}
-                        </Form.Label>
-                    </div>
+                    {(modo === 'edit' || modo === 'new') && (
+                        <div className="mt-3">
+                            <Form.Text>
+                                <strong>Stock: </strong>
+                                {articuloActual?.stock ?? "---"}
+                            </Form.Text>
+                        </div>
+                    )}
 
                     <div className="mt-3">
-                        <Form.Label>
+                        <Form.Label htmlFor="cantidad">
                             <strong>Cantidad</strong>
                         </Form.Label>
                         <Form.Control
                             type="number"
+                            id="cantidad"
+                            name="cantidad"
                             min={0}
-                            max={articulo?.stock ?? 0}
-                            value={cantidad}
-                            onChange={(e) => setCantidad(Number(e.target.value))}
-                            onBlur={() => {
-                                if (cantidad > (articulo?.stock ?? 0)) {
-                                    setCantidad(cantidad);
-                                } else if (cantidad < 0) {
-                                    setCantidad(0);
-                                }
+                            max={venta?.stock ?? 0}
+                            value={formik.values.cantidad}
+                            disabled={modo === 'edit' || modo === 'new' ? false :(modo === 'view' ? true : (proveedorSeleccionado ? false : true))}
+                            onChange={(e) => {
+                                const value = Math.max(0, Number(e.target.value));
+                                formik.setFieldValue("cantidad", value);
                             }}
+                            onBlur={formik.handleBlur}
+                            isInvalid={formik.touched.cantidad && !!formik.errors.cantidad}
                         />
+                        <Form.Control.Feedback type="invalid">
+                            {formik.errors.cantidad as string}
+                        </Form.Control.Feedback>
                     </div>
 
-                    <hr className="hr hr-blurry" style={{ fontWeight: "bolder", height: "3px", backgroundColor: "black" }} />
+                    <hr
+                        className="hr hr-blurry"
+                        style={{ fontWeight: "bolder", height: "3px", backgroundColor: "black" }}
+                    />
 
-                    <Form.Label>
-                        <strong>Precio Total: </strong>${totalPrice.toFixed(2)}
-                    </Form.Label>
+
+                    <div style={{ fontSize: "1.2rem", fontWeight: "bold", marginTop: "10px", marginBottom: "10px", color: "blue" }}>
+
+                        <strong>Precio Total: </strong>
+                        {typeof venta?.total === "number"
+                            ? `$${venta.total.toFixed(2)}`
+                            : (proveedorSeleccionado
+                                ? `$${(proveedorSeleccionado.precioUnitario * formik.values.cantidad).toFixed(2)}`
+                                : "$0.00")}
+                    </div>
+
+
+
+                    {(modo === 'edit' || modo === 'view') && (
+                        <div>
+                            <strong>Fecha de Venta: </strong> {venta?.fechaCreacion ? new Date(venta.fechaCreacion).toLocaleString() : 'N/D'}
+                            <br />
+                            <strong>Venta realizada por: </strong> Usuario
+                        </div>
+                    )}
                 </Form.Group>
             </Modal.Body>
-            <Modal.Footer>
-                <Button
-                    variant="outline-success"
-                    onClick={() => {
-                        if (!proveedorSeleccionado || cantidad <= 0) {
-                            showToasty("Seleccione un datos válidos", "warning");
-                            return;
-                        }
+            {modo !== "view" && (
+                <Modal.Footer className="d-flex justify-content-between w-100">
+                    <Button variant="outline-danger" onClick={onHide}>Cancelar</Button>
+                    <Button
+                        variant="outline-success"
+                        onClick={() => { formik.handleSubmit() }}
+                        style={{ visibility: modo === "new" ? (proveedorSeleccionado ? 'visible' : 'hidden') : 'visible' }}
 
-                        const nuevaVenta = {
-                            idArticulo: articulo.idArticulo,
-                            cantidad: cantidad,
-                            fecha: new Date(Date.now()),
-                            articulo: articulo,
-                        };
+                    >
+                        {modo === 'new' ? 'Realizar Venta' : 'Editar Venta'}
+                    </Button>
+                </Modal.Footer>
+            )}
 
-                        handleVta(nuevaVenta);
-                    }}
-                >
-                    Realizar Venta
-                </Button>
-
-            </Modal.Footer>
         </Modal>
     );
 };

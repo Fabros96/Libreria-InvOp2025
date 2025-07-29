@@ -207,7 +207,7 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
 
             setTabsWithErrors(nuevasTabsConErrores);
 
-            if (hayErrores) {
+            if (hayErrores) {                
                 showToasty("Hay error/es en al menos un formulario, por favor revise.", "error");
                 return;
             }

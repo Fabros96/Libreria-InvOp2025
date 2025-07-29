@@ -3,8 +3,8 @@ import axiosClient from "../api/axiosClient";
 import type { OrdenCompra, Articulo, Proveedor } from "../types/ordenCompra";
 import { Modal, Button, Form, Table, Container } from "react-bootstrap";
 import { showToasty } from "../utils/toasty";
-import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import TablaEliminadosGenerica from "../utils/TablaEliminadosGenerica";
 
 
 export default function Ordenes() {
@@ -21,6 +21,8 @@ export default function Ordenes() {
   const [loteOptimoSugerido, setLoteOptimoSugerido] = useState<number | null>(null);
   const [showCronModal, setShowCronModal] = useState(false)
   const [cronMensajes, setCronMensajes] = useState<string[]>([]);
+  const [showEliminadosModal, setShowEliminadosModal] = useState(false);
+
 
 
   const [paginaActual, setPaginaActual] = useState(1);
@@ -38,11 +40,9 @@ export default function Ordenes() {
   useEffect(() => {
     fetchOrdenes();
     const fetchDatos = async () => {
-      const resArt = await axiosClient.get("/articulos?filter[fechaBaja][eq]=null");
+      const resArt = await axiosClient.get("articulos/?filter[fechaBaja][eq]=null");
       setArticulos(resArt.data);
-      const resProv = await axiosClient.get("/proveedores");
-      console.log("entro al useEffect del resProv")
-      console.log(resProv)
+      const resProv = await axiosClient.get("proveedores/?filter[fechaBaja][eq]=null");
       setProveedores(resProv.data);
     };
     fetchDatos();
@@ -53,9 +53,9 @@ export default function Ordenes() {
       try {
         const res: any = await axiosClient.get(`/articulo-proveedores/predeterminado/${idArt}`);
         const proveedor = res.data?.proveedor;
-        if (proveedor?.idProveedor) 
+        if (proveedor?.idProveedor)
           console.log(proveedor?.idProveedor)
-          setIdProveedor(proveedor.idProveedor);
+        setIdProveedor(proveedor.idProveedor);
 
         const resLote: any = await axiosClient.get(`/inventarios/lote-optimo/${idArt}`);
         setLoteOptimoSugerido(resLote.loteOptimo ?? null);
@@ -384,7 +384,7 @@ export default function Ordenes() {
               <option value="">Seleccionar...</option>
               {proveedores.map((p) => (
                 <option key={p.idProveedor} value={p.idProveedor}>{p.nombre}</option>
-                
+
               ))
               }
             </Form.Select>
@@ -458,9 +458,25 @@ export default function Ordenes() {
           </Button>
         </Modal.Footer>
       </Modal>
+      <Button className="delArtButton" onClick={() => setShowEliminadosModal(true)}>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" className="bi bi-trash" viewBox="0 0 16 16">
+          <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z" />
+          <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z" />
+        </svg>
+        <span>OCs. Eliminadas</span>
+      </Button>
+      <TablaEliminadosGenerica
+        show={showEliminadosModal}
+        onHide={() => setShowEliminadosModal(false)}
+        title="Ordenes de Compra Eliminadas"
+        axiosUrl="orden-compras/"
+        secondThText="Orden de Compra"
+        firstTdKey="idOrdenCompra"
+        secondTdKey={null}
+      />
 
-      <ToastContainer position="top-center" autoClose={5000} hideProgressBar />
-    </Container>
+    </Container >
+
   );
 
 }
