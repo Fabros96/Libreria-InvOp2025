@@ -54,6 +54,8 @@ router.delete("/articulos/:id", ArticuloController.delete);
 router.get("/ventas", VentaController.getAll);
 router.get("/ventas/:id", VentaController.getById);
 router.post("/ventas", VentaController.create);
+router.delete("/ventas/:id", VentaController.delete); 
+
 
 // orden compra
 router.get("/orden-compras", OrdenCompraController.getAll);

@@ -35,7 +35,7 @@ export const ArticuloController = {
 
         try {
 
-            const { demandaArticulo, costoPedido, costoAlmacenamiento, costoCompra, demoraEntrega, periodoRevision } = inventario;
+            const { demandaArticulo, costoPedido, costoAlmacenamiento, demoraEntrega, periodoRevision } = inventario;
 
             console.log(inventario)
 
@@ -48,7 +48,6 @@ export const ArticuloController = {
                         demandaArticulo,
                         costoPedido,
                         costoAlmacenamiento,
-                        costoCompra,
                         periodoRevision,
                         loteOptimo: 0,
                         puntoPedido: 0,
@@ -105,7 +104,6 @@ export const ArticuloController = {
                         demandaArticulo: inventario.demandaArticulo,
                         costoAlmacenamiento: inventario.costoAlmacenamiento,
                         costoPedido: inventario.costoPedido,
-                        costoCompra: inventario.costoCompra,
                         periodoRevision: inventario.periodoRevision,
                     },
                 });

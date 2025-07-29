@@ -27,7 +27,7 @@ export const VentaController = {
     },
 
     create: async (req: Request, res: Response) => {
-        let { idArticulo, cantidad, fechaCreacion, forzarVenta } = req.body;
+        let { idArticulo, cantidad, total, fechaCreacion, forzarVenta } = req.body;
         try {
             if (!fechaCreacion) fechaCreacion = new Date(Date.now());
 
@@ -86,7 +86,7 @@ export const VentaController = {
 
             // Generar la venta
             const nuevaVenta = await prisma.venta.create({
-                data: { idArticulo, cantidad, fechaCreacion }
+                data: { idArticulo, cantidad, total, fechaCreacion }
             });
 
             // Decrementar stock
@@ -107,7 +107,7 @@ export const VentaController = {
             const puntoPedido = updateArticulo.inventario?.puntoPedido ?? 0;
             const loteOptimo = updateArticulo.inventario?.loteOptimo ?? 0;
             const modeloInventario = inventarioArticulo?.modeloInventario;
-            
+
             if (
                 modeloInventario === 'LF' &&
                 nuevoStock < puntoPedido &&
@@ -132,6 +132,20 @@ export const VentaController = {
 
         } catch (error: any) {
             res.status(500).json({ msg: 'Error al crear la venta', detail: error.message });
+        }
+    },
+
+    // Eliminar venta (Baja lógica)
+    delete: async (req: Request, res: Response) => {
+        const { id } = req.params;
+        try {
+            const ventaBaja = await prisma.venta.update({
+                where: { idVenta: parseInt(id) },
+                data: { fechaBaja: new Date() }
+            });
+            res.status(200).json({ msg: 'Venta dada de baja', data: ventaBaja });
+        } catch (error: any) {
+            res.status(500).json({ msg: 'Error al dar de baja la Venta', detail: error.message });
         }
     },
 

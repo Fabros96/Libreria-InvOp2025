@@ -28,11 +28,11 @@ export const InventarioController = {
 
     // Crear un nuevo inventario (create)
     create: async (req: Request, res: Response) => {
-        let { costoAlmacenamiento, costoCompra, costoPedido, demandaArticulo, loteOptimo, puntoPedido, stockSeguridad, articulo, periodoRevision } = req.body;
+        let { costoAlmacenamiento, costoPedido, demandaArticulo, loteOptimo, puntoPedido, stockSeguridad, articulo, periodoRevision } = req.body;
         try {
             console.log(periodoRevision)
             const nuevoInventario = await prisma.inventario.create({
-                data: { costoAlmacenamiento, costoCompra, costoPedido, demandaArticulo, loteOptimo, puntoPedido, stockSeguridad, articulo },
+                data: { costoAlmacenamiento, costoPedido, demandaArticulo, loteOptimo, puntoPedido, stockSeguridad, articulo },
             });
             res.status(200).json({ msg: 'Se ha creado el inventario.', data: nuevoInventario });
         } catch (error: any) {
@@ -43,8 +43,8 @@ export const InventarioController = {
     // Actualizar un inventario (update)
     update: async (req: Request, res: Response) => {
         const { id } = req.params;
-        let { costoAlmacenamiento, costoCompra, costoPedido, demandaArticulo, loteOptimo, puntoPedido, stockSeguridad, articulo } = req.body;
-        let payload: any = { costoAlmacenamiento, costoCompra, costoPedido, demandaArticulo, loteOptimo, puntoPedido, stockSeguridad, articulo };
+        let { costoAlmacenamiento, costoPedido, demandaArticulo, loteOptimo, puntoPedido, stockSeguridad, articulo } = req.body;
+        let payload: any = { costoAlmacenamiento, costoPedido, demandaArticulo, loteOptimo, puntoPedido, stockSeguridad, articulo };
         try {
             const inventarioActualizado = await prisma.inventario.update({
                 where: { idInventario: parseInt(id) },

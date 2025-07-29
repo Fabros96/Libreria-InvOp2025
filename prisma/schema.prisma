@@ -16,14 +16,13 @@ datasource db {
 model Inventario {
   idInventario            Int     @id @default(autoincrement())
   costoAlmacenamiento     Int?
-  costoCompra             Int?
   costoPedido             Int?
   demandaArticulo         Int?
-  loteOptimo              Int?
-  puntoPedido             Int?
-  stockSeguridad          Int?
-  inventarioMaximo        Int?
-  periodoRevision         Int?
+  loteOptimo              Int?    @default(0)
+  puntoPedido             Int?    @default(0)
+  stockSeguridad          Int?    @default(0)
+  inventarioMaximo        Int?    @default(0)
+  periodoRevision         Int?    @default(0)
   articulo                Articulo?
   
 }
@@ -99,7 +98,9 @@ model Venta {
   idVenta                 Int     @id @default(autoincrement())
   idArticulo              Int
   cantidad                Int?
+  total                   Float? @default(0)
   fechaCreacion           DateTime?
+  fechaBaja               DateTime?
   articulo                Articulo @relation(fields: [idArticulo], references: [idArticulo])
 }
 
