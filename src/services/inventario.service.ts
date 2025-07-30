@@ -7,6 +7,8 @@ export const calcularInventario = ({
   nivelServicio,
   desviacionEstandar,
   periodoRevision,
+  precioUnitario,
+  
 }: {
   demandaArticulo: number | null;
   costoPedido: number | null;
@@ -16,6 +18,8 @@ export const calcularInventario = ({
   nivelServicio?: number;
   desviacionEstandar?: number;
   periodoRevision?: number;
+  precioUnitario?: number;
+
 }) => {
   if (
     demandaArticulo == null ||
@@ -24,6 +28,7 @@ export const calcularInventario = ({
     demoraEntrega == null ||
     nivelServicio == null ||
     desviacionEstandar == null ||
+    precioUnitario == null ||
     (modeloInventario === 'PF' && periodoRevision == null) // solo se valida si se usa
   ) {
     throw new Error("Parámetros inválidos para el cálculo de inventario");
@@ -43,13 +48,14 @@ export const calcularInventario = ({
 
     const puntoPedido = Math.round((demandaArticulo * demoraEntrega) + stockSeguridad);
 
-    //calculo para CGI = ( demandaArticulo * precioUnitario ) + (demandaArticulo / loteOptimo) + (loteOptimo/2 * costoAlmacenamiento)
+    const cgi = Math.round(( demandaArticulo * precioUnitario ) + (demandaArticulo / EOQ) + (EOQ/2 * costoAlmacenamiento))
 
     return {
       loteOptimo: EOQ,
       stockSeguridad,
       puntoPedido,
       inventarioMaximo: null, // importante para consistencia
+      cgi,
     };
   }
 
@@ -57,7 +63,7 @@ export const calcularInventario = ({
 
     console.log("Recalcularé con Periodo Fijo");
 
-    const stockSeguridad = Math.round(nivelServicio * desviacionEstandar * Math.sqrt(demoraEntrega))
+    const stockSeguridad = Math.round(nivelServicio * desviacionEstandar * Math.sqrt(periodoRevision!+demoraEntrega))
     const inventarioMaximo = Math.round(demandaArticulo * (periodoRevision! + demoraEntrega) + stockSeguridad)
 
     return {

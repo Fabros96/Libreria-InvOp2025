@@ -80,6 +80,8 @@ export const ArticuloProveedorController = {
                 select: { modeloInventario: true }
             });
 
+            console.log("estoy viendo como llega articulo.inventario desde articulo-proveed: "+articulo?.inventario)
+
             if (articulo?.inventario) {
                 const { demandaArticulo, costoPedido, costoAlmacenamiento, periodoRevision, idInventario } = articulo.inventario;
 
@@ -92,6 +94,7 @@ export const ArticuloProveedorController = {
                     nivelServicio,
                     desviacionEstandar,
                     periodoRevision: periodoRevision ?? undefined,
+                    precioUnitario,
                 });
 
                 await prisma.inventario.update({

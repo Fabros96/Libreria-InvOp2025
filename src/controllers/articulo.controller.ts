@@ -29,8 +29,7 @@ export const ArticuloController = {
     },
 
     create: async (req: Request, res: Response) => {
-        console.log("holatoyentrandingjeejej")
-
+        
         const { descripcion, modeloInventario, stock, inventario } = req.body;
 
         try {
@@ -72,8 +71,6 @@ export const ArticuloController = {
         }
     },
 
-
-    //actualizar articulo version mejorada
     update: async (req: Request, res: Response) => {
         const { id } = req.params;
         const {
@@ -88,6 +85,7 @@ export const ArticuloController = {
 
         const payload: any = { idInventario, descripcion, modeloInventario, stock };
         if (fechaBaja) payload.fechaBaja = fechaBaja;
+        console.log("📥 Body recibido:", req.body);
 
         try {
             // 1. Actualizar artículo principal
@@ -125,68 +123,85 @@ export const ArticuloController = {
                 });
             }
 
-            // 4. Recalcular inventario si todo está presente
+            // 4. Buscar proveedor predeterminado si no viene o está incompleto
+            let proveedorAUsar = articuloProveedor;
+
+            if (
+                !proveedorAUsar ||
+                typeof proveedorAUsar.demoraEntrega !== "number" ||
+                typeof proveedorAUsar.nivelServicio !== "number" ||
+                typeof proveedorAUsar.desviacionEstandar !== "number"
+            ) {
+                proveedorAUsar = await prisma.articuloProveedor.findFirst({
+                    where: {
+                        idArticulo: parseInt(id),
+                        esPredeterminado: true,
+                        fechaBaja: null
+                    },
+                    orderBy: { idProveedor: 'desc' }
+                });
+
+                if (!proveedorAUsar) {
+                    console.log("⚠️ No se encontró proveedor predeterminado. No se recalcula inventario.");
+                }
+            }
+
+            // 5. Recalcular inventario si todo está presente
+            console.log("invent: ",inventario)
+            console.log("proveedorAUsar:",proveedorAUsar)
             if (
                 inventario &&
-                articuloProveedor &&
+                proveedorAUsar &&
                 typeof inventario.demandaArticulo === "number" &&
                 typeof inventario.costoAlmacenamiento === "number" &&
                 typeof inventario.costoPedido === "number" &&
-                typeof articuloProveedor.demoraEntrega === "number" &&
-                typeof articuloProveedor.nivelServicio === "number" &&
-                typeof articuloProveedor.desviacionEstandar === "number" &&
-                typeof inventario.periodoRevision === "number"
+                typeof proveedorAUsar.demoraEntrega === "number" &&
+                typeof proveedorAUsar.nivelServicio === "number" &&
+                typeof proveedorAUsar.desviacionEstandar === "number" &&
+                typeof inventario.periodoRevision === "number" &&
+                typeof articuloProveedor.precioUnitario === "number"
+
             ) {
                 const nuevosValores = calcularInventario({
                     demandaArticulo: inventario.demandaArticulo,
                     costoPedido: inventario.costoPedido,
                     costoAlmacenamiento: inventario.costoAlmacenamiento,
-                    demoraEntrega: articuloProveedor.demoraEntrega,
+                    demoraEntrega: proveedorAUsar.demoraEntrega,
                     modeloInventario: articuloActualizado.modeloInventario,
-                    nivelServicio:  articuloProveedor.nivelServicio,
-                    desviacionEstandar: articuloProveedor.desviacionEstandar,
+                    nivelServicio: proveedorAUsar.nivelServicio,
+                    desviacionEstandar: proveedorAUsar.desviacionEstandar,
                     periodoRevision: inventario.periodoRevision,
+                    precioUnitario: articuloProveedor.precioUnitario,
+                    
                 });
 
                 console.log("🔁 Recalculando inventario con:", nuevosValores);
 
                 await prisma.inventario.update({
                     where: { idInventario: inventario.idInventario },
-                    data: {
-                        ...nuevosValores,
-                    }
+                    data: nuevosValores
                 });
             } else {
-
-                //caso de que no funcione la condición del if
-                console.log("⚠️ No se entra al if de calcularInventario. Revisar los siguientes valores:");
-
-                console.log("inventario:", inventario);
-                console.log("articuloProveedor:", articuloProveedor);
-                console.log("demandaArticulo:", inventario?.demandaArticulo, "→", typeof inventario?.demandaArticulo);
-                console.log("costoAlmacenamiento:", inventario?.costoAlmacenamiento, "→", typeof inventario?.costoAlmacenamiento);
-                console.log("costoPedido:", inventario?.costoPedido, "→", typeof inventario?.costoPedido);
-                console.log("demoraEntrega:", articuloProveedor?.demoraEntrega, "→", typeof articuloProveedor?.demoraEntrega);
-                console.log("nivelServicio:", articuloProveedor?.nivelServicio, "→", typeof articuloProveedor?.nivelServicio);
-                console.log("desviacionEstandar:", articuloProveedor?.desviacionEstandar, "→", typeof articuloProveedor?.desviacionEstandar);
-                console.log("periodoRevision:", inventario?.periodoRevision, "→", typeof inventario?.periodoRevision);
+                console.log("⚠️ No se cumplen condiciones para recalcular inventario.");
             }
 
-
             return res.status(200).json({
-                msg: 'Se ha actualizado el articulo y se ha recalculado el inventario.',
+                msg: 'Se ha actualizado el artículo y se ha recalculado el inventario si correspondía.',
                 data: articuloActualizado,
             });
 
         } catch (error: any) {
             console.error("❌ Error al actualizar artículo:", error);
-            console.log("fffffffffffffffffff")
             return res.status(500).json({
-                msg: 'Error al actualizar el articulo',
+                msg: 'Error al actualizar el artículo',
                 detail: error.message,
             });
         }
     },
+
+
+
+
 
 
     // Eliminar articulo (Baja lógica)

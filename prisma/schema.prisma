@@ -23,6 +23,8 @@ model Inventario {
   stockSeguridad          Int?    @default(0)
   inventarioMaximo        Int?    @default(0)
   periodoRevision         Int?    @default(0)
+  cgi                     Int?    @default(0)
+  fechaBaja               DateTime?
   articulo                Articulo?
   
 }
