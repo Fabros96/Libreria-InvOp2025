@@ -1,10 +1,8 @@
 import { Modal, Button, Form, Table, InputGroup } from "react-bootstrap";
 import axiosClient from "../../api/axiosClient";
 import { useState, useEffect } from "react";
-import { showToasty } from "../../utils/toasty"
 
 import "../../App.css";
-import type { AxiosResponse } from "axios";
 
 interface VtaNewProps {
     show: boolean;
@@ -22,7 +20,6 @@ const VtaNew = ({ show, onHide, onSelect , onSave}: VtaNewProps) => {
     const [data, setData] = useState<VentasData>({ datos: [] });
     const [searchText, setSearchText] = useState("");
     const [showAll, setShowAll] = useState(true);
-    const [articulos, setArticulos] = useState<any[]>([]);
 
 
     useEffect(() => {

@@ -4,7 +4,6 @@ import { showToasty } from "../../utils/toasty";
 import ArtProv from "./artProv";
 
 import "../../App.css";
-import { calcularDatosInventario } from "../../utils/recalcular";
 
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -160,14 +159,9 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                     articuloProveedor: proveedorFinal,
                 };
 
-                console.log("🧾 Artículo original:", articulo);
-                console.log("📤 Artículo actualizado que se va a enviar:", updatedArticulo);
-
                 if (proveedoresCambiados.length > 0) {
-                    console.log("🔄 Envío con proveedores cambiados:", provOriginalRecibido, provNuevoRecibido);
                     onSave(articulo, updatedArticulo, provOriginalRecibido, provNuevoRecibido);
                 } else {
-                    console.log("✅ Envío sin cambio de proveedor");
                     onSave(articulo, updatedArticulo);
                 }
             } else {

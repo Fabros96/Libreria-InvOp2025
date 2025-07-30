@@ -426,8 +426,8 @@ export default function Ordenes() {
           </p>
           <div className="d-grid gap-2">
             <Button variant="outline-success" onClick={() => cambiarEstadoOrden(1)}>Pendiente</Button>
-            <Button variant="outline-primary" onClick={() => cambiarEstadoOrden(3)}>Enviada</Button>
             <Button variant="outline-dark" onClick={() => cambiarEstadoOrden(2)}>Cancelada</Button>
+            <Button variant="outline-primary" onClick={() => cambiarEstadoOrden(3)}>Enviada</Button>
             <Button variant="outline-danger" onClick={() => cambiarEstadoOrden(4)}>Finalizada</Button>
           </div>
         </Modal.Body>

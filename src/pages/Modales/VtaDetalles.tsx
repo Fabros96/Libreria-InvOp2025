@@ -75,11 +75,6 @@ const VtaDetalle = ({ show, onHide, onSave, venta, modo }: VtaDetalleProps) => {
                 venta,
             };
 
-            if (!proveedorSeleccionado) {
-                showToasty("No hay proveedor predeterminado para este artículo.", "error");
-                return;
-            }
-
             await handleVta(nuevaVenta);
         },
     });
@@ -92,8 +87,21 @@ const VtaDetalle = ({ show, onHide, onSave, venta, modo }: VtaDetalleProps) => {
                 ) ||
                 articuloActual?.articuloProveedorList?.find((p: any) => p.esPredeterminado) ||
                 null;
-
             setProveedorSeleccionado(proveedor);
+            // Si no hay proveedor predeterminado, se elige el más barato de la lista
+            if (!proveedor) {
+                const proveedorBarato =
+                    articuloActual?.articuloProveedorList?.find(
+                        (p: any) => p.idProveedor === venta?.idProveedor
+                    ) ||
+                    articuloActual?.articuloProveedorList?.find((p: any) => p.esPredeterminado) ||
+                    articuloActual?.articuloProveedorList?.reduce((min: { precioUnitario: number; }, current: { precioUnitario: number; }) => {
+                        return current.precioUnitario < min.precioUnitario ? current : min;
+                    }) ||
+                    null;
+                setProveedorSeleccionado(proveedorBarato);
+            }
+
 
             const cantidadInicial = (modo !== 'new' && venta?.cantidad) || 0;
 
@@ -117,7 +125,7 @@ const VtaDetalle = ({ show, onHide, onSave, venta, modo }: VtaDetalleProps) => {
             } else {
                 setTotalPrice(0);
             }
-        } else if (modo === 'edit' || modo === 'view') {
+        } else if (modo === 'view') {
 
             setCantidadOriginal(venta?.cantidad || 0);
             setTotalPrice(venta?.total || 0);
@@ -147,23 +155,27 @@ const VtaDetalle = ({ show, onHide, onSave, venta, modo }: VtaDetalleProps) => {
             </Modal.Header>
             <Modal.Body>
                 <Form.Group style={{ fontSize: "1.15rem" }}>
-                    <Form.Text>
-                        <div id="articulo-info">
-                            <strong>Artículo:</strong> #{articuloActual?.idArticulo ?? "---"} - {articuloActual?.descripcion ?? "---"}
-                        </div>
+                    <Form.Text style={{ fontSize: "1.15rem" }}>
+                        <strong>Artículo: </strong>
+                    </Form.Text>
+                    <Form.Text style={{ fontSize: modo === 'view' ? "1.2rem" : "", fontWeight: modo === 'view' ? "bold" : "normal", marginTop: modo === 'view' ? "10px" : "", marginBottom: modo === 'view' ? "10px" : "", color: modo === 'view' ? "blue" : "inherit", }}>
+                        #{articuloActual?.idArticulo ?? "---"} - {articuloActual?.descripcion ?? "---"}
                     </Form.Text>
 
                     <div className="mt-3">
-                        <Form.Text>
+                        <Form.Text style={{ fontSize: "1.15rem" }}>
                             <strong>Precio Unitario: </strong>
-                            {modo === 'view' || modo === 'edit' ? (venta?.total ? venta.total.toFixed(2) / cantidadOriginal : "N/D")
+                        </Form.Text>
+                        <Form.Text style={{ fontSize: modo === 'view' ? "1.2rem" : "", fontWeight: modo === 'view' ? "bold" : "normal", marginTop: modo === 'view' ? "10px" : "", marginBottom: modo === 'view' ? "10px" : "", color: modo === 'view' ? "blue" : "inherit", }}>
+
+                            {modo === 'view' ? (venta?.total ? venta.total.toFixed(2) / cantidadOriginal : "N/D")
                                 : proveedorSeleccionado
                                     ? `$${proveedorSeleccionado.precioUnitario.toFixed(2)}`
                                     : "Necesita seleccionar primero un proveedor para realizar la venta."}
                         </Form.Text>
                     </div>
 
-                    {(modo === 'edit' || modo === 'new') && (
+                    {modo === 'new' && (
                         <div className="mt-3">
                             <Form.Text>
                                 <strong>Stock: </strong>
@@ -173,27 +185,37 @@ const VtaDetalle = ({ show, onHide, onSave, venta, modo }: VtaDetalleProps) => {
                     )}
 
                     <div className="mt-3">
-                        <Form.Label htmlFor="cantidad">
-                            <strong>Cantidad</strong>
-                        </Form.Label>
-                        <Form.Control
-                            type="number"
-                            id="cantidad"
-                            name="cantidad"
-                            min={0}
-                            max={venta?.stock ?? 0}
-                            value={formik.values.cantidad}
-                            disabled={modo === 'edit' || modo === 'new' ? false :(modo === 'view' ? true : (proveedorSeleccionado ? false : true))}
-                            onChange={(e) => {
-                                const value = Math.max(0, Number(e.target.value));
-                                formik.setFieldValue("cantidad", value);
-                            }}
-                            onBlur={formik.handleBlur}
-                            isInvalid={formik.touched.cantidad && !!formik.errors.cantidad}
-                        />
-                        <Form.Control.Feedback type="invalid">
-                            {formik.errors.cantidad as string}
-                        </Form.Control.Feedback>
+                        <Form.Text style={{ fontSize: "1.15rem" }}>
+                            <strong>Cantidad: </strong>
+                        </Form.Text>
+                        {modo === 'new' ? (
+                            <>
+                                <Form.Control
+                                    type="number"
+                                    id="cantidad"
+                                    name="cantidad"
+                                    min={0}
+                                    max={venta?.stock ?? 0}
+                                    value={formik.values.cantidad}
+                                    disabled={modo !== 'new'}
+                                    onChange={(e) => {
+                                        const value = Math.max(0, Number(e.target.value));
+                                        formik.setFieldValue("cantidad", value);
+                                    }}
+                                    onBlur={formik.handleBlur}
+                                    isInvalid={formik.touched.cantidad && !!formik.errors.cantidad}
+                                />
+                                <Form.Control.Feedback type="invalid">
+                                    {formik.errors.cantidad as string}
+                                </Form.Control.Feedback>
+                            </>
+                        ) : (
+
+
+                            <Form.Text style={{ fontSize: "1.2rem", fontWeight: "bold", marginTop: "10px", marginBottom: "10px", color: "blue" }}>
+                                <strong>{" " + formik.values.cantidad} </strong>
+                            </Form.Text>)}
+
                     </div>
 
                     <hr
@@ -214,7 +236,7 @@ const VtaDetalle = ({ show, onHide, onSave, venta, modo }: VtaDetalleProps) => {
 
 
 
-                    {(modo === 'edit' || modo === 'view') && (
+                    {modo === 'view' && (
                         <div>
                             <strong>Fecha de Venta: </strong> {venta?.fechaCreacion ? new Date(venta.fechaCreacion).toLocaleString() : 'N/D'}
                             <br />
