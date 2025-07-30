@@ -38,6 +38,7 @@ interface Inventario {
     stockSeguridad: number;
     periodoRevision: number;
     inventarioMaximo?: number; // Solo para modelo PF
+    cgi?:number;
 }
 interface ArticuloProveedor {
     idArticuloProveedor: number;
@@ -253,7 +254,7 @@ const Articulos = () => {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify(cambios),
+                body: JSON.stringify(updatedArticulo),
             });
             if (!responseUpdArt.ok) {
                 throw new Error("Error al actualizar artículo");
@@ -654,22 +655,8 @@ const Articulos = () => {
                                                                                 <strong> Lote Óptimo: </strong>{ap.inventario?.loteOptimo} --
                                                                                 <strong> Punto de Pedido: </strong>{ap.inventario?.puntoPedido} --
                                                                                 <strong> Stock de Seguridad: </strong>{ap.inventario?.stockSeguridad} --
-                                                                                <strong> CGI:</strong>
-                                                                                {ap.inventario
-                                                                                    ? calculoCGI(
-                                                                                        {
-                                                                                            demandaAnual: ap.inventario.demandaArticulo || 0,
-                                                                                            costoPedido: ap.inventario.costoPedido || 0,
-                                                                                            costoAlmacenamiento: ap.inventario.costoAlmacenamiento || 0,
-                                                                                            stockSeguridad: ap.inventario.stockSeguridad || 0,
-                                                                                            modeloInventario: ap.modeloInventario || 0,
-                                                                                            invMaximo: ap.inventario.inventarioMaximo ?? 0,
-                                                                                            loteOptimo: ap.inventario.loteOptimo || 0,
-                                                                                            puntoPedido: ap.inventario.puntoPedido || 0
-                                                                                        },
-                                                                                        ap.stock
-                                                                                    )
-                                                                                    : 0}
+                                                                                <strong> CGI: </strong>{ap.inventario?.cgi}
+                                                                               
                                                                             </>
                                                                             : ap.modeloInventario === 'PF' ?
                                                                                 <>

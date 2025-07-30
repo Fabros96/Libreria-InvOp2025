@@ -114,7 +114,6 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
     });
 
     const handleSave = async () => {
-
         // Ejecuta validación de Formik
         const errors = await formik.validateForm();
         formik.setTouched({
@@ -127,36 +126,52 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
             periodoRevision: true,
         });
 
-        // Si hay errores, no continuar
         if (Object.keys(errors).length > 0) {
             return;
         }
+
         try {
             let updatedArticulo: Articulo;
             const demoraEntrega = proveedorPredeterminado?.demoraEntrega || 0;
             const fechaBaja = proveedorPredeterminado?.fechaBaja || null;
 
-
             if (mode === "edit") {
+                // Aseguramos que siempre mandamos inventario completo
+                const inventario = {
+                    idInventario: articulo?.inventario?.idInventario,
+                    demandaArticulo: formik.values.demandaArticulo,
+                    costoAlmacenamiento: formik.values.costoAlmacenamiento,
+                    costoPedido: formik.values.costoPedido,
+                    periodoRevision: formik.values.periodoRevision,
+                };
+
+                // Combinamos proveedor actualizado con el original si falta algo
+                const proveedorFinal = {
+                    ...articulo?.articuloProveedor,
+                    ...proveedorPredeterminado,
+                };
+
                 updatedArticulo = {
                     ...articulo,
                     descripcion: formik.values.descripcion,
                     stock: formik.values.stock,
                     modeloInventario: formik.values.modeloInventario,
-                    inventario: {
-                        demandaArticulo: formik.values.demandaArticulo,
-                        costoAlmacenamiento: formik.values.costoAlmacenamiento,
-                        costoPedido: formik.values.costoPedido,
-                        periodoRevision: formik.values.periodoRevision,
-                    },
-                    articuloProveedor: proveedorPredeterminado,
+                    inventario,
+                    articuloProveedor: proveedorFinal,
                 };
+
+                console.log("🧾 Artículo original:", articulo);
+                console.log("📤 Artículo actualizado que se va a enviar:", updatedArticulo);
+
                 if (proveedoresCambiados.length > 0) {
+                    console.log("🔄 Envío con proveedores cambiados:", provOriginalRecibido, provNuevoRecibido);
                     onSave(articulo, updatedArticulo, provOriginalRecibido, provNuevoRecibido);
                 } else {
+                    console.log("✅ Envío sin cambio de proveedor");
                     onSave(articulo, updatedArticulo);
                 }
             } else {
+                // Modo NEW
                 updatedArticulo = {
                     descripcion: formik.values.descripcion,
                     modeloInventario: formik.values.modeloInventario,
@@ -177,13 +192,14 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                         precioUnitario: proveedorPredeterminado?.precioUnitario || 0,
                     },
                 };
-                onSave(updatedArticulo, nuevoAP); //ACA DEBO MANDAR LA NUEVA AP
+                onSave(updatedArticulo, nuevoAP); // Para modo NEW
             }
         } catch (error) {
             console.error("Error al guardar artículo:", error);
             showToasty("Error al guardar proveedor", "error");
         }
     };
+
 
 
     return (
@@ -293,7 +309,7 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                     {/* Demanda, Costos */}
                     <div className="d-flex justify-content-between gap-2 mt-3">
                         <div style={{ width: "33%" }}>
-                            <Form.Label htmlFor="demandaArticulo">Demanda Anual</Form.Label>
+                            <Form.Label htmlFor="demandaArticulo">Demanda Diaria</Form.Label>
                             <Form.Control
                                 type="number"
                                 id="demandaArticulo"
@@ -385,7 +401,7 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                         setNuevoAP(nuevoAP);
                         setProveedorPredeterminado(nuevoAP); // <-- actualizar proveedorPredeterminado también
                     }
-                    
+
 
                 }}
                 mode={mode}
