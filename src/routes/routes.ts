@@ -54,7 +54,6 @@ router.delete("/articulos/:id", ArticuloController.delete);
 router.get("/ventas", VentaController.getAll);
 router.get("/ventas/:id", VentaController.getById);
 router.post("/ventas", VentaController.create);
-router.delete("/ventas/:id", VentaController.delete); 
 
 
 // orden compra
@@ -63,6 +62,7 @@ router.get("/orden-compras/:id", OrdenCompraController.getById);
 router.post("/orden-compras", OrdenCompraController.create);
 router.put("/orden-compras/:id", OrdenCompraController.update);
 router.delete("/orden-compras/:id", OrdenCompraController.delete);
+router.get("/orden-compras/existeOc/:id", OrdenCompraController.existeOC);
 
 
 // ajuste inv

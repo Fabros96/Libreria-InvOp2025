@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { Request, Response } from "express";
 import { VentaRepository } from "../repositories/venta.repository";
+import { log } from "console";
 
 const prisma = new PrismaClient();
 const ventaRepository = new VentaRepository();
@@ -62,7 +63,7 @@ export const VentaController = {
             if (ordenExistente && !forzarVenta) {
                 return res.status(200).json({
                     advertencia: true,
-                    msg: 'Existe una orden de compra activa para este artículo y no se va a generar una orden automática hasta que finalice la orden de compra. ¿Desea continuar con la venta?'
+                    msg: 'Existe una orden de compra activa para este artículo y no se va a generar una automática hasta que finalice. ¿Desea continuar con la venta?'
                 })
             }
 
@@ -123,7 +124,6 @@ export const VentaController = {
                     }
                 });
             }
-
             res.status(201).json({
                 msg: 'Venta creada correctamente.',
                 data: nuevaVenta,
@@ -135,18 +135,18 @@ export const VentaController = {
         }
     },
 
-    // Eliminar venta (Baja lógica)
-    delete: async (req: Request, res: Response) => {
-        const { id } = req.params;
-        try {
-            const ventaBaja = await prisma.venta.update({
-                where: { idVenta: parseInt(id) },
-                data: { fechaBaja: new Date() }
-            });
-            res.status(200).json({ msg: 'Venta dada de baja', data: ventaBaja });
-        } catch (error: any) {
-            res.status(500).json({ msg: 'Error al dar de baja la Venta', detail: error.message });
-        }
-    },
+    // // Eliminar venta (Baja lógica)
+    // delete: async (req: Request, res: Response) => {
+    //     const { id } = req.params;
+    //     try {
+    //         const ventaBaja = await prisma.venta.update({
+    //             where: { idVenta: parseInt(id) },
+    //             data: { fechaBaja: new Date() }
+    //         });
+    //         res.status(200).json({ msg: 'Venta dada de baja', data: ventaBaja });
+    //     } catch (error: any) {
+    //         res.status(500).json({ msg: 'Error al dar de baja la Venta', detail: error.message });
+    //     }
+    // },
 
 }

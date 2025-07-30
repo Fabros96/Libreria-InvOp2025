@@ -107,21 +107,25 @@ async function main() {
   await Promise.all([
     prisma.estadoOrdenCompra.create({
       data: {
+        idEstadoOrdenCompra: 1,
         nombre: 'Pendiente',
       },
     }),
     prisma.estadoOrdenCompra.create({
       data: {
-        nombre: 'Enviada',
-      },
-    }),
-    prisma.estadoOrdenCompra.create({
-      data: {
+        idEstadoOrdenCompra: 2,
         nombre: 'Cancelada',
       },
     }),
     prisma.estadoOrdenCompra.create({
       data: {
+        idEstadoOrdenCompra: 3,
+        nombre: 'Enviada',
+      },
+    }),
+    prisma.estadoOrdenCompra.create({
+      data: {
+        idEstadoOrdenCompra: 4,
         nombre: 'Finalizada',
       },
     }),
@@ -144,7 +148,8 @@ async function main() {
         idProveedor: proveedores[1].idProveedor,
         idEstadoOrdenCompra: 2,
         cantidad: 30,
-        fechaCreacion: new Date(),
+        // fechaCreacion: new Date(),
+        fechaCreacion: new Date("2000-01-01 20:00:00"), // Fecha fija para pruebas
       },
     }),
     prisma.ordenCompra.create({
@@ -164,7 +169,7 @@ async function main() {
       data: {
         idArticulo: articulos[0].idArticulo,
         cantidad: 3,
-        total:300,
+        total: 300,
         fechaCreacion: new Date(),
       },
     }),
@@ -172,7 +177,7 @@ async function main() {
       data: {
         idArticulo: articulos[1].idArticulo,
         cantidad: 5,
-        total:550,
+        total: 550,
         fechaCreacion: new Date(),
       },
     }),
@@ -180,13 +185,13 @@ async function main() {
       data: {
         idArticulo: articulos[2].idArticulo,
         cantidad: 2,
-        total:240,
+        total: 240,
         fechaCreacion: new Date(),
       },
     }),
   ]);
 
-  const TOTAL_VENTAS = 10;           // Cantidad de registros que quieres crear
+  const TOTAL_VENTAS = 0;           // Cantidad de registros que quieres crear
   const MAX_CANTIDAD = 20;             // Cantidad máxima por venta
   const FECHA_INICIO = new Date(2023, 0, 1);
   const FECHA_FIN = new Date(2023, 11, 31);

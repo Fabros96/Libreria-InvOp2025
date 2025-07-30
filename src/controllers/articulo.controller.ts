@@ -36,7 +36,7 @@ export const ArticuloController = {
 
             const { demandaArticulo, costoPedido, costoAlmacenamiento, demoraEntrega, periodoRevision } = inventario;
 
-            console.log(inventario)
+            // console.log(inventario)
 
             let data: any = {
                 descripcion,
@@ -50,7 +50,8 @@ export const ArticuloController = {
                         periodoRevision,
                         loteOptimo: 0,
                         puntoPedido: 0,
-                        stockSeguridad: 0
+                        stockSeguridad: 0,
+                        cgi: 0
                     }
                 }
             };
@@ -61,13 +62,13 @@ export const ArticuloController = {
             });
 
             res.status(200).json({ msg: 'Se ha creado el artículo.', data: nuevoArticulo });
-            console.log(nuevoArticulo);
+            //console.log(nuevoArticulo);
 
         } catch (error: any) {
-            console.log("error en create articulo")
-            console.log(error)
+            //console.log("error en create articulo")
+            //console.log(error)
             res.status(500).json({ msg: 'Error al crear el artículo', detail: error.message });
-            console.log(error);
+            //console.log(error);
         }
     },
 
@@ -85,7 +86,7 @@ export const ArticuloController = {
 
         const payload: any = { idInventario, descripcion, modeloInventario, stock };
         if (fechaBaja) payload.fechaBaja = fechaBaja;
-        console.log("📥 Body recibido:", req.body);
+        //console.log("📥 Body recibido:", req.body);
 
         try {
             // 1. Actualizar artículo principal
@@ -103,6 +104,7 @@ export const ArticuloController = {
                         costoAlmacenamiento: inventario.costoAlmacenamiento,
                         costoPedido: inventario.costoPedido,
                         periodoRevision: inventario.periodoRevision,
+                        cgi: inventario.cgi,
                     },
                 });
             }
@@ -142,13 +144,13 @@ export const ArticuloController = {
                 });
 
                 if (!proveedorAUsar) {
-                    console.log("⚠️ No se encontró proveedor predeterminado. No se recalcula inventario.");
+                    //console.log("⚠️ No se encontró proveedor predeterminado. No se recalcula inventario.");
                 }
             }
 
             // 5. Recalcular inventario si todo está presente
-            console.log("invent: ",inventario)
-            console.log("proveedorAUsar:",proveedorAUsar)
+            //console.log("invent: ",inventario)
+            //console.log("proveedorAUsar:",proveedorAUsar)
             if (
                 inventario &&
                 proveedorAUsar &&
@@ -175,14 +177,14 @@ export const ArticuloController = {
                     
                 });
 
-                console.log("🔁 Recalculando inventario con:", nuevosValores);
+                //console.log("🔁 Recalculando inventario con:", nuevosValores);
 
                 await prisma.inventario.update({
                     where: { idInventario: inventario.idInventario },
                     data: nuevosValores
                 });
             } else {
-                console.log("⚠️ No se cumplen condiciones para recalcular inventario.");
+                //console.log("⚠️ No se cumplen condiciones para recalcular inventario.");
             }
 
             return res.status(200).json({

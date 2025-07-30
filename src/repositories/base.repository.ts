@@ -12,18 +12,18 @@ export class BaseRepository {
   constructor() {
     this.prisma = new PrismaClient({
       log: [
-        {
-          emit: 'stdout',
-          level: 'query',
-        },
+        // {
+        //   emit: 'stdout',
+        //   level: 'query',
+        // },
         {
           emit: 'stdout',
           level: 'error',
         },
-        {
-          emit: 'stdout',
-          level: 'info',
-        },
+        // {
+        //   emit: 'stdout',
+        //   level: 'info',
+        // },
         {
           emit: 'stdout',
           level: 'warn',
@@ -53,13 +53,13 @@ export class BaseRepository {
     if (!query.includes('?')) query = `${query}?`;
     try {
       const urlPayload = query.split('?')[1] || '';
-      console.log("urlPayload:",urlPayload)
+      //console.log("urlPayload:",urlPayload)
       const className = this.getClassName();
       const result = await (this.prisma as any)[className].findMany(this.filter.createQueryPayload(urlPayload));
-      console.log("result desde base.repository",result.length)
+      //console.log("result desde base.repository",result.length)
       return result;
     } catch (error: any) {
-      console.log(error);
+      //console.log(error);
     }
   }
   public async getPaginate(params: URLSearchParams,limit: number, page: number,route: string) {
@@ -100,7 +100,7 @@ export class BaseRepository {
       if (query.split('?')[1]) urlPayload += `&${query.split('?')[1]}`;
       return await (this.prisma as any)[this.getClassName()].findUnique(this.filter.createQueryPayload(urlPayload));
     } catch (error: any) {
-      console.log(error);
+      //console.log(error);
     }
   }
 
@@ -130,7 +130,7 @@ export class BaseRepository {
         data: payload
       })
     } catch (error: any) {
-      console.log(error);
+      //console.log(error);
     }
   }
 
@@ -142,7 +142,7 @@ export class BaseRepository {
         where: payload,
       });
     } catch (error: any) {
-      console.log(error);
+      //console.log(error);
     }
   }
 }

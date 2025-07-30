@@ -28,6 +28,29 @@ export const OrdenCompraController = {
         }
     },
 
+    existeOC: async (req: Request, res: Response) => {
+        let { id } = req.params;
+        const ordenExistente = await prisma.ordenCompra.findFirst({
+            where: {
+                idArticulo: Number(id),
+                idEstadoOrdenCompra: {
+                    in: [1, 3]
+                }
+            }
+        });
+        if (ordenExistente) {
+            return res.status(200).json({
+                msg: 'Existe una orden de compra activa para este artículo.',
+                data: ordenExistente
+            });
+        } else {
+            return res.status(400).json({
+                msg: 'No existe una orden de compra activa para este artículo.',
+                data: false
+            });
+        }
+    },
+
     // Crear un nuevo ordenCompra (create)
     create: async (req: Request, res: Response) => {
         console.log("entra a create")
