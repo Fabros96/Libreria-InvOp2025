@@ -255,8 +255,10 @@ const Articulos = () => {
                 return;
             }
             const tieneOrdenesResp = await axiosClient.get(`orden-compras/existeOC/${ap.idArticulo}`);
+            console.log("tieneOrdenesResp: "+tieneOrdenesResp)
             const tieneOrdenes = tieneOrdenesResp.data;
-            if (tieneOrdenes) {
+            console.log("tieneOrdenes: "+tieneOrdenes)
+            if (tieneOrdenesResp) {
                 showToasty('No se puede eliminar el artículo, tiene órdenes activas', 'error');
             } else {
                 handleDelArticulo(ap);
