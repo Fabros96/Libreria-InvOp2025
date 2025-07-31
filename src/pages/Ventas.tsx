@@ -100,16 +100,21 @@ const Ventas = () => {
     }
 
     //agrego para que se de alta un nuevo venta
- 
+
     const handleCreateVenta = async (nuevaVenta: any) => {
         try {
-            let msg = "";
-            let advertencia = false;
+            const stockActual = nuevaVenta.venta.stock;
+            const puntoPedido = nuevaVenta.venta.inventario.puntoPedido;
 
-            // Primero mostramos la confirmación al usuario
+            let advertenciaStock = "";
+
+            if (stockActual < puntoPedido) {
+                advertenciaStock = "⚠️ El stock actual ya se encuentra por debajo del punto de pedido. El sistema generará una orden de compra en el caso que no existiera.";
+            }
+
             const confirm = await requestConfirmation(
                 <>
-                    <h4>Verifique los datos antes de continuar<br /></h4>
+                    <h4>Verifique los datos antes de continuar</h4>
                     <table style={{ borderCollapse: "collapse", margin: "0 auto" }}>
                         <tbody>
                             <tr>
@@ -132,6 +137,14 @@ const Ventas = () => {
                             </tr>
                         </tbody>
                     </table>
+
+                    {advertenciaStock && (
+                        <>
+                            <br />
+                            <div style={{ color: "orange", fontSize: "16px", fontWeight: "bold" }}>{advertenciaStock}</div>
+                        </>
+                    )}
+
                     <br />
                     <h5><i>(Esta acción no se puede deshacer. ⚠️)</i></h5>
                 </>
@@ -142,11 +155,13 @@ const Ventas = () => {
                 return;
             }
 
-            // Solo si el usuario confirma, enviamos la venta
             const response: any = await axiosClient.post("/ventas", nuevaVenta);
 
+            if (response.ordenGenerada) {
+                showToasty("El stock quedó por debajo del punto de pedido. Se generó una orden de compra automáticamente.", "warning")
+            }
+
             if (response.advertencia) {
-                // Si hay advertencia, pedimos confirmación adicional
                 const confirmAdvertencia = await requestConfirmation(
                     <>
                         <h5 style={{ color: "orange" }}>{response.msg}</h5>
@@ -155,11 +170,10 @@ const Ventas = () => {
                 );
 
                 if (!confirmAdvertencia) {
-                    showToasty("Venta cancelada por advertencia.", "info");
+                    showToasty("Venta cancelada por el usuario.", "info");
                     return;
                 }
 
-                // Si confirma forzar, volvemos a enviar con forzarVenta
                 await axiosClient.post("/ventas", {
                     ...nuevaVenta,
                     forzarVenta: true,
@@ -171,10 +185,12 @@ const Ventas = () => {
             setShowModal(false);
             setShowOtroModal(false);
             setShowVtaNew(false);
+
         } catch (error) {
             showToasty("Error al crear la venta: " + error, "error");
         }
     };
+
 
 
 
