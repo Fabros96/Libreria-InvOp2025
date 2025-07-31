@@ -29,27 +29,32 @@ export const OrdenCompraController = {
     },
 
     existeOC: async (req: Request, res: Response) => {
-        let { id } = req.params;
-        const ordenExistente = await prisma.ordenCompra.findFirst({
-            where: {
-                idArticulo: Number(id),
-                idEstadoOrdenCompra: {
-                    in: [1, 3]
-                }
-            }
-        });
-        if (ordenExistente) {
-            return res.status(200).json({
-                msg: 'Existe una orden de compra activa para este artículo.',
-                data: ordenExistente
+        try {
+            const { id } = req.params;
+
+            const ordenExistente = await prisma.ordenCompra.findFirst({
+                where: {
+                    idArticulo: Number(id),
+                    idEstadoOrdenCompra: {
+                        in: [1, 3], // Suponiendo que 1: Pendiente, 3: Enviado
+                    },
+                },
             });
-        } else {
-            return res.status(400).json({
-                msg: 'No existe una orden de compra activa para este artículo.',
-                data: false
+
+            const tieneOC = !!ordenExistente;
+
+            return res.status(200).json(tieneOC); // Devuelve true o false directamente
+            
+
+        } catch (error) {
+            console.error("Error al verificar orden de compra:", error);
+            return res.status(500).json({
+                msg: "Error interno al verificar orden de compra.",
+                error: error instanceof Error ? error.message : error
             });
         }
     },
+
 
     // Crear un nuevo ordenCompra (create)
     create: async (req: Request, res: Response) => {
