@@ -48,7 +48,7 @@ export const calcularInventario = ({
 
     const puntoPedido = Math.round((demandaArticulo * demoraEntrega) + stockSeguridad);
 
-    const cgi = Math.round(( demandaArticulo * precioUnitario ) + (demandaArticulo / EOQ) * costoPedido+ (EOQ/2 * costoAlmacenamiento))
+    const cgi = Math.round(( demandaAnual * precioUnitario ) + (demandaAnual / EOQ) * costoPedido+ (EOQ/2 * costoAlmacenamiento))
 
     return {
       loteOptimo: EOQ,
