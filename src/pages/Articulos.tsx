@@ -193,23 +193,23 @@ const Articulos = () => {
                 if (!inv || inv.puntoPedido === undefined || inv.stockSeguridad === undefined) return false;
 
                 const stock = ap.stock ?? 0;
+                console.log("stock: ", JSON.stringify(ap, null, 2));
+                if (filterOption === '') return true;
+
                 if (ap.modeloInventario === 'LF' && inv.puntoPedido >= stock) {
                     if (filterOption === 'faltante') {
                         return stock <= inv.stockSeguridad;
                     } else if (filterOption === 'reponer') {
                         return stock > inv.stockSeguridad;
                     }
-                }
-                if (ap.modeloInventario === 'PF' && inv.inventarioMaximo !== undefined && inv.inventarioMaximo >= stock) {
+                } else if (ap.modeloInventario === 'PF' && inv.inventarioMaximo !== undefined && inv.inventarioMaximo >= stock) {
                     if (filterOption === 'faltante') {
                         return stock <= inv.stockSeguridad;
                     } else if (filterOption === 'reponer') {
                         return stock > inv.stockSeguridad;
                     }
                 }
-
-
-                return true;
+                return false;
             });
     }, [data.datos, textoBusqueda, filterOption]);
 
@@ -779,7 +779,7 @@ const Articulos = () => {
                                                                         {ap.modeloInventario === 'LF' ? (
                                                                             ap.inventario?.loteOptimo !== 0 &&
                                                                                 ap.inventario?.stockSeguridad !== 0 &&
-                                                                                ap.inventario?.puntoPedido !== 0  && ap.tieneProv === true ?  (
+                                                                                ap.inventario?.puntoPedido !== 0 && ap.tieneProv === true ? (
                                                                                 <>
                                                                                     <strong> Lote Óptimo: </strong>{ap.inventario?.loteOptimo} --
                                                                                     <strong> Punto de Pedido: </strong>{ap.inventario?.puntoPedido} --
@@ -792,7 +792,7 @@ const Articulos = () => {
                                                                             )
                                                                         ) : ap.modeloInventario === 'PF' ? (
                                                                             ap.inventario?.stockSeguridad !== 0 &&
-                                                                                ap.inventario?.inventarioMaximo !== 0  && ap.tieneProv === true ? (
+                                                                                ap.inventario?.inventarioMaximo !== 0 && ap.tieneProv === true ? (
                                                                                 <>
                                                                                     <strong> Stock de Seguridad: </strong>{ap.inventario?.stockSeguridad} --
                                                                                     <strong> Inventario Máximo: </strong>{ap.inventario?.inventarioMaximo}
