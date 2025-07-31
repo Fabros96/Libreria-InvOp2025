@@ -49,6 +49,7 @@ router.get("/articulos/:id", ArticuloController.getById);
 router.post("/articulos", ArticuloController.create);
 router.put("/articulos/:id", ArticuloController.update);
 router.delete("/articulos/:id", ArticuloController.delete);
+router.post("/articulos/recalcular", ArticuloController.recalcular);
 
 // venta
 router.get("/ventas", VentaController.getAll);

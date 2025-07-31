@@ -1,3 +1,0 @@
--- AlterTable
-ALTER TABLE `inventario` ADD COLUMN `cgi` INTEGER NULL DEFAULT 0,
-    ADD COLUMN `fechaBaja` DATETIME(3) NULL;

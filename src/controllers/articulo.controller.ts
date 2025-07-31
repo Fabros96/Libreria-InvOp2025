@@ -29,14 +29,14 @@ export const ArticuloController = {
     },
 
     create: async (req: Request, res: Response) => {
-        
+
         const { descripcion, modeloInventario, stock, inventario } = req.body;
 
         try {
 
             const { demandaArticulo, costoPedido, costoAlmacenamiento, demoraEntrega, periodoRevision } = inventario;
 
-            // console.log(inventario)
+            //console.log(inventario)
 
             let data: any = {
                 descripcion,
@@ -174,7 +174,7 @@ export const ArticuloController = {
                     desviacionEstandar: proveedorAUsar.desviacionEstandar,
                     periodoRevision: inventario.periodoRevision,
                     precioUnitario: articuloProveedor.precioUnitario,
-                    
+
                 });
 
                 //console.log("🔁 Recalculando inventario con:", nuevosValores);
@@ -193,10 +193,125 @@ export const ArticuloController = {
             });
 
         } catch (error: any) {
-            console.error("❌ Error al actualizar artículo:", error);
+            // console.error("❌ Error al actualizar artículo:", error);
             return res.status(500).json({
                 msg: 'Error al actualizar el artículo',
                 detail: error.message,
+            });
+        }
+    },
+
+    recalcular: async (req: Request, res: Response) => {
+        try {
+            // console.info("♻️  Recalculando inventarios para artículos");
+
+            const { ids } = req.body; // ids debería ser un array de números
+
+            if (!Array.isArray(ids) || ids.length === 0) {
+                return res.status(400).json({ msg: "Se debe enviar un arreglo de IDs válido" });
+            }
+
+            const filter = {
+                where: {
+                    idArticulo: { in: ids },
+                    fechaBaja: null
+                },
+                include: {
+                    inventario: true
+                }
+            };
+
+            const articulos = await prisma.articulo.findMany(filter);
+
+            for (const articulo of articulos) {
+                const inventario = articulo.inventario;
+
+                const proveedor = await prisma.articuloProveedor.findFirst({
+                    where: {
+                        idArticulo: articulo.idArticulo,
+                        esPredeterminado: true,
+                        fechaBaja: null
+                    },
+                });
+
+                const faltantes: string[] = [];
+
+                if (!inventario) faltantes.push("inventario");
+                if (!proveedor) faltantes.push("proveedor");
+
+                // Si inventario o proveedor no existen, no tiene sentido seguir
+                if (faltantes.length > 0) {
+                    // console.warn(`❌ Artículo ${articulo.idArticulo}: faltan datos - ${faltantes.join(", ")}`);
+                    continue;
+                }
+
+                // Verificamos cada campo que debe ser number
+                if (typeof inventario.demandaArticulo !== "number") faltantes.push("inventario.demandaArticulo");
+                if (typeof inventario.costoAlmacenamiento !== "number") faltantes.push("inventario.costoAlmacenamiento");
+                if (typeof inventario.costoPedido !== "number") faltantes.push("inventario.costoPedido");
+                if (typeof proveedor?.demoraEntrega !== "number") faltantes.push("proveedor.demoraEntrega");
+                if (typeof proveedor?.nivelServicio !== "number") faltantes.push("proveedor.nivelServicio");
+                if (typeof proveedor?.desviacionEstandar !== "number") faltantes.push("proveedor.desviacionEstandar");
+                if (typeof inventario.periodoRevision !== "number") faltantes.push("inventario.periodoRevision");
+                if (typeof proveedor?.precioUnitario !== "number") faltantes.push("proveedor.precioUnitario");
+
+                // Validamos también que no sean cero en esos campos relevantes
+                if (inventario.demandaArticulo === 0) faltantes.push("inventario.demandaArticulo=0");
+                if (inventario.costoAlmacenamiento === 0) faltantes.push("inventario.costoAlmacenamiento=0");
+                if (inventario.costoPedido === 0) faltantes.push("inventario.costoPedido=0");
+                if (proveedor?.demoraEntrega === 0) faltantes.push("proveedor.demoraEntrega=0");
+                if (proveedor?.nivelServicio === 0) faltantes.push("proveedor.nivelServicio=0");
+                if (proveedor?.desviacionEstandar === 0) faltantes.push("proveedor.desviacionEstandar=0");
+                if (proveedor?.precioUnitario === 0) faltantes.push("proveedor.precioUnitario=0");
+                if (articulo.modeloInventario === 'PF' && inventario.periodoRevision === 0) faltantes.push("inventario.periodoRevision=0 (modelo PF)");
+
+                if (faltantes.length > 0) {
+                    // console.warn(`❌ Artículo ${articulo.idArticulo}: datos incompletos o inválidos - ${faltantes.join(", ")}`);
+                    continue;
+                } else {
+                    // console.warn(`✔️ ✔️ Se recalcularon todos`);
+
+                }
+
+                // Si todo está OK, calculamos y actualizamos
+                const modelo = articulo.modeloInventario;
+
+                const nuevosValores = calcularInventario({
+                    demandaArticulo: inventario!.demandaArticulo,
+                    costoPedido: inventario!.costoPedido,
+                    costoAlmacenamiento: inventario!.costoAlmacenamiento,
+                    demoraEntrega: proveedor!.demoraEntrega,
+                    modeloInventario: modelo,
+                    nivelServicio: proveedor!.nivelServicio ?? undefined,
+                    desviacionEstandar: proveedor!.desviacionEstandar ?? undefined,
+                    periodoRevision: inventario!.periodoRevision ?? undefined,
+                    precioUnitario: proveedor!.precioUnitario ?? undefined,
+                });
+
+                const updatePayload: any = {
+                    stockSeguridad: nuevosValores.stockSeguridad,
+                    cgi: nuevosValores.cgi,
+                };
+
+                if (modelo === 'LF') {
+                    updatePayload.loteOptimo = nuevosValores.loteOptimo;
+                    updatePayload.puntoPedido = nuevosValores.puntoPedido;
+                } else if (modelo === 'PF') {
+                    updatePayload.inventarioMaximo = nuevosValores.inventarioMaximo;
+                }
+
+                await prisma.inventario.update({
+                    where: { idInventario: inventario!.idInventario },
+                    data: updatePayload,
+                });
+            }
+
+            return res.status(200).json({ msg: "Inventarios recalculados correctamente" });
+
+        } catch (error: any) {
+            return res.status(500).json({
+                msg: "Error interno al recalcular inventario.",
+                error: error instanceof Error ? error.message : error
             });
         }
     },

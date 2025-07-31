@@ -1,69 +1,107 @@
-// import { PrismaClient } from '@prisma/client';
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-  // 1. Crear Inventarios
+  // 1. Crear Inventarios manualmente
   const inventarios = await Promise.all([
     prisma.inventario.create({
       data: {
-        costoAlmacenamiento: 100,
-        costoPedido: 200,
-        demandaArticulo: 50,
-        loteOptimo: 30,
-        puntoPedido: 20,
-        stockSeguridad: 10,
-        periodoRevision: 0,
-      },
-    }),
-    prisma.inventario.create({
-      data: {
+        idInventario:1,
         costoAlmacenamiento: 80,
         costoPedido: 150,
         demandaArticulo: 40,
-        loteOptimo: 25,
-        puntoPedido: 18,
-        stockSeguridad: 8,
+        loteOptimo: 232,
+        puntoPedido: 460,
+        stockSeguridad: 300,
         periodoRevision: 0,
+        cgi: 13680,
       },
     }),
     prisma.inventario.create({
       data: {
+        idInventario: 2, // Asegúrate de que este ID no choque con el anterior
         costoAlmacenamiento: 120,
         costoPedido: 250,
         demandaArticulo: 60,
-        loteOptimo: 35,
-        puntoPedido: 22,
-        stockSeguridad: 12,
+        loteOptimo: 300,
+        puntoPedido: 440,
+        stockSeguridad: 260,
         periodoRevision: 0,
+        cgi: 25250,
+      },
+    }),
+    prisma.inventario.create({
+      data: {
+        idInventario: 3, // Asegúrate de que este ID no choque con los anteriores
+        costoAlmacenamiento: 100,
+        costoPedido: 200,
+        demandaArticulo: 50,
+        loteOptimo: 0,
+        puntoPedido: 0,
+        stockSeguridad: 277,
+        inventarioMaximo: 877,
+        periodoRevision: 7,
+        cgi: 0,
       },
     }),
   ]);
 
-  // 2. Crear Artículos (1:1 con Inventario)
+  // 2. Crear Artículos, enlazando con los inventarios recién creados
+  const datosArticulos = [
+    {
+      descripcion: 'Cartulinas',
+      modeloInventario: 'LF',
+      stock: 400,
+    },
+    {
+      descripcion: 'Fibras Faber-Castell',
+      modeloInventario: 'LF',
+      stock: 20,
+    },
+    {
+      descripcion: 'Tijeras para zurdos',
+      modeloInventario: 'PF',
+      stock: 500,
+    },
+  ];
+
+  // 3. Crear artículos en paralelo, enlazando con los inventarios creados
   const articulos = await Promise.all(
-    inventarios.map((inv, i) =>
+    datosArticulos.map((articulo, i) =>
       prisma.articulo.create({
         data: {
-          idInventario: inv.idInventario,
-          descripcion: `Artículo ${i + 1}`,
-          modeloInventario: 'LF',
-          stock: 10 * (i + 1),
+          ...articulo,
+          idArticulo:inventarios[i].idInventario,
+          idInventario: inventarios[i].idInventario, // usa el ID real generado por Prisma
         },
       })
     )
   );
 
+  // Descomentar el siguiente bloque para crear artículos de forma automática
+  // const articulos = await Promise.all(
+  //   inventarios.map((inv, i) =>
+  //     prisma.articulo.create({
+  //       data: {
+  //         idInventario: inv.idInventario,
+  //         descripcion: `Artículo ${i + 1}`,
+  //         modeloInventario: 'LF',
+  //         stock: 10 * (i + 1),
+  //       },
+  //     })
+  //   )
+  // );
+
   // 3. Crear Proveedores
   const proveedores = await Promise.all([
     prisma.proveedor.create({
-      data: { nombre: 'Proveedor A' },
+      data: { idProveedor: 1, nombre: 'Ricardo Fernandez' },
     }),
     prisma.proveedor.create({
-      data: { nombre: 'Proveedor B' },
+      data: { idProveedor: 2, nombre: 'Sifer' },
     }),
     prisma.proveedor.create({
-      data: { nombre: 'Proveedor C' },
+      data: { idProveedor: 3, nombre: 'MEGALIBRERIAS' },
     }),
   ]);
 
@@ -71,19 +109,9 @@ async function main() {
   await Promise.all([
     prisma.articuloProveedor.create({
       data: {
+        idArticuloProveedor: 1,
         idArticulo: articulos[0].idArticulo,
         idProveedor: proveedores[0].idProveedor,
-        precioUnitario: 100,
-        nivelServicio: 8,
-        desviacionEstandar: 10,
-        demoraEntrega: 5,
-        esPredeterminado: true,
-      },
-    }),
-    prisma.articuloProveedor.create({
-      data: {
-        idArticulo: articulos[1].idArticulo,
-        idProveedor: proveedores[1].idProveedor,
         precioUnitario: 110,
         nivelServicio: 10,
         desviacionEstandar: 15,
@@ -93,13 +121,26 @@ async function main() {
     }),
     prisma.articuloProveedor.create({
       data: {
-        idArticulo: articulos[2].idArticulo,
-        idProveedor: proveedores[2].idProveedor,
-        precioUnitario: 120,
+        idArticuloProveedor: 2,
+        idArticulo: articulos[1].idArticulo,
+        idProveedor: proveedores[1].idProveedor,
+        precioUnitario: 1220,
         nivelServicio: 15,
         desviacionEstandar: 10,
         demoraEntrega: 3,
-        esPredeterminado: false,
+        esPredeterminado: true,
+      },
+    }),
+    prisma.articuloProveedor.create({
+      data: {
+        idArticuloProveedor: 3,
+        idArticulo: articulos[2].idArticulo,
+        idProveedor: proveedores[2].idProveedor,
+        precioUnitario: 100,
+        nivelServicio: 8,
+        desviacionEstandar: 10,
+        demoraEntrega: 5,
+        esPredeterminado: true,
       },
     }),
   ]);
@@ -148,8 +189,7 @@ async function main() {
         idProveedor: proveedores[1].idProveedor,
         idEstadoOrdenCompra: 2,
         cantidad: 30,
-        // fechaCreacion: new Date(),
-        fechaCreacion: new Date("2000-01-01 20:00:00"), // Fecha fija para pruebas
+        fechaCreacion: new Date(),
       },
     }),
     prisma.ordenCompra.create({

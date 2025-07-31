@@ -9,6 +9,8 @@ CREATE TABLE `Inventario` (
     `stockSeguridad` INTEGER NULL DEFAULT 0,
     `inventarioMaximo` INTEGER NULL DEFAULT 0,
     `periodoRevision` INTEGER NULL DEFAULT 0,
+    `cgi` INTEGER NULL DEFAULT 0,
+    `fechaBaja` DATETIME(3) NULL,
 
     PRIMARY KEY (`idInventario`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

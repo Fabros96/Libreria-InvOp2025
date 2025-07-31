@@ -58,13 +58,13 @@ export const OrdenCompraController = {
 
     // Crear un nuevo ordenCompra (create)
     create: async (req: Request, res: Response) => {
-        console.log("entra a create")
+        //console.log("entra a create")
         let { idArticulo, idProveedor, idEstadoOrdenCompra, cantidad, fechaCreacion } = req.body;
-        console.log(idArticulo)
-        console.log("articulo")
+        //console.log(idArticulo)
+        //console.log("articulo")
         try {
 
-            console.log("entra a try")
+            //console.log("entra a try")
             // Verificar si ya existe una orden de compra activa para este artículo (pendiente-enviada)
             const ordenExistente = await prisma.ordenCompra.findFirst({
                 where: {
@@ -75,7 +75,7 @@ export const OrdenCompraController = {
                 }
             });
 
-            console.log(ordenExistente)
+            //console.log(ordenExistente)
 
             if (ordenExistente) {
                 return res.status(400).json({
@@ -94,7 +94,7 @@ export const OrdenCompraController = {
             res.status(200).json({ msg: 'Se ha creado la Orden de Compra.', data: nuevoOrdenCompra });
         } catch (error: any) {
             res.status(500).json({ msg: 'Error al crear la Orden de Compra.', detail: error.message });
-            console.log(error)
+            //console.log(error)
         }
     },
 
@@ -156,8 +156,8 @@ export const OrdenCompraController = {
                 }
 
                 const puntoPedido = articuloRelacionado.inventario?.puntoPedido ?? 0;
-                console.log("orden-compra-linea-129: ", nuevoStock)
-                console.log(confirmarEnvioForzado)
+                //console.log("orden-compra-linea-129: ", nuevoStock)
+                //console.log(confirmarEnvioForzado)
                 if (
                     articuloRelacionado.modeloInventario === 'LF' &&
                     nuevoStock < puntoPedido &&

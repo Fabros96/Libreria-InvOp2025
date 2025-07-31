@@ -12,8 +12,8 @@ export const ArticuloProveedorController = {
     getAll: async (req: Request, res: Response) => {
         try {
             const articuloProveedor = await articuloProveedorRepository.findMany(decodeURIComponent(req.url));
-            console.log(req.url)
-            console.log(articuloProveedor)
+            //console.log(req.url)
+            //console.log(articuloProveedor)
             res.status(200).json({ msg: `${articuloProveedor.length > 0 ? 'Se han encontrado registros' : 'No se han encontrado registros'}`, data: articuloProveedor });
         } catch (error: any) {
             res.status(500).json({ msg: 'Error al obtener las registros', detail: error.message });
@@ -80,7 +80,7 @@ export const ArticuloProveedorController = {
                 select: { modeloInventario: true }
             });
 
-            console.log("estoy viendo como llega articulo.inventario desde articulo-proveed: "+articulo?.inventario)
+            //console.log("estoy viendo como llega articulo.inventario desde articulo-proveed: "+articulo?.inventario)
 
             if (articulo?.inventario) {
                 const { demandaArticulo, costoPedido, costoAlmacenamiento, periodoRevision, idInventario } = articulo.inventario;
@@ -102,10 +102,10 @@ export const ArticuloProveedorController = {
                     data: nuevosValores
                 });
 
-                console.log("losCalculos")
-                console.log(nuevosValores)
-                console.log(periodoRevision)
-                console.log("losCalculos")
+                //console.log("losCalculos")
+                //console.log(nuevosValores)
+                //console.log(periodoRevision)
+                //console.log("losCalculos")
             }
 
             return res.status(200).json({
@@ -143,8 +143,8 @@ export const ArticuloProveedorController = {
                     articulo: true
                 }
             });
-            console.log("Asi trae un articulo que tiene proveedores")
-            console.log(resultado)
+            //console.log("Asi trae un articulo que tiene proveedores")
+            //console.log(resultado)
             res.status(200).json({ msg: 'Proveedor predeterminado encontrado', data: resultado });
         } catch (error: any) {
             res.status(500).json({ msg: 'Error al obtener proveedor predeterminado', detail: error.message });

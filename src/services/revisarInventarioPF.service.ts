@@ -40,7 +40,7 @@ export const revisarUnArticulo = async (idArticulo: number) => {
 
   if (stock < inventarioItem.inventarioMaximo) {
     const cantidadAComprar = inventarioItem.inventarioMaximo - stock;
-    console.log("lacantidadacomprar: ",cantidadAComprar)
+    //console.log("lacantidadacomprar: ",cantidadAComprar)
 
     const articuloProveedor = await prisma.articuloProveedor.findFirst({
       where: { idArticulo },

@@ -30,7 +30,7 @@ export const InventarioController = {
     create: async (req: Request, res: Response) => {
         let { costoAlmacenamiento, costoPedido, demandaArticulo, loteOptimo, puntoPedido, stockSeguridad, articulo, periodoRevision } = req.body;
         try {
-            console.log(periodoRevision)
+            //console.log(periodoRevision)
             const nuevoInventario = await prisma.inventario.create({
                 data: { costoAlmacenamiento, costoPedido, demandaArticulo, loteOptimo, puntoPedido, stockSeguridad, articulo },
             });
@@ -92,7 +92,7 @@ export const InventarioController = {
             if (!articulo || !articulo.inventario) {
                 return res.status(404).json({ msg: 'No se encontró Inventario no encontrado para el artículo' });
             }
-            console.log(articulo.inventario.loteOptimo)
+            //console.log(articulo.inventario.loteOptimo)
 
             res.status(200).json({ msg: 'Lote óptimo encontrado', loteOptimo: articulo.inventario.loteOptimo });
         } catch (error: any) {

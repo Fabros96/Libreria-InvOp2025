@@ -34,11 +34,11 @@ export const calcularInventario = ({
     throw new Error("Parámetros inválidos para el cálculo de inventario");
   }
 
-  console.log("el modelo inventario que llega a services es:", modeloInventario);
+  //console.log("el modelo inventario que llega a services es:", modeloInventario);
 
 
   if (modeloInventario === 'LF') {
-    console.log("Recalcularé con lote fijo");
+    //console.log("Recalcularé con lote fijo");
 
     const demandaAnual = demandaArticulo * 360; //360 por que común en planificación, control de stock, y contabilidad usar "año comercial" = 12 meses de 30 días
 
@@ -48,7 +48,7 @@ export const calcularInventario = ({
 
     const puntoPedido = Math.round((demandaArticulo * demoraEntrega) + stockSeguridad);
 
-    const cgi = Math.round(( demandaArticulo * precioUnitario ) + (demandaArticulo / EOQ) + (EOQ/2 * costoAlmacenamiento))
+    const cgi = Math.round(( demandaArticulo * precioUnitario ) + (demandaArticulo / EOQ) * costoPedido+ (EOQ/2 * costoAlmacenamiento))
 
     return {
       loteOptimo: EOQ,
@@ -61,7 +61,7 @@ export const calcularInventario = ({
 
   if (modeloInventario === 'PF') {
 
-    console.log("Recalcularé con Periodo Fijo");
+    //console.log("Recalcularé con Periodo Fijo");
 
     const stockSeguridad = Math.round(nivelServicio * desviacionEstandar * Math.sqrt(periodoRevision!+demoraEntrega))
     const inventarioMaximo = Math.round(demandaArticulo * (periodoRevision! + demoraEntrega) + stockSeguridad)

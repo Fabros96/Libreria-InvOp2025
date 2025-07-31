@@ -41,7 +41,7 @@ export const calculateDailyIntervalsRepetition = (fechaDesde: Date, repeticiones
     }
     return delays;
   } catch (error) {
-    console.log('error ', error);
+    //console.log('error ', error);
   }
 };
 

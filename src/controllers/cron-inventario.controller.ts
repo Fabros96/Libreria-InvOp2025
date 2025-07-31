@@ -12,7 +12,7 @@ export const CronInventarioController = {
     iniciarCronDesdeFrontend: async (req: Request, res: Response) => {
         try {
             const resultado = await iniciarCronPorPeriodo();
-            console.log("desde el controller: ", resultado)
+            //console.log("desde el controller: ", resultado)
             return res.status(200).json(resultado);
 
         } catch (err: any) {

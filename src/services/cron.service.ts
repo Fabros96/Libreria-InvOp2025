@@ -38,7 +38,7 @@ export const iniciarCronPorPeriodo = async () => {
       const resultado = await revisarUnArticulo(id);
       const mensaje = resultado[0]?.mensaje || 'Sin mensaje';
       const linea = `🔔 [${descripcion}] ${mensaje}`;
-      console.log(linea);
+      //console.log(linea);
       agregarMensajeCron(linea); 
 
     });
@@ -57,5 +57,5 @@ export const iniciarCronPorPeriodo = async () => {
 export const detenerTodosLosCrons = () => {
   Object.values(tareasCron).forEach((t) => t.stop()); // Detiene cada tarea activa
   tareasCron = {}; // Limpia el registro de tareas
-  console.log('⛔ Todos los crons detenidos.');
+  //console.log('⛔ Todos los crons detenidos.');
 };
