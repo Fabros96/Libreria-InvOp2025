@@ -35,8 +35,8 @@ interface Inventario {
     puntoPedido: number;
     stockSeguridad: number;
     periodoRevision: number;
-    inventarioMaximo?: number; // Solo para modelo PF
-    cgi?: number;
+    inventarioMaximo: number; // Solo para modelo PF
+    cgi: number;
 }
 interface ArticuloProveedor {
     idArticuloProveedor: number;
@@ -124,12 +124,14 @@ const Articulos = () => {
                     try {
                         const tieneOCResponse = await axiosClient.get(`orden-compras/existeOc/${art.idArticulo}`);
                         const tieneOC = tieneOCResponse.data;
-                        const tieneProv = art.articuloProveedorList?.some(p => p.esPredeterminado === true) ?? false;
+                        //const tieneProv = art.articuloProveedorList?.some(p => p.esPredeterminado === true) ?? false;
 
-                        return { ...art, tieneOC, tieneProv };
+                        // return { ...art, tieneOC, tieneProv };
+                        return { ...art, tieneOC };
                     } catch (e) {
                         console.error(`Error al obtener tieneOC para artículo ${art.idArticulo}`, e);
-                        return { ...art, tieneOC: false, tieneProv: false };
+                        // return { ...art, tieneOC: false, tieneProv: false };
+                        return { ...art, tieneOC: false };
                     }
                 }));
 
@@ -179,14 +181,21 @@ const Articulos = () => {
                 if (!inv || inv.puntoPedido === undefined || inv.stockSeguridad === undefined) return false;
 
                 const stock = ap.stock ?? 0;
-                if (inv.puntoPedido >= stock) {
-
+                if (ap.modeloInventario === 'LF' && inv.puntoPedido >= stock) {
                     if (filterOption === 'faltante') {
                         return stock <= inv.stockSeguridad;
                     } else if (filterOption === 'reponer') {
                         return stock > inv.stockSeguridad;
                     }
                 }
+                if (ap.modeloInventario === 'PF' && inv.inventarioMaximo !== undefined && inv.inventarioMaximo >= stock) {
+                    if (filterOption === 'faltante') {
+                        return stock <= inv.stockSeguridad;
+                    } else if (filterOption === 'reponer') {
+                        return stock > inv.stockSeguridad;
+                    }
+                }
+
 
                 return true;
             });
@@ -224,12 +233,13 @@ const Articulos = () => {
         const inv = ap.inventario;
         if (!inv || inv.puntoPedido === undefined || inv.stockSeguridad === undefined) return "";
         const stock = ap.stock ?? 0;
-        if (stock <= inv.stockSeguridad) {
-            return "faltante" // Faltante: stock < stock de seguridad
-        } else if (stock > inv.stockSeguridad && stock <= inv.puntoPedido) {
-            return "reponer" // A reponer: stock está entre stockSeguridad y puntoPedido (exclusivo en SS, inclusivo en PP)
+        if (ap.modeloInventario === 'LF' && inv.puntoPedido >= stock) {
+            return (inv.stockSeguridad >= stock ? "faltante" : "reponer");
+        } else if (ap.modeloInventario === 'PF' && inv.inventarioMaximo !== undefined && inv.inventarioMaximo >= stock) {
+            return (inv.stockSeguridad >= stock ? "faltante" : "reponer");
+        } else {
+            return "normal";  // sin filtro, mostrar todo
         }
-        return "normal";  // sin filtro, mostrar todo
     }
 
     // Datos paginados para mostrar en tabla
@@ -255,9 +265,9 @@ const Articulos = () => {
                 return;
             }
             const tieneOrdenesResp = await axiosClient.get(`orden-compras/existeOC/${ap.idArticulo}`);
-            console.log("tieneOrdenesResp: "+tieneOrdenesResp)
+            console.log("tieneOrdenesResp: " + tieneOrdenesResp)
             const tieneOrdenes = tieneOrdenesResp.data;
-            console.log("tieneOrdenes: "+tieneOrdenes)
+            console.log("tieneOrdenes: " + tieneOrdenes)
             if (tieneOrdenesResp) {
                 showToasty('No se puede eliminar el artículo, tiene órdenes activas', 'error');
             } else {
@@ -721,7 +731,7 @@ const Articulos = () => {
                                                                             </span>
                                                                         )}
 
-                                                                        {!ap.tieneProv && (
+                                                                        {/* {!ap.tieneProv && (
                                                                             <span
                                                                                 style={{
                                                                                     backgroundColor: 'rgb(255 0 101)',
@@ -741,7 +751,7 @@ const Articulos = () => {
                                                                                     <path d="M0 3.5A1.5 1.5 0 0 1 1.5 2h9A1.5 1.5 0 0 1 12 3.5V5h1.02a1.5 1.5 0 0 1 1.17.563l1.481 1.85a1.5 1.5 0 0 1 .329.938V10.5a1.5 1.5 0 0 1-1.5 1.5H14a2 2 0 1 1-4 0H5a2 2 0 1 1-3.998-.085A1.5 1.5 0 0 1 0 10.5zm1.294 7.456A2 2 0 0 1 4.732 11h5.536a2 2 0 0 1 .732-.732V3.5a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 .294.456M12 10a2 2 0 0 1 1.732 1h.768a.5.5 0 0 0 .5-.5V8.35a.5.5 0 0 0-.11-.312l-1.48-1.85A.5.5 0 0 0 13.02 6H12zm-9 1a1 1 0 1 0 0 2 1 1 0 0 0 0-2m9 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2" />
                                                                                 </svg>
                                                                             </span>
-                                                                        )}
+                                                                        )} */}
                                                                     </div>
                                                                 </div>
                                                             </Accordion.Header>
