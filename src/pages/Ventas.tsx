@@ -100,25 +100,13 @@ const Ventas = () => {
     }
 
     //agrego para que se de alta un nuevo venta
+ 
     const handleCreateVenta = async (nuevaVenta: any) => {
         try {
             let msg = "";
             let advertencia = false;
-            let ventaYaCreada = false;
 
-            // Primer intento de crear la venta
-            const response: any = await axiosClient.post("/ventas", nuevaVenta);
-
-            if (response.advertencia) {
-                msg = response.msg;
-                advertencia = true;
-            } else {
-                const cuenta = nuevaVenta.venta.stock - nuevaVenta.cantidad <= nuevaVenta.venta.inventario.puntoPedido;
-                if (cuenta && !response.advertencia) {
-                    msg = "¡Atención! El stock del artículo está por debajo del punto de pedido. Si continua se creará una orden de compra automáticamente.";
-                }
-            }
-
+            // Primero mostramos la confirmación al usuario
             const confirm = await requestConfirmation(
                 <>
                     <h4>Verifique los datos antes de continuar<br /></h4>
@@ -144,14 +132,6 @@ const Ventas = () => {
                             </tr>
                         </tbody>
                     </table>
-
-                    {msg && (
-                        <>
-                            <br />
-                            <strong style={{color: response.advertencia ? "orange" : "lime",fontSize: "18px"}}>{msg}</strong>
-                        </>
-                    )}
-
                     <br />
                     <h5><i>(Esta acción no se puede deshacer. ⚠️)</i></h5>
                 </>
@@ -159,11 +139,27 @@ const Ventas = () => {
 
             if (!confirm) {
                 showToasty("Venta cancelada por el usuario.", "info");
-                return false;
+                return;
             }
 
-            // Si la venta no fue creada aún (hubo advertencia), la creamos forzada
-            if (advertencia && !ventaYaCreada) {
+            // Solo si el usuario confirma, enviamos la venta
+            const response: any = await axiosClient.post("/ventas", nuevaVenta);
+
+            if (response.advertencia) {
+                // Si hay advertencia, pedimos confirmación adicional
+                const confirmAdvertencia = await requestConfirmation(
+                    <>
+                        <h5 style={{ color: "orange" }}>{response.msg}</h5>
+                        <p>¿Desea continuar de todos modos?</p>
+                    </>
+                );
+
+                if (!confirmAdvertencia) {
+                    showToasty("Venta cancelada por advertencia.", "info");
+                    return;
+                }
+
+                // Si confirma forzar, volvemos a enviar con forzarVenta
                 await axiosClient.post("/ventas", {
                     ...nuevaVenta,
                     forzarVenta: true,
@@ -179,6 +175,7 @@ const Ventas = () => {
             showToasty("Error al crear la venta: " + error, "error");
         }
     };
+
 
 
     const aplicarFiltro = (

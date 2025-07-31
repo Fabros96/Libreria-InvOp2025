@@ -5,7 +5,7 @@ import MyPagination from "../components/Pagination/myPagination";
 import ArtProv from "./Modales/artProv";
 import ArtEdit from "./Modales/artEdit";
 
-import { calculoCGI } from "../utils/recalcular";
+//import { calculoCGI } from "../utils/recalcular";
 
 import './styles/Articulos.css';
 import '../App.css';
