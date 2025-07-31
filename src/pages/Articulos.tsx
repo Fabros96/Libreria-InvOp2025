@@ -1,6 +1,6 @@
 import { Table, Col, Form, Row, Stack, Button, Accordion, Dropdown, OverlayTrigger, Tooltip } from "react-bootstrap"
 import axiosClient from "../api/axiosClient";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import MyPagination from "../components/Pagination/myPagination";
 import ArtProv from "./Modales/artProv";
 import ArtEdit from "./Modales/artEdit";
@@ -15,8 +15,6 @@ import ArtHist from "./Modales/artHist";
 import { useConfirmModal } from "../utils/useConfirmModal";
 import TablaEliminadosGenerica from "../utils/TablaEliminadosGenerica";
 
-
-
 interface Articulo {
     descripcion: string;
     fechaBaja: Date | null;
@@ -24,7 +22,7 @@ interface Articulo {
     idInventario: number;
     modeloInventario: string; // 'LF'; // 'LF' o 'PF'
     stock: number;
-
+    tieneOC?: any;
     inventario?: Inventario | Partial<Inventario>;
     articuloProveedor?: ArticuloProveedor;
 }
@@ -38,7 +36,7 @@ interface Inventario {
     stockSeguridad: number;
     periodoRevision: number;
     inventarioMaximo?: number; // Solo para modelo PF
-    cgi?:number;
+    cgi?: number;
 }
 interface ArticuloProveedor {
     idArticuloProveedor: number;
@@ -75,6 +73,9 @@ const Articulos = () => {
     const [filterOption, setFilterOption] = useState('');
     const [showDropdown, setShowDropdown] = useState(false);
 
+    // Aquí guardamos la data filtrada que incluye el tieneOC actualizado
+    const [filteredDataWithOC, setFilteredDataWithOC] = useState<Articulo[]>([]);
+
     const { requestConfirmation, modal: confirmModal } = useConfirmModal();
 
     const startIndex = (page - 1) * PAGE_SIZE;
@@ -89,49 +90,157 @@ const Articulos = () => {
         }
     };
 
+    const verArtOC = async (articulo: Articulo): Promise<Articulo> => {
+        try {
+            const res = await axiosClient.get(`orden-compras/existeOc/${articulo.idArticulo}`);
+            const tieneOC = res;
+            return { ...articulo, tieneOC };
+        } catch (error) {
+            console.error(`Error al consultar OC de artículo ${articulo.idArticulo}`, error);
+            return { ...articulo, tieneOC: false };
+        }
+    };
+    const fetchData = async () => {
+        try {
+            const response = await axiosClient.get("articulos/?filter[fechaBaja][eq]=null&filter[include]=inventario");
+            const allData: Articulo[] = response.data || [];
+
+            if (allData.length > 0) {
+                const datosConTieneOC = await Promise.all(allData.map(async (art) => {
+                    try {
+                        const tieneOCResponse = await axiosClient.get(`orden-compras/existeOc/${art.idArticulo}`);
+                        const tieneOC = tieneOCResponse.data; // booleano
+                        return { ...art, tieneOC };
+                    } catch (e) {
+                        console.error(`Error al obtener tieneOC para artículo ${art.idArticulo}`, e);
+                        return { ...art, tieneOC: false };
+                    }
+                }));
+
+                setData({
+                    datos: datosConTieneOC,
+                    totalPages: Math.ceil(datosConTieneOC.length / PAGE_SIZE),
+                });
+                setSinDatos(false);
+            } else {
+                setSinDatos(true);
+            }
+        } catch (error) {
+            console.error("El Error es: ", error);
+            setSinDatos(true);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const normalizarTexto = (texto: string) =>
+        texto.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+    const textoBusqueda = normalizarTexto(searchText);
+
+    // 1) Primero aplicamos filtro base (por búsqueda y stock)
+    // 2) Luego hacemos un efecto que para los filtros 'faltante' o 'reponer' actualice filteredDataWithOC consultando el endpoint
+
+    // Filtro base (sin actualizar tieneOC aún)
+    const filteredDataBase = useMemo(() => {
+        return data.datos
+            .filter(ap => ap && (typeof ap.descripcion === 'string' || typeof ap.idArticulo !== 'undefined'))
+            .filter(ap => {
+                const descripcionNormalizada = normalizarTexto(ap.descripcion || "");
+                const idArticuloNormalizado = normalizarTexto(ap.idArticulo?.toString() || "");
+
+                if (
+                    !descripcionNormalizada.includes(textoBusqueda) &&
+                    !idArticuloNormalizado.includes(textoBusqueda)
+                ) {
+                    return false;
+                }
+
+                const inv = ap.inventario;
+                if (!inv || inv.puntoPedido === undefined || inv.stockSeguridad === undefined) return false;
+
+                const stock = ap.stock ?? 0;
+                if (inv.puntoPedido >= stock) {
+
+                    if (filterOption === 'faltante') {
+                        return stock <= inv.stockSeguridad;
+                    } else if (filterOption === 'reponer') {
+                        return stock > inv.stockSeguridad;
+                    }
+                }
+
+                return true;
+            });
+    }, [data.datos, textoBusqueda, filterOption]);
+
+
+
+    // Efecto que hace consulta para actualizar tieneOC solo cuando el filtro es faltante o reponer
+    useEffect(() => {
+        const fetchTieneOCForFiltered = async () => {
+            try {
+                const updatedData = await Promise.all(filteredDataBase.map(verArtOC));
+                setFilteredDataWithOC(updatedData);
+            } catch (error) {
+                console.error("Error en fetchTieneOCForFiltered", error);
+                setFilteredDataWithOC(filteredDataBase); // fallback sin OC actualizado
+            }
+        };
+        fetchTieneOCForFiltered();
+    }, [filteredDataBase]);
+
+
+
+    // Calcular paginación para datos filtrados con tieneOC actualizado
+    useEffect(() => {
+        const total = Math.ceil(filteredDataWithOC.length / PAGE_SIZE);
+        setFilteredTotalPages(total);
+        if (page > total && total > 0) {
+            setPage(1);
+        }
+    }, [filteredDataWithOC, page]);
+
+    // Método para controlar la clasificación del stock (sin cambios)
+    const controlarStock = (ap: Articulo): string => {
+        const inv = ap.inventario;
+        if (!inv || inv.puntoPedido === undefined || inv.stockSeguridad === undefined) return "";
+        const stock = ap.stock ?? 0;
+        if (stock <= inv.stockSeguridad) {
+            return "faltante" // Faltante: stock < stock de seguridad
+        } else if (stock > inv.stockSeguridad && stock <= inv.puntoPedido) {
+            return "reponer" // A reponer: stock está entre stockSeguridad y puntoPedido (exclusivo en SS, inclusivo en PP)
+        }
+        return "normal";  // sin filtro, mostrar todo
+    }
+
+    // Datos paginados para mostrar en tabla
+    const currentData: Articulo[] = filteredDataWithOC.slice(startIndex, endIndex);
+
+    const handleChangePage = useCallback((page: number) => {
+        setPage(page)
+    }, []);
+
+    //------------------------------------------------------------------------------------------------------------------------------------------------//
     const handleDeleteArticuloValidation = async (ap: Articulo) => {
 
-        // Confirmación inicial para eliminar proveedor
         const confirm = await requestConfirmation(
             <>
-
                 <h4>¿Seguro que desea eliminar el proveedor<br /><strong> #{ap.idArticulo} - {ap.descripcion}</strong>?<br /></h4>
                 <h5><i>(Esta acción no se puede deshacer. ⚠️)</i></h5>
-
             </>
         );
         if (!confirm) return false;
         try {
-            // Validamos stock primero
             if (ap.stock > 0) {
                 showToasty('No se puede eliminar, todavía tiene stock disponible', 'error');
                 return;
             }
-
-            // Validamos órdenes pendientes o enviadas
-            const responsePendiente = await axiosClient.get(
-                `orden-compras/?filter[idArticulo][eq]=${ap.idArticulo}&filter[include]=estadoOrdenCompra&filter[estadoOrdenCompra.nombre][eq]=Pendiente`
-            );
-            const responseEnviada = await axiosClient.get(
-                `orden-compras/?filter[idArticulo][eq]=${ap.idArticulo}&filter[include]=estadoOrdenCompra&filter[estadoOrdenCompra.nombre][eq]=Enviado`
-            );
-
-
-            const pendientes: any[] = responsePendiente.data || [];
-            const enviadas: any[] = responseEnviada.data || [];
-
-            const tieneOrdenes = pendientes.length > 0 || enviadas.length > 0;
-
+            const tieneOrdenesResp = await axiosClient.get(`orden-compras/existeOC/${ap.idArticulo}`);
+            const tieneOrdenes = tieneOrdenesResp.data;
             if (tieneOrdenes) {
-                if (pendientes.length > 0) {
-                    showToasty('No se puede eliminar el artículo, tiene órdenes pendientes', 'error');
-                }
-                if (enviadas.length > 0) {
-                    showToasty('No se puede eliminar el artículo, tiene órdenes enviadas', 'error');
-                }
-                if (pendientes.length > 0 && enviadas.length > 0) {
-                    showToasty('No se puede eliminar el artículo, tiene órdenes pendientes y enviadas', 'error');
-                }
+                showToasty('No se puede eliminar el artículo, tiene órdenes activas', 'error');
             } else {
                 handleDelArticulo(ap);
                 showToasty('Articulo eliminado exitosamente', 'success');
@@ -142,7 +251,6 @@ const Articulos = () => {
             showToasty('Error al verificar datos del artículo', 'error');
         }
     };
-
 
     const handleClick = async (ap: Articulo | null, op: typeof modalType) => {
         setSelectedArticulo(ap);
@@ -155,14 +263,9 @@ const Articulos = () => {
             }
             return;
         }
-
         setShowModal(true);
     };
-
-
     //MODIFICACIÓN DE UN ARTICULO
-
-
     const handleUpdateArticulo = async (artOriginal: Articulo, updatedArticulo: Articulo, provOriginal?: ArticuloProveedor, updateProveedor?: ArticuloProveedor) => {
         if (!selectedArticulo) return;
         const originalArticulo = selectedArticulo;
@@ -399,98 +502,6 @@ const Articulos = () => {
         }
     };
 
-
-
-    const fetchData = async () => {
-        try {
-            const response = await axiosClient.get("articulos/?filter[fechaBaja][eq]=null&filter[include]=inventario");
-            const allData: Articulo[] = response.data || [];
-
-            if (allData.length > 0) {
-                setData({
-                    datos: allData.map((ap) => ap),
-                    totalPages: Math.ceil(allData.length / PAGE_SIZE),
-                });
-                setSinDatos(false);
-            } else {
-                setSinDatos(true);
-            }
-
-        } catch (error) {
-            console.error("El Error es: ", error);
-            setSinDatos(true);
-        }
-
-    };
-
-    useEffect(() => {
-
-        fetchData();
-    }, []);
-
-    const normalizarTexto = (texto: string) =>
-        texto.toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-
-    const textoBusqueda = normalizarTexto(searchText);
-
-    const filteredData = data.datos
-        .filter(ap => ap && (typeof ap.descripcion === 'string' || typeof ap.idArticulo !== 'undefined'))
-        .filter(ap => {
-            const descripcionNormalizada = normalizarTexto(ap.descripcion || "");
-            const idArticuloNormalizado = normalizarTexto(ap.idArticulo?.toString() || "");
-
-            // Buscar por descripcion o idArticulo
-            if (
-                !descripcionNormalizada.includes(textoBusqueda) &&
-                !idArticuloNormalizado.includes(textoBusqueda)
-            ) {
-                return false;
-            }
-
-            const inv = ap.inventario;
-            if (!inv || inv.puntoPedido === undefined || inv.stockSeguridad === undefined) return false;
-
-            const stock = ap.stock ?? 0;
-
-            if (filterOption === 'faltante') {
-                return stock <= inv.stockSeguridad;
-            } else if (filterOption === 'reponer') {
-                return stock > inv.stockSeguridad && stock <= inv.puntoPedido;
-            }
-
-            return true; // 'todos' u otra opción
-        });
-
-
-    useEffect(() => {
-
-        const total = Math.ceil(filteredData.length / PAGE_SIZE);
-        setFilteredTotalPages(total);
-        if (page > total && total > 0) {
-            setPage(1);
-        }
-    }, [filteredData, page]);
-
-
-    const controlarStock = (ap: Articulo): string => {
-        const inv = ap.inventario;
-        if (!inv || inv.puntoPedido === undefined || inv.stockSeguridad === undefined) return "";
-        const stock = ap.stock ?? 0;
-        if (stock <= inv.stockSeguridad) {
-            return "faltante" // Faltante: stock < stock de seguridad
-        } else if (stock > inv.stockSeguridad && stock <= inv.puntoPedido) {
-            return "reponer" // A reponer: stock está entre stockSeguridad y puntoPedido (exclusivo en SS, inclusivo en PP)
-        }
-        return "normal";  // sin filtro, mostrar todo
-    }
-
-
-    const currentData: Articulo[] = filteredData.slice(startIndex, endIndex);
-
-    const handleChangePage = useCallback((page: number) => {
-        setPage(page)
-    }, [])
-
     return (
         <>
             {showModal && (modalType === "edit") && (
@@ -587,8 +598,8 @@ const Articulos = () => {
                                 )}
 
                                 {filterOption === '' && 'Filtrar por'}
-                                {filterOption === 'faltante' && 'Prods. Faltantes'}
-                                {filterOption === 'reponer' && 'Prods. a Reponer'}
+                                {filterOption === 'faltante' && 'Arts. Faltantes'}
+                                {filterOption === 'reponer' && 'Arts. a Reponer'}
                             </Dropdown.Toggle>
 
 
@@ -627,8 +638,16 @@ const Articulos = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {[...new Map(currentData.map(item => [item.idArticulo, item])).values()].map(
-                                        (ap: Articulo) => (
+                                    {[...new Map(
+                                        currentData
+                                            .filter(item =>
+                                                (filterOption === 'faltante' || filterOption === 'reponer')
+                                                    ? item.tieneOC !== true
+                                                    : true
+                                            )
+                                            .map(item => [item.idArticulo, item])
+                                    ).values()]
+                                        .map((ap: Articulo) => (
                                             <tr key={ap.idArticulo} >
                                                 <td style={{ width: '5%' }} >
                                                     <p>{ap.idArticulo}</p>
@@ -636,7 +655,18 @@ const Articulos = () => {
                                                 <td style={{ width: '70%' }} >
                                                     <Accordion defaultActiveKey="1"  >
                                                         <Accordion.Item eventKey="0" className={`item-stock-${controlarStock(ap)}`}>
-                                                            <Accordion.Header >{ap.descripcion}</Accordion.Header>
+                                                            <Accordion.Header style={{ alignItems: 'spaceBetween', }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                                                                    <span>{ap.descripcion}</span>
+                                                                    {!ap.tieneOC && (
+                                                                        <span style={{
+                                                                            backgroundColor: 'rgb(0 0 0 / 84%)', borderRadius: '100px', marginLeft: 'auto', padding: '0px 1px 4px 0px'
+                                                                        }} title="No tiene Orden de Compra activa">
+                                                                            <span>⚠️</span>
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </Accordion.Header>
                                                             <Accordion.Body>
                                                                 <div style={{ paddingLeft: "1rem", fontSize: "0.85rem" }}>
                                                                     <div>
@@ -656,7 +686,7 @@ const Articulos = () => {
                                                                                 <strong> Punto de Pedido: </strong>{ap.inventario?.puntoPedido} --
                                                                                 <strong> Stock de Seguridad: </strong>{ap.inventario?.stockSeguridad} --
                                                                                 <strong> CGI: </strong>{ap.inventario?.cgi}
-                                                                               
+
                                                                             </>
                                                                             : ap.modeloInventario === 'PF' ?
                                                                                 <>
@@ -704,12 +734,13 @@ const Articulos = () => {
                                                 </td>
 
                                             </tr>
-                                        ))}
+                                        )
+                                        )}
                                 </tbody>
                             </Table>
                         )}
                     </div>
-                </div>
+                </div >
                 <div className="fixed-pagination d-flex justify-content-center">
                     {data.totalPages > 1 && (
                         <MyPagination
@@ -719,7 +750,7 @@ const Articulos = () => {
                         />
                     )}
                 </div>
-            </Stack>
+            </Stack >
             <Button className="newArtButton" onClick={() => handleClick(null, "new")}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" className="bi bi-plus-circle" viewBox="0 0 16 16">
                     <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />

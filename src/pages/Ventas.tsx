@@ -77,7 +77,6 @@ const Ventas = () => {
     const [articuloSeleccionado, setArticuloSeleccionado] = useState<any | null>(null);
     const [showVtaNew, setShowVtaNew] = useState(false);
     const [showOtroModal, setShowOtroModal] = useState(false);
-    const [showEliminadosModal, setShowEliminadosModal] = useState(false);
 
     const { requestConfirmation, modal: confirmModal } = useConfirmModal();
 
