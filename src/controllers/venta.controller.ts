@@ -109,6 +109,8 @@ export const VentaController = {
             const loteOptimo = updateArticulo.inventario?.loteOptimo ?? 0;
             const modeloInventario = inventarioArticulo?.modeloInventario;
 
+            let ordenGenerada = false;
+
             if (
                 modeloInventario === 'LF' &&
                 nuevoStock < puntoPedido &&
@@ -123,11 +125,14 @@ export const VentaController = {
                         fechaCreacion: new Date(Date.now()),
                     }
                 });
+                ordenGenerada = true;
+            
             }
             res.status(201).json({
                 msg: 'Venta creada correctamente.',
                 data: nuevaVenta,
-                updateArticulo
+                updateArticulo,
+                ordenGenerada //aviso al front para que le indique que se generará una OC automática.
             });
 
         } catch (error: any) {
