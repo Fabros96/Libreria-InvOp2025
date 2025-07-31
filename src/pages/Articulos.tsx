@@ -102,38 +102,49 @@ const Articulos = () => {
     };
     const fetchData = async () => {
         try {
-            const response = await axiosClient.get("articulos/?filter[fechaBaja][eq]=null&filter[include]=inventario,articuloProveedorList.proveedor");
+            // Traigo artículos activos + inventario + proveedores
+            const response = await axiosClient.get(
+                "articulos/?filter[fechaBaja][eq]=null&filter[include]=inventario,articuloProveedorList.proveedor"
+            );
+
             const allData: Articulo[] = response.data || [];
 
+            // Filtro proveedores activos para cada artículo
+            const filtrado = allData.map(art => ({
+                ...art,
+                articuloProveedorList: art.articuloProveedorList?.filter(prov => prov.fechaBaja === null) ?? []
+            }));
 
+            // Extraer IDs de artículos para recalcular
+            const ids = filtrado.map(art => art.idArticulo);
 
-            // Extraer todos los idArticulo en un array
-            const ids = allData.map(articulo => articulo.idArticulo);
-
-            fetch('http://localhost:3000/articulos/recalcular', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ids }) // paso directo el array
+            // POST para recalcular
+            fetch("http://localhost:3000/articulos/recalcular", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ids })
             })
                 .then(res => res.json())
                 .catch(err => console.error(err));
 
+            if (filtrado.length > 0) {
+                const datosConTieneOC = await Promise.all(
+                    filtrado.map(async (art) => {
+                        try {
+                            // Consulto si tiene órdenes de compra
+                            const tieneOCResponse = await axiosClient.get(`orden-compras/existeOc/${art.idArticulo}`);
+                            const tieneOC = tieneOCResponse.data;
 
-            if (allData.length > 0) {
-                const datosConTieneOC = await Promise.all(allData.map(async (art) => {
-                    try {
-                        const tieneOCResponse = await axiosClient.get(`orden-compras/existeOc/${art.idArticulo}`);
-                        const tieneOC = tieneOCResponse.data;
-                        //const tieneProv = art.articuloProveedorList?.some(p => p.esPredeterminado === true) ?? false;
+                            // Verifico si tiene proveedor predeterminado
+                            const tieneProv = art.articuloProveedorList?.some(prov => prov.esPredeterminado) ?? false;
 
-                        // return { ...art, tieneOC, tieneProv };
-                        return { ...art, tieneOC };
-                    } catch (e) {
-                        console.error(`Error al obtener tieneOC para artículo ${art.idArticulo}`, e);
-                        // return { ...art, tieneOC: false, tieneProv: false };
-                        return { ...art, tieneOC: false };
-                    }
-                }));
+                            return { ...art, tieneOC, tieneProv };
+                        } catch (e) {
+                            console.error(`Error al obtener tieneOC para artículo ${art.idArticulo}`, e);
+                            return { ...art, tieneOC: false, tieneProv: false };
+                        }
+                    })
+                );
 
                 setData({
                     datos: datosConTieneOC,
@@ -148,6 +159,7 @@ const Articulos = () => {
             setSinDatos(true);
         }
     };
+
 
 
     useEffect(() => {
@@ -265,9 +277,6 @@ const Articulos = () => {
                 return;
             }
             const tieneOrdenesResp = await axiosClient.get(`orden-compras/existeOC/${ap.idArticulo}`);
-            console.log("tieneOrdenesResp: " + tieneOrdenesResp)
-            const tieneOrdenes = tieneOrdenesResp.data;
-            console.log("tieneOrdenes: " + tieneOrdenes)
             if (tieneOrdenesResp) {
                 showToasty('No se puede eliminar el artículo, tiene órdenes activas', 'error');
             } else {
@@ -282,7 +291,6 @@ const Articulos = () => {
     };
 
     const handleClick = async (ap: Articulo | null, op: typeof modalType) => {
-        console.log(JSON.stringify(ap, null, 2));
 
         setSelectedArticulo(ap);
         setModalType(op);
@@ -527,6 +535,7 @@ const Articulos = () => {
             // 8️⃣ Notificar y cerrar modal
             showToasty("Artículo creado exitosamente", "success");
             setShowModal(false);
+            fetchData();
 
         } catch (error) {
             console.error("Error al crear el artículo:", error);
@@ -731,7 +740,7 @@ const Articulos = () => {
                                                                             </span>
                                                                         )}
 
-                                                                        {/* {!ap.tieneProv && (
+                                                                        {!(ap.articuloProveedorList?.some(p => p.esPredeterminado === true) ? true : false || ap.tieneProv === true) && (
                                                                             <span
                                                                                 style={{
                                                                                     backgroundColor: 'rgb(255 0 101)',
@@ -751,7 +760,7 @@ const Articulos = () => {
                                                                                     <path d="M0 3.5A1.5 1.5 0 0 1 1.5 2h9A1.5 1.5 0 0 1 12 3.5V5h1.02a1.5 1.5 0 0 1 1.17.563l1.481 1.85a1.5 1.5 0 0 1 .329.938V10.5a1.5 1.5 0 0 1-1.5 1.5H14a2 2 0 1 1-4 0H5a2 2 0 1 1-3.998-.085A1.5 1.5 0 0 1 0 10.5zm1.294 7.456A2 2 0 0 1 4.732 11h5.536a2 2 0 0 1 .732-.732V3.5a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 .294.456M12 10a2 2 0 0 1 1.732 1h.768a.5.5 0 0 0 .5-.5V8.35a.5.5 0 0 0-.11-.312l-1.48-1.85A.5.5 0 0 0 13.02 6H12zm-9 1a1 1 0 1 0 0 2 1 1 0 0 0 0-2m9 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2" />
                                                                                 </svg>
                                                                             </span>
-                                                                        )} */}
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             </Accordion.Header>
@@ -770,7 +779,7 @@ const Articulos = () => {
                                                                         {ap.modeloInventario === 'LF' ? (
                                                                             ap.inventario?.loteOptimo !== 0 &&
                                                                                 ap.inventario?.stockSeguridad !== 0 &&
-                                                                                ap.inventario?.puntoPedido !== 0 ? (
+                                                                                ap.inventario?.puntoPedido !== 0  && ap.tieneProv === true ?  (
                                                                                 <>
                                                                                     <strong> Lote Óptimo: </strong>{ap.inventario?.loteOptimo} --
                                                                                     <strong> Punto de Pedido: </strong>{ap.inventario?.puntoPedido} --
@@ -783,7 +792,7 @@ const Articulos = () => {
                                                                             )
                                                                         ) : ap.modeloInventario === 'PF' ? (
                                                                             ap.inventario?.stockSeguridad !== 0 &&
-                                                                                ap.inventario?.inventarioMaximo !== 0 ? (
+                                                                                ap.inventario?.inventarioMaximo !== 0  && ap.tieneProv === true ? (
                                                                                 <>
                                                                                     <strong> Stock de Seguridad: </strong>{ap.inventario?.stockSeguridad} --
                                                                                     <strong> Inventario Máximo: </strong>{ap.inventario?.inventarioMaximo}

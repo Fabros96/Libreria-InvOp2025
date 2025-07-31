@@ -56,7 +56,7 @@ export default function Ordenes() {
         const res: any = await axiosClient.get(`/articulo-proveedores/predeterminado/${idArt}`);
         const proveedor = res.data?.proveedor;
         if (proveedor?.idProveedor)
-          console.log(proveedor?.idProveedor)
+          //console.log(proveedor?.idProveedor)
         setIdProveedor(proveedor.idProveedor);
 
         const resLote: any = await axiosClient.get(`/inventarios/lote-optimo/${idArt}`);
@@ -184,7 +184,7 @@ export default function Ordenes() {
       const fetchMensajes = async () => {
         try {
           const res: any = await axiosClient.get("/cron/mensajes");
-          console.log("mensajes recibidos: ", res.mensajes)
+          //console.log("mensajes recibidos: ", res.mensajes)
           if (res.mensajes) {
             setCronMensajes(res.mensajes);
 
@@ -192,7 +192,7 @@ export default function Ordenes() {
             const hayOrdenNueva = res.mensajes.some((msg: string) =>
               msg.toLowerCase().includes("orden") && msg.toLowerCase().includes("generada")
             );
-            console.log("hayOrdenNueva: ", hayOrdenNueva)
+            //console.log("hayOrdenNueva: ", hayOrdenNueva)
             if (hayOrdenNueva) {
               await fetchOrdenes(); // actualiza la tabla
             }

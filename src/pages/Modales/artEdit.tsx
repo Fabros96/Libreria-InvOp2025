@@ -76,7 +76,7 @@ const validationSchema = Yup.object({
         }),
 });
 
-const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
+const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {   
     const [showProveedorModal, setShowProveedorModal] = useState(false);
     const [proveedorPredeterminado, setProveedorPredeterminado] = useState<any | null>(null);
     const [proveedoresCambiados, setProveedoresCambiados] = useState<ProveedorCambiado[]>([]);
