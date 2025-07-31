@@ -319,7 +319,7 @@ const DetalleProvArt = ({ show, onHide, proveedor, articulos, onVolver }: ProvTa
                 </Tabs>
             </Modal.Body>
 
-            <Modal.Footer>
+             <Modal.Footer className="d-flex justify-content-between w-100">
                 <Stack direction="horizontal" gap={2} className="w-100 justify-content-between">
                     <Button variant="primary" disabled={currentIndex === 0} onClick={() => handleNav(-1)}>
                         Anterior

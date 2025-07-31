@@ -363,7 +363,7 @@ const ArtProv = ({ articulo, show, mode, onHide, onSave, onProveedorPredetermina
             </Modal.Body>
 
             {mode !== "view" && (
-                <Modal.Footer>
+                 <Modal.Footer className="d-flex justify-content-between w-100">
                     <Button variant="outline-danger" onClick={handleClose}>
                         Cancelar
                     </Button>

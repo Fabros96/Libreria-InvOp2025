@@ -24,7 +24,7 @@ const ModalEx = ({ show, onHide, title, body, footer }: ModalProps) => {
             <Modal.Body>
                 {body}
             </Modal.Body>
-            <Modal.Footer>
+             <Modal.Footer className="d-flex justify-content-between w-100">
                 {footer}
                 <button type="button" className="btn btn-secondary" onClick={onHide}>
                     Close
@@ -53,7 +53,7 @@ const ModalEx = ({ show, onHide }: ModalProps) => {
             </Modal.Body>
             <FormEx />
 
-            <Modal.Footer>
+             <Modal.Footer className="d-flex justify-content-between w-100">
                 <Button variant="secondary"  onClick={onHide}>Cancelar</Button>
                 <Button variant="primary"  onClick={() => console.log("Ejemplo")}>Aceptar</Button>
             </Modal.Footer>

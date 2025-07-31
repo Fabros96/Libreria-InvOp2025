@@ -355,7 +355,7 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                 </Form.Group>
 
             </Modal.Body>
-            <Modal.Footer>
+             <Modal.Footer className="d-flex justify-content-between w-100">
                 <Button variant="outline-danger" onClick={onHide}>
                     Cancelar
                 </Button>
@@ -363,19 +363,6 @@ const ArtEdit = ({ show, onHide, articulo, onSave, mode }: ArtEditProps) => {
                     Guardar
                 </Button>
             </Modal.Footer>
-            {/* <ArtProv
-                show={showProveedorModal}
-                articulo={mode === "edit" ? articulo : null}
-                onHide={() => setShowProveedorModal(false)}
-                onSave={({ proveedorPredeterminado, cambios, proveedorOriginal, proveedorNuevo }) => {
-                    setProveedorPredeterminado(proveedorPredeterminado);
-                    setProveedoresCambiados(cambios);
-                    setProvOriginalRecibido(proveedorOriginal);
-                    setProvNuevoRecibido(proveedorNuevo);
-                }}
-                mode={mode}
-                onProveedorPredeterminadoChange={(prov) => setProveedorPredeterminado(prov)}
-            /> */}
             <ArtProv
                 show={showProveedorModal}
                 articulo={mode === "edit" ? articulo : null}

@@ -5,8 +5,6 @@ import MyPagination from "../components/Pagination/myPagination";
 import ArtProv from "./Modales/artProv";
 import ArtEdit from "./Modales/artEdit";
 
-//import { calculoCGI } from "../utils/recalcular";
-
 import './styles/Articulos.css';
 import '../App.css';
 import { showToasty } from "../utils/toasty";
@@ -23,8 +21,10 @@ interface Articulo {
     modeloInventario: string; // 'LF'; // 'LF' o 'PF'
     stock: number;
     tieneOC?: any;
+    tieneProv?: any;
     inventario?: Inventario | Partial<Inventario>;
     articuloProveedor?: ArticuloProveedor;
+    articuloProveedorList?: ArticuloProveedor[];
 }
 interface Inventario {
     costoAlmacenamiento: number;
@@ -102,18 +102,34 @@ const Articulos = () => {
     };
     const fetchData = async () => {
         try {
-            const response = await axiosClient.get("articulos/?filter[fechaBaja][eq]=null&filter[include]=inventario");
+            const response = await axiosClient.get("articulos/?filter[fechaBaja][eq]=null&filter[include]=inventario,articuloProveedorList.proveedor");
             const allData: Articulo[] = response.data || [];
+
+
+
+            // Extraer todos los idArticulo en un array
+            const ids = allData.map(articulo => articulo.idArticulo);
+
+            fetch('http://localhost:3000/articulos/recalcular', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids }) // paso directo el array
+            })
+                .then(res => res.json())
+                .catch(err => console.error(err));
+
 
             if (allData.length > 0) {
                 const datosConTieneOC = await Promise.all(allData.map(async (art) => {
                     try {
                         const tieneOCResponse = await axiosClient.get(`orden-compras/existeOc/${art.idArticulo}`);
-                        const tieneOC = tieneOCResponse.data; // booleano
-                        return { ...art, tieneOC };
+                        const tieneOC = tieneOCResponse.data;
+                        const tieneProv = art.articuloProveedorList?.some(p => p.esPredeterminado === true) ?? false;
+
+                        return { ...art, tieneOC, tieneProv };
                     } catch (e) {
                         console.error(`Error al obtener tieneOC para artículo ${art.idArticulo}`, e);
-                        return { ...art, tieneOC: false };
+                        return { ...art, tieneOC: false, tieneProv: false };
                     }
                 }));
 
@@ -130,6 +146,7 @@ const Articulos = () => {
             setSinDatos(true);
         }
     };
+
 
     useEffect(() => {
         fetchData();
@@ -227,7 +244,7 @@ const Articulos = () => {
 
         const confirm = await requestConfirmation(
             <>
-                <h4>¿Seguro que desea eliminar el proveedor<br /><strong> #{ap.idArticulo} - {ap.descripcion}</strong>?<br /></h4>
+                <h4>¿Seguro que desea eliminar el artículo<br /><strong> #{ap.idArticulo} - {ap.descripcion}</strong>?<br /></h4>
                 <h5><i>(Esta acción no se puede deshacer. ⚠️)</i></h5>
             </>
         );
@@ -253,6 +270,8 @@ const Articulos = () => {
     };
 
     const handleClick = async (ap: Articulo | null, op: typeof modalType) => {
+        console.log(JSON.stringify(ap, null, 2));
+
         setSelectedArticulo(ap);
         setModalType(op);
 
@@ -361,6 +380,8 @@ const Articulos = () => {
             });
             if (!responseUpdArt.ok) {
                 throw new Error("Error al actualizar artículo");
+            } else {
+                await axiosClient.post("/articulos/recalcular", { ids: [updatedArticulo.idArticulo] });
             }
             if (updateProveedor?.idProveedor === provOriginal?.idProveedor) {
                 updateProveedor = undefined;
@@ -401,9 +422,11 @@ const Articulos = () => {
 
                 if (Object.keys(cambios).length === 0) {
                     //Si hay cambios en el proveedor pero no en el articulo
+                    await axiosClient.post("/articulos/recalcular", { ids: [updatedArticulo.idArticulo] });
                     crearAjusteInv(null, null, provOriginal, updateProveedor)
                 } else {
                     //Si hay cambios en el proveedor y en el articulo
+                    await axiosClient.post("/articulos/recalcular", { ids: [updatedArticulo.idArticulo] });
                     crearAjusteInv(artOriginal, cambios, provOriginal, updateProveedor)
                 }
             } catch (error) {
@@ -428,27 +451,6 @@ const Articulos = () => {
     };
 
 
-    const handleDelArticulo = (articuloToDelete: Articulo) => {
-        axiosClient.delete(`/articulos/${articuloToDelete.idArticulo}`)
-            .then(() => {
-                setData(prevData => {
-                    const nuevosDatos = prevData.datos.filter(
-                        articulo => articulo.idArticulo !== articuloToDelete.idArticulo
-                    );
-                    return {
-                        ...prevData,
-                        datos: nuevosDatos
-                    };
-                });
-                crearAjusteInv(articuloToDelete, null, null, null)
-                setShowModal(false);
-                showToasty("Artículo Eliminado exitosamente", "success");
-            })
-            .catch(error => {
-                console.error("Error al eliminar el articulo:", error);
-                alert("No se pudo eliminar el articulo. Intente nuevamente.");
-            });
-    };
 
     const handleCreateArticulo = async (nuevoArticulo: Articulo, nuevoAP?: ArticuloProveedor) => {
         try {
@@ -456,6 +458,7 @@ const Articulos = () => {
                 return;
             }
 
+            // 1️⃣ Armar payload para crear artículo
             const articuloPayload = {
                 descripcion: nuevoArticulo.descripcion,
                 modeloInventario: nuevoArticulo.modeloInventario,
@@ -474,32 +477,72 @@ const Articulos = () => {
                     esPredeterminado: nuevoArticulo.articuloProveedor.esPredeterminado,
                 }
             };
+
+            // 2️⃣ Crear artículo
             const response = await axiosClient.post("/articulos", articuloPayload);
             const articuloCreado = response.data;
 
+            // 3️⃣ Crear proveedor (si corresponde)
             if (nuevoAP) {
                 try {
                     await axiosClient.post("/articulo-proveedores", {
                         ...nuevoAP,
-                        idArticulo: articuloCreado.idArticulo, // ← Usás el ID recién creado
+                        idArticulo: articuloCreado.idArticulo,
                     });
                 } catch (error) {
                     console.error("⚠️ Error al crear ArticuloProveedor:", error);
                     showToasty("Artículo creado, pero falló la creación del proveedor", "warning");
                 }
             }
-            crearAjusteInv(null, articuloCreado, null, null);
-            //ACA CREO EL AP
 
+            // 4️⃣ Crear ajuste inventario
+            crearAjusteInv(null, articuloCreado, null, null);
+
+            // 5️⃣ Recalcular inventario para este artículo
+            await axiosClient.post("/articulos/recalcular", { ids: [articuloCreado.idArticulo] });
+
+            // 6️⃣ Obtener artículo completo (ya con inventario calculado)
+            const articuloCompleto = (await axiosClient.get(
+                `/articulos/${articuloCreado.idArticulo}?filter[include]=inventario`
+            )).data;
+
+            // 7️⃣ Agregarlo a la tabla sin recargar todo
+            setData(prev => ({
+                ...prev,
+                datos: [...prev.datos, { ...articuloCompleto, tieneOC: false }]
+            }));
+
+            // 8️⃣ Notificar y cerrar modal
             showToasty("Artículo creado exitosamente", "success");
             setShowModal(false);
-
-            await fetchData(); // 🔁 Recarga los datos completos desde el backend
 
         } catch (error) {
             console.error("Error al crear el artículo:", error);
             showToasty("Error al crear el artículo", "error");
         }
+    };
+
+
+
+    const handleDelArticulo = (articuloToDelete: Articulo) => {
+        axiosClient.delete(`/articulos/${articuloToDelete.idArticulo}`)
+            .then(() => {
+                setData(prevData => {
+                    const nuevosDatos = prevData.datos.filter(
+                        articulo => articulo.idArticulo !== articuloToDelete.idArticulo
+                    );
+                    return {
+                        ...prevData,
+                        datos: nuevosDatos
+                    };
+                });
+                crearAjusteInv(articuloToDelete, null, null, null)
+                setShowModal(false);
+            })
+            .catch(error => {
+                console.error("Error al eliminar el articulo:", error);
+                alert("No se pudo eliminar el articulo. Intente nuevamente.");
+            });
     };
 
     return (
@@ -655,46 +698,93 @@ const Articulos = () => {
                                                 <td style={{ width: '70%' }} >
                                                     <Accordion defaultActiveKey="1"  >
                                                         <Accordion.Item eventKey="0" className={`item-stock-${controlarStock(ap)}`}>
-                                                            <Accordion.Header style={{ alignItems: 'spaceBetween', }}>
+                                                            <Accordion.Header>
                                                                 <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+
+                                                                    {/* Texto a la izquierda */}
                                                                     <span>{ap.descripcion}</span>
-                                                                    {!ap.tieneOC && (
-                                                                        <span style={{
-                                                                            backgroundColor: 'rgb(0 0 0 / 84%)', borderRadius: '100px', marginLeft: 'auto', padding: '0px 1px 4px 0px'
-                                                                        }} title="No tiene Orden de Compra activa">
-                                                                            <span>⚠️</span>
-                                                                        </span>
-                                                                    )}
+
+                                                                    {/* Contenedor de iconos a la derecha */}
+                                                                    <div style={{ marginLeft: 'auto', display: 'flex', gap: '6px' }}>
+                                                                        {!ap.tieneOC && (
+                                                                            <span
+                                                                                style={{
+                                                                                    backgroundColor: 'rgb(0 0 0 / 84%)',
+                                                                                    borderRadius: '100px',
+                                                                                    padding: '0px 1px 4px 0px'
+                                                                                }}
+                                                                                title="No tiene Orden de Compra activa"
+                                                                            >
+                                                                                ⚠️
+                                                                            </span>
+                                                                        )}
+
+                                                                        {!ap.tieneProv && (
+                                                                            <span
+                                                                                style={{
+                                                                                    backgroundColor: 'rgb(255 0 101)',
+                                                                                    borderRadius: '100px',
+                                                                                    padding: '0px 2px 2px 4px'
+                                                                                }}
+                                                                                title="No tiene un proveedor predeterminado seleccionado"
+                                                                            >
+                                                                                <svg
+                                                                                    xmlns="http://www.w3.org/2000/svg"
+                                                                                    width="16"
+                                                                                    height="16"
+                                                                                    fill="currentColor"
+                                                                                    className="bi bi-truck"
+                                                                                    viewBox="0 0 16 16"
+                                                                                >
+                                                                                    <path d="M0 3.5A1.5 1.5 0 0 1 1.5 2h9A1.5 1.5 0 0 1 12 3.5V5h1.02a1.5 1.5 0 0 1 1.17.563l1.481 1.85a1.5 1.5 0 0 1 .329.938V10.5a1.5 1.5 0 0 1-1.5 1.5H14a2 2 0 1 1-4 0H5a2 2 0 1 1-3.998-.085A1.5 1.5 0 0 1 0 10.5zm1.294 7.456A2 2 0 0 1 4.732 11h5.536a2 2 0 0 1 .732-.732V3.5a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 .294.456M12 10a2 2 0 0 1 1.732 1h.768a.5.5 0 0 0 .5-.5V8.35a.5.5 0 0 0-.11-.312l-1.48-1.85A.5.5 0 0 0 13.02 6H12zm-9 1a1 1 0 1 0 0 2 1 1 0 0 0 0-2m9 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2" />
+                                                                                </svg>
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
                                                             </Accordion.Header>
+
                                                             <Accordion.Body>
                                                                 <div style={{ paddingLeft: "1rem", fontSize: "0.85rem" }}>
                                                                     <div>
-                                                                        <strong> ID Inventario:</strong> {ap.idInventario} --
                                                                         <strong> Modelo:</strong> {ap.modeloInventario === 'LF' ? 'Lote Fijo' : ap.modeloInventario === 'PF' ? 'Periodo Fijo' : 'SinModelo x.x'} --
                                                                         <strong> Stock:</strong> {ap.stock} --
                                                                         <strong> Demanda Diaria:</strong> {ap.inventario?.demandaArticulo}
-                                                                    </div>
-                                                                    <div>
                                                                         <strong> Costo de Almacenamiento:</strong> {ap.inventario?.costoAlmacenamiento} --
                                                                         <strong> Costo de Pedido:</strong> {ap.inventario?.costoPedido}
                                                                     </div>
                                                                     <div style={{ fontSize: "1.2rem" }}>
-                                                                        {ap.modeloInventario === 'LF' ?
-                                                                            <>
-                                                                                <strong> Lote Óptimo: </strong>{ap.inventario?.loteOptimo} --
-                                                                                <strong> Punto de Pedido: </strong>{ap.inventario?.puntoPedido} --
-                                                                                <strong> Stock de Seguridad: </strong>{ap.inventario?.stockSeguridad} --
-                                                                                <strong> CGI: </strong>{ap.inventario?.cgi}
 
-                                                                            </>
-                                                                            : ap.modeloInventario === 'PF' ?
+                                                                        {ap.modeloInventario === 'LF' ? (
+                                                                            ap.inventario?.loteOptimo !== 0 &&
+                                                                                ap.inventario?.stockSeguridad !== 0 &&
+                                                                                ap.inventario?.puntoPedido !== 0 ? (
+                                                                                <>
+                                                                                    <strong> Lote Óptimo: </strong>{ap.inventario?.loteOptimo} --
+                                                                                    <strong> Punto de Pedido: </strong>{ap.inventario?.puntoPedido} --
+                                                                                    <strong> Stock de Seguridad: </strong>{ap.inventario?.stockSeguridad} --
+                                                                                    <strong> CGI: </strong>{ap.inventario?.cgi}
+
+                                                                                </>
+                                                                            ) : (
+                                                                                <i><span>Para ver Lote Óptimo, Punto de Pedido y Stock de Seguridad, seleccione un proveedor.</span></i>
+                                                                            )
+                                                                        ) : ap.modeloInventario === 'PF' ? (
+                                                                            ap.inventario?.stockSeguridad !== 0 &&
+                                                                                ap.inventario?.inventarioMaximo !== 0 ? (
                                                                                 <>
                                                                                     <strong> Stock de Seguridad: </strong>{ap.inventario?.stockSeguridad} --
                                                                                     <strong> Inventario Máximo: </strong>{ap.inventario?.inventarioMaximo}
                                                                                 </>
-                                                                                : ''} </div>
+                                                                            ) : (
+                                                                                <i><span>Para ver Stock de Seguridad e Inventario Máximo, Seleccione un proveedor.</span></i>
+                                                                            )
+                                                                        ) : (
+                                                                            ''
+                                                                        )}
+                                                                    </div>
                                                                 </div>
+
                                                             </Accordion.Body>
 
                                                         </Accordion.Item>

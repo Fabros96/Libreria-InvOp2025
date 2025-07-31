@@ -237,7 +237,7 @@ const Proveedores = () => {
             for (const articuloEliminado of eliminados) {
                 if (articuloEliminado.esPredeterminado) {
                     const confirm = await requestConfirmation(
-                        `El artículo ${articuloEliminado.articulo.descripcion} es el predeterminado. ¿Confirmas eliminar la asociación?`
+                        `El proveedor es el predeterminado para el artículo ${articuloEliminado.articulo.descripcion}. ¿Confirmas eliminar la asociación?`
                     );
                     if (!confirm) {
                         continue; // saltar a siguiente sin borrar

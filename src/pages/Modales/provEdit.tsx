@@ -198,7 +198,7 @@ const ProvEdit = ({ show, onHide, proveedor, onSave, mode }: ProvEditProps) => {
                         </Form.Group>
                     </Modal.Body>
 
-                    <Modal.Footer>
+                     <Modal.Footer className="d-flex justify-content-between w-100">
                         <Button variant="outline-danger" onClick={onHide}>
                             Cancelar
                         </Button>

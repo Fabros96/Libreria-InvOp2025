@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Modal, Button, Form } from "react-bootstrap";
 import { showToasty } from "../../utils/toasty";
-import axiosClient from "../../api/axiosClient";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 

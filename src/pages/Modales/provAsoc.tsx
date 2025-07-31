@@ -179,7 +179,7 @@ const ProvAsoc = ({
                 </Form.Group>
             </Modal.Body>
 
-            <Modal.Footer>
+             <Modal.Footer className="d-flex justify-content-between w-100">
                 <Button variant="outline-danger" onClick={onHide}>
                     Cancelar
                 </Button>

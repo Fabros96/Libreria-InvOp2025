@@ -16,7 +16,7 @@ type VentasData = {
     datos: any[];
 };
 
-const VtaNew = ({ show, onHide, onSelect , onSave}: VtaNewProps) => {
+const VtaNew = ({ show, onHide, onSelect, onSave }: VtaNewProps) => {
     const [data, setData] = useState<VentasData>({ datos: [] });
     const [searchText, setSearchText] = useState("");
     const [showAll, setShowAll] = useState(true);
@@ -27,16 +27,23 @@ const VtaNew = ({ show, onHide, onSelect , onSave}: VtaNewProps) => {
             try {
                 const response = await axiosClient.get(`articulos/?filter[fechaBaja][eq]=null&filter[include]=inventario,articuloProveedorList.proveedor`);
                 const allData = response?.data?.datos || response?.data || [];
-                setData({ datos: allData });
 
-                if (allData.length <= 5) setShowAll(true);
+                // Filtrado: solo los que tienen articuloProveedorList con al menos un elemento
+                const filteredData = allData.filter((item: { articuloProveedorList: string | any[]; }) =>
+                    Array.isArray(item.articuloProveedorList) && item.articuloProveedorList.length > 0
+                );
+
+                setData({ datos: filteredData });
+
+                if (filteredData.length <= 5) setShowAll(true);
             } catch (error) {
                 console.error("Error al obtener datos:", error);
             }
         };
 
         fetchData();
-    }, [show]); // Esto lo vuelve a ejecutar cada vez que abrís el modal
+    }, [show]);
+
 
 
 

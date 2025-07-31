@@ -5,6 +5,7 @@ import { Modal, Button, Form, Table, Container } from "react-bootstrap";
 import { showToasty } from "../utils/toasty";
 import "react-toastify/dist/ReactToastify.css";
 import TablaEliminadosGenerica from "../utils/TablaEliminadosGenerica";
+import { useConfirmModal } from "../utils/useConfirmModal";
 
 
 export default function Ordenes() {
@@ -22,6 +23,7 @@ export default function Ordenes() {
   const [showCronModal, setShowCronModal] = useState(false)
   const [cronMensajes, setCronMensajes] = useState<string[]>([]);
   const [showEliminadosModal, setShowEliminadosModal] = useState(false);
+  const { requestConfirmation, modal: confirmModal } = useConfirmModal();
 
 
 
@@ -157,8 +159,13 @@ export default function Ordenes() {
 
 
   const eliminarOrden = async (id: number) => {
-    const confirmacion = window.confirm("¿Está seguro de que desea eliminar esta orden?");
-    if (!confirmacion) return;
+    const confirm = await requestConfirmation(
+      <>
+        <h4>¿Seguro que desea eliminar la Orden <strong> #{id}</strong>?<br /></h4>
+        <h5><i>(Esta acción no se puede deshacer. ⚠️)</i></h5>
+      </>
+    );
+    if (!confirm) return false;
 
     try {
       await axiosClient.delete(`/orden-compras/${id}`);
@@ -407,11 +414,11 @@ export default function Ordenes() {
             />
           </Form.Group>
         </Modal.Body>
-        <Modal.Footer>
+        <Modal.Footer className="d-flex justify-content-between w-100">
+          <Button variant="secondary" onClick={() => setShowModal(false)}>Cancelar</Button>
           <Button variant="success" onClick={modo === "crear" ? crearOrden : modificarOrden}>
             {modo === "crear" ? "Crear" : "Guardar Cambios"}
           </Button>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>Cancelar</Button>
         </Modal.Footer>
       </Modal>
 
@@ -474,7 +481,7 @@ export default function Ordenes() {
         firstTdKey="idOrdenCompra"
         secondTdKey={null}
       />
-
+      {confirmModal}
     </Container >
 
   );
